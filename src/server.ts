@@ -58,6 +58,7 @@ app.get('/api/signals', (req, res) => {
         title: signal.title,
         description: signal.description,
         source: signal.source,
+        sourceType: 'RSS', // All current signals are RSS-based from pet-intel-collector
         url: signal.url,
         relevance_score: signal.relevance_score,
         relevance_reason: signal.relevance_reason,

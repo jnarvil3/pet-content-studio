@@ -70,11 +70,16 @@ async function loadSignals() {
         'paa': '❓'
       }[signal.source] || '📄';
 
+      const sourceType = signal.sourceType || 'RSS';
+      const sourceTypeBadge = sourceType === 'RSS'
+        ? '<span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-left: 0.5rem;">📄 RSS</span>'
+        : '<span style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-left: 0.5rem;">🔥 VIRAL</span>';
+
       return `
         <div class="signal-card">
           <div class="signal-score">${signal.relevance_score}/100</div>
           <div class="signal-title">${signal.title}</div>
-          <div class="signal-source">${sourceEmoji} ${signal.source}</div>
+          <div class="signal-source">${sourceEmoji} ${signal.source}${sourceTypeBadge}</div>
           ${isUsed ? '<div class="signal-used">✅ Generated</div>' : ''}
         </div>
       `;
