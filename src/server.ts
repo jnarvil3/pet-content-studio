@@ -317,13 +317,25 @@ app.post('/api/generate-reel', async (req, res) => {
   try {
     const limit = parseInt(req.body.limit) || 1;
     const minScore = parseInt(req.body.minScore) || 80;
+    const signalId = req.body.signalId ? parseInt(req.body.signalId) : null;
 
     // Import dependencies
     const { ReelGenerator } = await import('./generators/reel-generator');
     const { getBrandConfig } = await import('./config/brand-config');
 
-    // Fetch signals
-    const signals = intelConnector.getTopSignals(minScore, limit);
+    // Fetch signals - either specific signal or top signals
+    let signals;
+    if (signalId) {
+      const signal = intelConnector.getSignal(signalId);
+      if (!signal) {
+        return res.status(404).json({
+          error: `Signal #${signalId} not found`
+        });
+      }
+      signals = [signal];
+    } else {
+      signals = intelConnector.getTopSignals(minScore, limit);
+    }
 
     if (signals.length === 0) {
       return res.status(400).json({
@@ -386,13 +398,25 @@ app.post('/api/generate', async (req, res) => {
   try {
     const limit = parseInt(req.body.limit) || 3;
     const minScore = parseInt(req.body.minScore) || 80;
+    const signalId = req.body.signalId ? parseInt(req.body.signalId) : null;
 
     // Import dependencies
     const { CarouselGenerator } = await import('./generators/carousel-generator');
     const { getBrandConfig } = await import('./config/brand-config');
 
-    // Fetch signals
-    const signals = intelConnector.getTopSignals(minScore, limit);
+    // Fetch signals - either specific signal or top signals
+    let signals;
+    if (signalId) {
+      const signal = intelConnector.getSignal(signalId);
+      if (!signal) {
+        return res.status(404).json({
+          error: `Signal #${signalId} not found`
+        });
+      }
+      signals = [signal];
+    } else {
+      signals = intelConnector.getTopSignals(minScore, limit);
+    }
 
     if (signals.length === 0) {
       return res.status(400).json({

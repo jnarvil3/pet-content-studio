@@ -485,7 +485,11 @@ async function generateContent(type) {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ limit: 1, minScore: 0 }) // Will use selected signal
+      body: JSON.stringify({
+        signalId: parseInt(signalId),  // Use the selected signal
+        limit: 1,
+        minScore: 0
+      })
     });
 
     const result = await response.json();
