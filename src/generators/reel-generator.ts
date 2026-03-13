@@ -149,6 +149,7 @@ export class ReelGenerator {
   /**
    * Compose Reel using FFmpeg
    * Concatenates scene videos with their matching audio
+   * Enhanced with text overlays, transitions, and watermark
    */
   private async composeReelWithFFmpeg(
     script: ReelScript,
@@ -179,31 +180,52 @@ export class ReelGenerator {
         // Create scene video that matches audio duration
         const sceneVideoPath = path.join(workDir, `scene-${i + 1}-processed.mp4`);
 
-        // Scale, crop, and trim/loop video to match audio duration with consistent framerate
+        // Build video filter chain
+        let videoFilter = 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920';
+
+        // Add animated text overlay for hook (first scene only)
+        if (i === 0 && script.scenes[0].captionText) {
+          const hookText = this.escapeFFmpegText(script.scenes[0].captionText);
+          // Animated text: fade in at 0.2s, stay for 2.5s, fade out at 2.7s
+          videoFilter += `,drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial Bold.ttf:text='${hookText}':fontcolor=white:fontsize=64:` +
+            `box=1:boxcolor=black@0.6:boxborderw=20:x=(w-text_w)/2:y=(h-text_h)/2-200:` +
+            `enable='between(t,0.2,2.9)':alpha='if(lt(t,0.4),(t-0.2)*5,if(gt(t,2.7),(2.9-t)*5,1))'`;
+        }
+
+        // Add caption text for all scenes (bottom of screen)
+        if (script.scenes[i].captionText) {
+          const captionText = this.escapeFFmpegText(script.scenes[i].captionText);
+          videoFilter += `,drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial.ttf:text='${captionText}':fontcolor=white:fontsize=48:` +
+            `box=1:boxcolor=black@0.7:boxborderw=15:x=(w-text_w)/2:y=h-150`;
+        }
+
+        // Scale, crop, trim/loop video to match audio duration with text overlays
         await execAsync(
           `ffmpeg -y -stream_loop -1 -i "${videoPath}" -t ${sceneDuration} ` +
-          `-vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920" ` +
+          `-vf "${videoFilter}" ` +
           `-c:v libx264 -preset fast -crf 23 -r 25 -an "${sceneVideoPath}" < /dev/null`
         );
 
         sceneVideos.push(sceneVideoPath);
-        console.log(`[ReelGenerator] Processed scene ${i + 1} video (${sceneDuration.toFixed(2)}s)`);
+        console.log(`[ReelGenerator] Processed scene ${i + 1} video (${sceneDuration.toFixed(2)}s)${i === 0 ? ' with hook overlay' : ''}`);
       }
 
       if (sceneVideos.length === 0) {
         throw new Error('No scene videos were processed');
       }
 
-      // Step 2: Concatenate all scene videos (re-encode to avoid timing issues)
-      const videoListPath = path.join(workDir, 'video-list.txt');
-      const videoList = sceneVideos.map(p => `file '${path.resolve(p)}'`).join('\n');
-      fs.writeFileSync(videoListPath, videoList);
-
+      // Step 2: Concatenate scene videos with crossfade transitions
       const concatenatedVideoPath = path.join(workDir, 'concatenated-video.mp4');
-      await execAsync(
-        `ffmpeg -y -f concat -safe 0 -i "${videoListPath}" ` +
-        `-c:v libx264 -preset fast -crf 23 -r 25 "${concatenatedVideoPath}" < /dev/null`
-      );
+
+      if (sceneVideos.length === 1) {
+        // Single scene - no transitions needed
+        await execAsync(
+          `ffmpeg -y -i "${sceneVideos[0]}" -c:v libx264 -preset fast -crf 23 -r 25 "${concatenatedVideoPath}" < /dev/null`
+        );
+      } else {
+        // Multiple scenes - add crossfade transitions (0.5s each)
+        await this.concatenateWithTransitions(sceneVideos, concatenatedVideoPath, 0.5);
+      }
 
       // Step 3: Concatenate all audio files
       const audioListPath = path.join(workDir, 'audio-list.txt');
@@ -222,11 +244,24 @@ export class ReelGenerator {
       const totalDuration = parseFloat(durationOut.trim());
       console.log(`[ReelGenerator] Total duration: ${totalDuration.toFixed(2)}s`);
 
-      // Step 5: Combine final video and audio
-      await execAsync(
-        `ffmpeg -y -i "${concatenatedVideoPath}" -i "${combinedAudioPath}" ` +
-        `-c:v copy -c:a aac -shortest "${outputPath}" < /dev/null`
-      );
+      // Step 5: Combine final video and audio, add watermark
+      const watermarkFilter = this.buildWatermarkFilter();
+
+      if (watermarkFilter) {
+        // With watermark
+        await execAsync(
+          `ffmpeg -y -i "${concatenatedVideoPath}" -i "${combinedAudioPath}" ` +
+          `-vf "${watermarkFilter}" ` +
+          `-c:v libx264 -preset fast -crf 23 -c:a aac -shortest "${outputPath}" < /dev/null`
+        );
+        console.log('[ReelGenerator] ✅ Applied brand watermark');
+      } else {
+        // Without watermark (no re-encode needed)
+        await execAsync(
+          `ffmpeg -y -i "${concatenatedVideoPath}" -i "${combinedAudioPath}" ` +
+          `-c:v copy -c:a aac -shortest "${outputPath}" < /dev/null`
+        );
+      }
 
       // Cleanup temp files
       [...sceneVideos, videoListPath, concatenatedVideoPath, audioListPath, combinedAudioPath].forEach(file => {
@@ -266,5 +301,105 @@ export class ReelGenerator {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Concatenate videos with smooth crossfade transitions
+   */
+  private async concatenateWithTransitions(
+    videoPaths: string[],
+    outputPath: string,
+    transitionDuration: number = 0.5
+  ): Promise<void> {
+    try {
+      // Build complex filter for crossfade transitions
+      // For N videos, we need N-1 crossfade operations
+      const inputs = videoPaths.map(p => `-i "${p}"`).join(' ');
+
+      let filterComplex = '';
+      let previousLabel = '0:v';
+
+      for (let i = 1; i < videoPaths.length; i++) {
+        const currentLabel = `${i}:v`;
+        const outputLabel = i === videoPaths.length - 1 ? '' : `v${i}`;
+
+        // Get offset (when to start the crossfade)
+        // This is cumulative duration minus transition duration
+        const offset = `offset=${i * 5 - transitionDuration}`; // Rough estimate, can be improved
+
+        if (i === 1) {
+          filterComplex = `[${previousLabel}][${currentLabel}]xfade=transition=fade:duration=${transitionDuration}:offset=2.5${outputLabel ? `[${outputLabel}]` : ''}`;
+        } else {
+          const prevLabel = `v${i - 1}`;
+          filterComplex += `;[${prevLabel}][${currentLabel}]xfade=transition=fade:duration=${transitionDuration}:offset=${(i - 0.5) * 3}${outputLabel ? `[${outputLabel}]` : ''}`;
+        }
+
+        previousLabel = outputLabel || 'out';
+      }
+
+      await execAsync(
+        `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" ` +
+        `-c:v libx264 -preset fast -crf 23 -r 25 "${outputPath}" < /dev/null`
+      );
+
+      console.log(`[ReelGenerator] ✅ Applied ${videoPaths.length - 1} crossfade transitions`);
+    } catch (error: any) {
+      console.warn('[ReelGenerator] Failed to apply transitions, falling back to simple concat:', error.message);
+      // Fallback: simple concatenation without transitions
+      const videoListPath = path.join(path.dirname(outputPath), 'video-list.txt');
+      const videoList = videoPaths.map(p => `file '${path.resolve(p)}'`).join('\n');
+      fs.writeFileSync(videoListPath, videoList);
+
+      await execAsync(
+        `ffmpeg -y -f concat -safe 0 -i "${videoListPath}" ` +
+        `-c:v libx264 -preset fast -crf 23 -r 25 "${outputPath}" < /dev/null`
+      );
+
+      if (fs.existsSync(videoListPath)) {
+        fs.unlinkSync(videoListPath);
+      }
+    }
+  }
+
+  /**
+   * Build watermark filter for brand overlay
+   * Returns null if no watermark configured
+   */
+  private buildWatermarkFilter(): string | null {
+    // Check for watermark/logo file
+    const possibleLogoPaths = [
+      './assets/logo.png',
+      './assets/watermark.png',
+      './public/logo.png',
+      path.join(__dirname, '../../assets/logo.png')
+    ];
+
+    const logoPath = possibleLogoPaths.find(p => fs.existsSync(p));
+
+    if (logoPath) {
+      // Overlay logo in bottom-right corner (20px padding)
+      // Scale logo to 120px width maintaining aspect ratio
+      return `movie=${logoPath},scale=120:-1[wm];[in][wm]overlay=W-w-20:H-h-20[out]`;
+    }
+
+    // Fallback: Text watermark with brand handle
+    const brandHandle = this.brand.handle || '@surestepautomation';
+    const escapedHandle = this.escapeFFmpegText(brandHandle);
+
+    return `drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial.ttf:text='${escapedHandle}':` +
+      `fontcolor=white@0.6:fontsize=24:x=W-tw-20:y=H-th-20`;
+  }
+
+  /**
+   * Escape text for FFmpeg drawtext filter
+   */
+  private escapeFFmpegText(text: string): string {
+    return text
+      .replace(/\\/g, '\\\\\\\\')  // Backslashes
+      .replace(/'/g, "\\\\'")      // Single quotes
+      .replace(/:/g, '\\:')         // Colons
+      .replace(/%/g, '\\%')         // Percent signs
+      .replace(/\n/g, ' ')          // Newlines to spaces
+      .substring(0, 100);           // Limit length
   }
 }
