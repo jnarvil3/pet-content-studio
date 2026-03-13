@@ -32,9 +32,13 @@ export class ReelGenerator {
   private hasDrawtext: boolean = false;
   private hasXfade: boolean = false;
 
-  constructor(brand: BrandConfig, outputDir: string = './output/reels') {
+  constructor(
+    brand: BrandConfig,
+    outputDir: string = './output/reels',
+    aiModel?: 'claude-sonnet-4' | 'gpt-4o-mini'
+  ) {
     this.brand = brand;
-    this.scriptWriter = new ReelScriptWriter();
+    this.scriptWriter = new ReelScriptWriter(aiModel);
     this.tts = new ElevenLabsTTS();
     this.pexels = new PexelsVideoService();
     this.outputDir = outputDir;
@@ -76,14 +80,30 @@ export class ReelGenerator {
   /**
    * Generate a complete Reel from a signal
    */
-  async generate(signal: Signal): Promise<ReelGenerationResult> {
+  async generate(
+    signal: Signal,
+    onProgress?: (step: number, totalSteps: number, message: string, estimatedTime?: number) => void,
+    options?: {
+      viralHook?: string;
+      viralVideoId?: number;
+      viralTitle?: string;
+      viralContentAngle?: string;
+    }
+  ): Promise<ReelGenerationResult> {
     console.log(`\n[ReelGenerator] Starting generation for signal #${signal.id}`);
     console.log(`[ReelGenerator] Topic: "${signal.title}"`);
+    if (options?.viralTitle) {
+      console.log(`[ReelGenerator] Using viral pattern: "${options.viralTitle}"`);
+      if (options.viralContentAngle) {
+        console.log(`[ReelGenerator] Content angle: "${options.viralContentAngle}"`);
+      }
+    }
 
     try {
       // Step 1: Generate script with LLM
+      onProgress?.(1, 5, 'Writing script...', 50);
       console.log('[ReelGenerator] Step 1/5: Generating script with AI...');
-      const script = await this.scriptWriter.generateScript(signal, this.brand);
+      const script = await this.scriptWriter.generateScript(signal, this.brand, options);
 
       // Step 2: Create output directories
       const reelDir = path.join(this.outputDir, `signal-${signal.id}`);
@@ -97,6 +117,7 @@ export class ReelGenerator {
       });
 
       // Step 3: Generate TTS audio for each scene
+      onProgress?.(2, 5, 'Generating voiceover...', 40);
       console.log('[ReelGenerator] Step 2/5: Generating voiceover audio...');
       const narrations = script.scenes.map(scene => scene.narration);
       const audioPaths = await this.tts.generateSceneAudio(
@@ -107,6 +128,7 @@ export class ReelGenerator {
       );
 
       // Step 4: Fetch B-roll videos
+      onProgress?.(3, 5, 'Fetching B-roll videos...', 30);
       console.log('[ReelGenerator] Step 3/5: Fetching B-roll videos...');
       const sceneVideoData = script.scenes.map(scene => ({
         searchTerms: scene.pexelsSearchTerms,
@@ -121,6 +143,7 @@ export class ReelGenerator {
       );
 
       // Step 5: Composite everything with FFmpeg
+      onProgress?.(4, 5, 'Compositing video...', 20);
       console.log('[ReelGenerator] Step 4/5: Compositing video with FFmpeg...');
       const finalVideoPath = path.join(reelDir, `reel-final.mp4`);
 
@@ -132,6 +155,7 @@ export class ReelGenerator {
       );
 
       // Step 6: Generate thumbnail
+      onProgress?.(5, 5, 'Finalizing...', 5);
       console.log('[ReelGenerator] Step 5/5: Generating thumbnail...');
       const thumbnailPath = path.join(reelDir, 'thumbnail.jpg');
       await this.generateThumbnail(finalVideoPath, thumbnailPath);
@@ -214,17 +238,17 @@ export class ReelGenerator {
         let videoFilter = 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920';
 
         // Add animated text overlay for hook (first scene only) - if drawtext available
-        if (this.hasDrawtext && i === 0 && script.scenes[0].captionText) {
-          const hookText = this.escapeFFmpegText(script.scenes[0].captionText);
+        if (this.hasDrawtext && i === 0 && script.scenes[0].narration) {
+          const hookText = this.escapeFFmpegText(script.scenes[0].narration);
           // Animated text: fade in at 0.2s, stay for 2.5s, fade out at 2.7s
           videoFilter += `,drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial Bold.ttf:text='${hookText}':fontcolor=white:fontsize=64:` +
             `box=1:boxcolor=black@0.6:boxborderw=20:x=(w-text_w)/2:y=(h-text_h)/2-200:` +
             `enable='between(t,0.2,2.9)':alpha='if(lt(t,0.4),(t-0.2)*5,if(gt(t,2.7),(2.9-t)*5,1))'`;
         }
 
-        // Add caption text for all scenes (bottom of screen) - if drawtext available
-        if (this.hasDrawtext && script.scenes[i].captionText) {
-          const captionText = this.escapeFFmpegText(script.scenes[i].captionText);
+        // Add subtitle captions matching narration (all scenes, bottom of screen) - if drawtext available
+        if (this.hasDrawtext && script.scenes[i].narration) {
+          const captionText = this.escapeFFmpegText(script.scenes[i].narration);
           videoFilter += `,drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial.ttf:text='${captionText}':fontcolor=white:fontsize=48:` +
             `box=1:boxcolor=black@0.7:boxborderw=15:x=(w-text_w)/2:y=h-150`;
         }
@@ -246,6 +270,7 @@ export class ReelGenerator {
 
       // Step 2: Concatenate scene videos with crossfade transitions (if available)
       const concatenatedVideoPath = path.join(workDir, 'concatenated-video.mp4');
+      let videoListPath: string | null = null;
 
       if (sceneVideos.length === 1) {
         // Single scene - no transitions needed
@@ -257,7 +282,7 @@ export class ReelGenerator {
         await this.concatenateWithTransitions(sceneVideos, concatenatedVideoPath, 0.5);
       } else {
         // Fallback: simple concatenation without transitions
-        const videoListPath = path.join(workDir, 'video-list.txt');
+        videoListPath = path.join(workDir, 'video-list.txt');
         const videoList = sceneVideos.map(p => `file '${path.resolve(p)}'`).join('\n');
         fs.writeFileSync(videoListPath, videoList);
 
@@ -308,7 +333,10 @@ export class ReelGenerator {
       }
 
       // Cleanup temp files
-      [...sceneVideos, videoListPath, concatenatedVideoPath, audioListPath, combinedAudioPath].forEach(file => {
+      const tempFiles = [...sceneVideos, concatenatedVideoPath, audioListPath, combinedAudioPath];
+      if (videoListPath) tempFiles.push(videoListPath);
+
+      tempFiles.forEach(file => {
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
         }
@@ -356,26 +384,39 @@ export class ReelGenerator {
     transitionDuration: number = 0.5
   ): Promise<void> {
     try {
+      // Get actual duration of each video
+      const durations: number[] = [];
+      for (const videoPath of videoPaths) {
+        const { stdout } = await execAsync(
+          `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${videoPath}"`
+        );
+        durations.push(parseFloat(stdout.trim()));
+      }
+
       // Build complex filter for crossfade transitions
-      // For N videos, we need N-1 crossfade operations
       const inputs = videoPaths.map(p => `-i "${p}"`).join(' ');
 
       let filterComplex = '';
       let previousLabel = '0:v';
+      let cumulativeDuration = 0;
 
       for (let i = 1; i < videoPaths.length; i++) {
         const currentLabel = `${i}:v`;
         const outputLabel = i === videoPaths.length - 1 ? '' : `v${i}`;
 
-        // Get offset (when to start the crossfade)
-        // This is cumulative duration minus transition duration
-        const offset = `offset=${i * 5 - transitionDuration}`; // Rough estimate, can be improved
+        // Calculate offset: cumulative duration of all previous clips minus transition overlap
+        const offset = cumulativeDuration - (i > 1 ? transitionDuration : 0);
 
         if (i === 1) {
-          filterComplex = `[${previousLabel}][${currentLabel}]xfade=transition=fade:duration=${transitionDuration}:offset=2.5${outputLabel ? `[${outputLabel}]` : ''}`;
+          // First transition: 0:v crossfades with 1:v
+          filterComplex = `[${previousLabel}][${currentLabel}]xfade=transition=fade:duration=${transitionDuration}:offset=${durations[0] - transitionDuration}${outputLabel ? `[${outputLabel}]` : ''}`;
+          cumulativeDuration = durations[0] + durations[1] - transitionDuration;
         } else {
+          // Subsequent transitions
           const prevLabel = `v${i - 1}`;
-          filterComplex += `;[${prevLabel}][${currentLabel}]xfade=transition=fade:duration=${transitionDuration}:offset=${(i - 0.5) * 3}${outputLabel ? `[${outputLabel}]` : ''}`;
+          const prevOffset = cumulativeDuration - transitionDuration;
+          filterComplex += `;[${prevLabel}][${currentLabel}]xfade=transition=fade:duration=${transitionDuration}:offset=${prevOffset}${outputLabel ? `[${outputLabel}]` : ''}`;
+          cumulativeDuration += durations[i] - transitionDuration;
         }
 
         previousLabel = outputLabel || 'out';
@@ -440,7 +481,7 @@ export class ReelGenerator {
   private escapeFFmpegText(text: string): string {
     return text
       .replace(/\\/g, '\\\\\\\\')  // Backslashes
-      .replace(/'/g, "\\\\'")      // Single quotes
+      .replace(/'/g, '')            // Remove single quotes/apostrophes (they break the filter)
       .replace(/:/g, '\\:')         // Colons
       .replace(/%/g, '\\%')         // Percent signs
       .replace(/\n/g, ' ')          // Newlines to spaces

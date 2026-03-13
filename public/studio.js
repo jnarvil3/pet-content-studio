@@ -363,7 +363,7 @@ function renderVideoGrid() {
               ${video.emotional_trigger ? `<span style="background: rgba(251,146,60,0.1); color: #fb923c; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${video.emotional_trigger}</span>` : ''}
             </div>
             <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">${(video.view_count || 0).toLocaleString()} views</div>
-            <button class="btn btn-primary" style="width: 100%; padding: 0.5rem;" onclick="event.stopPropagation(); createFromVideo(${video.id}, '${video.hook_formula}')">✨ Create from this</button>
+            <button class="btn btn-primary" style="width: 100%; padding: 0.5rem;" onclick="event.stopPropagation(); createFromVideo(${video.id}, '${video.hook_formula}', '${video.title.replace(/'/g, "\\'")}', '${(video.content_angle || '').replace(/'/g, "\\'")}')">✨ Create from this</button>
           </div>
         </div>
       `).join('')}
@@ -374,7 +374,35 @@ function renderVideoGrid() {
 /**
  * Create Page
  */
+// AI Model selection state
+let selectedAIModel = 'claude-sonnet-4'; // default to premium
+
 async function loadCreateData() {
+  // Setup AI model toggle
+  const fastBtn = document.getElementById('model-fast-btn');
+  const premiumBtn = document.getElementById('model-premium-btn');
+  const modelDesc = document.getElementById('model-description');
+
+  function updateModelSelection(model) {
+    selectedAIModel = model;
+    if (model === 'gpt-4o-mini') {
+      fastBtn.className = 'btn btn-primary';
+      fastBtn.style = 'flex: 1; padding: 0.5rem; font-size: 0.875rem;';
+      premiumBtn.className = 'btn';
+      premiumBtn.style = 'flex: 1; padding: 0.5rem; background: white; color: #666; border: 2px solid #e0e0e0; font-size: 0.875rem;';
+      modelDesc.textContent = 'Fast: GPT-4o-mini for quick iterations';
+    } else {
+      fastBtn.className = 'btn';
+      fastBtn.style = 'flex: 1; padding: 0.5rem; background: white; color: #666; border: 2px solid #e0e0e0; font-size: 0.875rem;';
+      premiumBtn.className = 'btn btn-primary';
+      premiumBtn.style = 'flex: 1; padding: 0.5rem; font-size: 0.875rem;';
+      modelDesc.textContent = 'Premium: Claude Sonnet 4 for viral-quality scripts';
+    }
+  }
+
+  fastBtn.addEventListener('click', () => updateModelSelection('gpt-4o-mini'));
+  premiumBtn.addEventListener('click', () => updateModelSelection('claude-sonnet-4'));
+
   // Load signals into dropdown
   try {
     const response = await fetch('/api/signals?limit=20&minScore=70');
@@ -473,38 +501,51 @@ async function generateContent(type) {
 
   const statusDiv = document.getElementById('generation-status');
   statusDiv.style.display = 'block';
-  statusDiv.innerHTML = `
-    <div style="text-align: center; padding: 2rem; background: rgba(102,126,234,0.1); border-radius: 12px;">
-      <div class="spinner"></div>
-      <p style="color: #667eea; font-weight: 600;">Generating ${type}... This may take a minute.</p>
-    </div>
-  `;
 
   try {
     const endpoint = type === 'carousel' ? '/api/generate' : '/api/generate-reel';
+
+    // Build request body
+    const requestBody = {
+      signalId: parseInt(signalId),
+      limit: 1,
+      minScore: 0,
+      aiModel: selectedAIModel // Pass selected AI model
+    };
+
+    // Add viral pattern if selected
+    if (selectedViralPattern) {
+      requestBody.viralHook = selectedViralPattern.hookFormula;
+      requestBody.viralVideoId = selectedViralPattern.videoId;
+      requestBody.viralTitle = selectedViralPattern.viralTitle;
+      requestBody.viralContentAngle = selectedViralPattern.contentAngle;
+    }
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        signalId: parseInt(signalId),  // Use the selected signal
-        limit: 1,
-        minScore: 0
-      })
+      body: JSON.stringify(requestBody)
     });
 
     const result = await response.json();
 
-    if (result.success) {
+    if (!result.success) {
+      throw new Error(result.error || 'Generation failed');
+    }
+
+    // For reels, show progress
+    if (type === 'reel') {
+      await pollProgress(signalId, statusDiv);
+    } else {
+      // Carousels are fast
       statusDiv.innerHTML = `
         <div style="text-align: center; padding: 2rem; background: rgba(34,197,94,0.1); border-radius: 12px; color: #22c55e;">
           <div style="font-size: 3rem; margin-bottom: 0.5rem;">✅</div>
-          <p style="font-weight: 600; margin-bottom: 1rem;">Generation started successfully!</p>
-          <p style="color: #666;">Your ${type} will appear in the Review queue when complete.</p>
+          <p style="font-weight: 600; margin-bottom: 1rem;">Generation started!</p>
+          <p style="color: #666;">Check the Review queue in a moment.</p>
           <button class="btn btn-primary" style="margin-top: 1rem;" onclick="navigateTo('review')">Go to Review Queue</button>
         </div>
       `;
-    } else {
-      throw new Error(result.error || 'Generation failed');
     }
   } catch (error) {
     statusDiv.innerHTML = `
@@ -517,12 +558,64 @@ async function generateContent(type) {
   }
 }
 
+async function pollProgress(signalId, statusDiv) {
+  let lastStep = 0;
+  const pollInterval = setInterval(async () => {
+    try {
+      const response = await fetch(`/api/progress/${signalId}`);
+      const progress = await response.json();
+
+      if (!progress.inProgress) {
+        // Generation complete
+        clearInterval(pollInterval);
+        statusDiv.innerHTML = `
+          <div style="text-align: center; padding: 2rem; background: rgba(34,197,94,0.1); border-radius: 12px; color: #22c55e;">
+            <div style="font-size: 3rem; margin-bottom: 0.5rem;">✅</div>
+            <p style="font-weight: 600; margin-bottom: 1rem;">Reel complete!</p>
+            <button class="btn btn-primary" onclick="viewCompletedReel()">View in Review Queue</button>
+          </div>
+        `;
+        return;
+      }
+
+      // Show progress
+      const percent = Math.round((progress.step / progress.totalSteps) * 100);
+      statusDiv.innerHTML = `
+        <div style="text-align: center; padding: 2rem; background: rgba(102,126,234,0.1); border-radius: 12px;">
+          <div style="margin-bottom: 1rem;">
+            <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.3); border-radius: 4px; overflow: hidden;">
+              <div style="width: ${percent}%; height: 100%; background: #667eea; transition: width 0.3s ease;"></div>
+            </div>
+          </div>
+          <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">${progress.message}</p>
+          <p style="color: #666; font-size: 0.875rem;">Step ${progress.step}/${progress.totalSteps} • ${progress.estimatedTimeRemaining || 0}s remaining</p>
+        </div>
+      `;
+    } catch (error) {
+      console.error('Progress poll error:', error);
+    }
+  }, 1000);
+
+  // Timeout after 2 minutes
+  setTimeout(() => {
+    clearInterval(pollInterval);
+  }, 120000);
+}
+
 function createFromSignal(signalId) {
   navigateTo('create');
   setTimeout(() => {
     document.getElementById('create-signal-select').value = signalId;
     document.getElementById('create-signal-select').dispatchEvent(new Event('change'));
   }, 100);
+}
+
+function viewCompletedReel() {
+  navigateTo('review');
+  // Force reload review content after navigation
+  setTimeout(() => {
+    loadReviewData();
+  }, 200);
 }
 
 /**
@@ -753,9 +846,45 @@ function formatDuration(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-function createFromVideo(videoId, hookFormula) {
-  // For now, just navigate to Create page
-  // In future, could pre-populate with video insights
+// Store selected viral pattern for generation
+let selectedViralPattern = null;
+
+async function createFromVideo(videoId, hookFormula, viralTitle, contentAngle) {
+  // Store the selected viral pattern with specific example
+  selectedViralPattern = {
+    videoId,
+    hookFormula,
+    viralTitle,
+    contentAngle
+  };
+
+  // Navigate to Create page and show guidance
   navigateTo('create');
-  alert(`Creating content inspired by viral video with "${hookFormula}" hook!`);
+
+  const statusDiv = document.getElementById('generation-status');
+  statusDiv.style.display = 'block';
+  statusDiv.innerHTML = `
+    <div style="padding: 1.5rem; background: rgba(102,126,234,0.1); border-radius: 12px; border-left: 4px solid #667eea;">
+      <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">💡 Viral Pattern Selected</p>
+      <p style="color: #333; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Example:</strong> "${viralTitle}"</p>
+      ${contentAngle ? `<p style="color: #666; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Angle:</strong> ${contentAngle}</p>` : ''}
+      <p style="color: #666; font-size: 0.875rem;">Select a topic below. Your reel will emulate this viral pattern for maximum engagement!</p>
+    </div>
+  `;
+
+  // Scroll to signal selector
+  setTimeout(() => {
+    document.getElementById('create-signal-select').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 300);
+}
+
+function getHookEngagement(hookFormula) {
+  // Placeholder - could fetch from viral insights
+  const engagementRates = {
+    'emotional': '5.8',
+    'curiosity': '5.5',
+    'urgency': '5.2',
+    'authority': '4.9'
+  };
+  return engagementRates[hookFormula] || '5.0';
 }

@@ -29,6 +29,16 @@ const contentStorage = new ContentStorage();
 const intelConnector = new IntelConnector();
 const viralConnector = new ViralSignalsConnector();
 
+// Progress tracking
+interface GenerationProgress {
+  step: number;
+  totalSteps: number;
+  message: string;
+  estimatedTimeRemaining?: number;
+}
+
+const progressMap = new Map<string, GenerationProgress>();
+
 /**
  * API Routes
  */
@@ -69,6 +79,21 @@ app.get('/api/signals', (req, res) => {
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// Get generation progress
+app.get('/api/progress/:signalId', (req, res) => {
+  const signalId = req.params.signalId;
+  const progress = progressMap.get(signalId);
+
+  if (!progress) {
+    return res.json({ inProgress: false });
+  }
+
+  res.json({
+    inProgress: true,
+    ...progress
+  });
 });
 
 // Get all content with optional status filter
@@ -318,6 +343,11 @@ app.post('/api/generate-reel', async (req, res) => {
     const limit = parseInt(req.body.limit) || 1;
     const minScore = parseInt(req.body.minScore) || 80;
     const signalId = req.body.signalId ? parseInt(req.body.signalId) : null;
+    const viralHook = req.body.viralHook; // Selected viral hook formula
+    const viralVideoId = req.body.viralVideoId; // Source viral video ID
+    const viralTitle = req.body.viralTitle; // Actual viral video title
+    const viralContentAngle = req.body.viralContentAngle; // Content angle
+    const aiModel = req.body.aiModel as 'claude-sonnet-4' | 'gpt-4o-mini'; // AI model selection
 
     // Import dependencies
     const { ReelGenerator } = await import('./generators/reel-generator');
@@ -354,7 +384,7 @@ app.post('/api/generate-reel', async (req, res) => {
     // Generate reels asynchronously
     (async () => {
       const brand = getBrandConfig();
-      const generator = new ReelGenerator(brand, './output/reels');
+      const generator = new ReelGenerator(brand, './output/reels', aiModel);
 
       // Check FFmpeg
       const hasFFmpeg = await generator.checkFFmpeg();
@@ -368,10 +398,30 @@ app.post('/api/generate-reel', async (req, res) => {
           const signal = signals[i];
           console.log(`\n[Server] Generating reel ${i + 1}/${signals.length} for signal #${signal.id}`);
 
+          // Progress callback
+          const onProgress = (step: number, totalSteps: number, message: string, estimatedTime?: number) => {
+            progressMap.set(signal.id.toString(), {
+              step,
+              totalSteps,
+              message,
+              estimatedTimeRemaining: estimatedTime
+            });
+          };
+
           try {
-            const result = await generator.generate(signal);
+            // Pass viral pattern if selected
+            const options = viralHook ? {
+              viralHook,
+              viralVideoId,
+              viralTitle,
+              viralContentAngle
+            } : undefined;
+            const result = await generator.generate(signal, onProgress, options);
             contentStorage.save(result.content);
             console.log(`[Server] ✅ Saved reel ${i + 1}/${signals.length}`);
+
+            // Clear progress
+            progressMap.delete(signal.id.toString());
 
             // Delay between generations
             if (i < signals.length - 1) {
@@ -379,6 +429,7 @@ app.post('/api/generate-reel', async (req, res) => {
             }
           } catch (error: any) {
             console.error(`[Server] ❌ Failed reel ${i + 1}:`, error.message);
+            progressMap.delete(signal.id.toString());
           }
         }
 
