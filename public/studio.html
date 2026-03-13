@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pet Content Studio</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .app-container {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      padding: 2rem 1.5rem;
+      border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .sidebar-logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .sidebar-tagline {
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 0.25rem;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 1rem 0;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      padding: 0.875rem 1.5rem;
+      color: #666;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-item:hover {
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+    }
+
+    .nav-item.active {
+      background: rgba(102, 126, 234, 0.15);
+      color: #667eea;
+      border-left-color: #667eea;
+      font-weight: 600;
+    }
+
+    .nav-icon {
+      width: 24px;
+      font-size: 1.25rem;
+      margin-right: 0.75rem;
+    }
+
+    .sidebar-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid rgba(0,0,0,0.1);
+      font-size: 0.75rem;
+      color: #999;
+    }
+
+    .budget-indicator {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      color: #666;
+    }
+
+    .budget-bar {
+      height: 4px;
+      background: #e0e0e0;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .budget-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      transition: width 0.3s;
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .page {
+      display: none;
+      padding: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .page-header {
+      margin-bottom: 2rem;
+    }
+
+    .page-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 0.5rem;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .page-subtitle {
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.9);
+    }
+
+    /* Cards */
+    .card {
+      background: white;
+      border-radius: 15px;
+      padding: 2rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      margin-bottom: 2rem;
+    }
+
+    .card-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      border-bottom: 2px solid rgba(255,255,255,0.2);
+    }
+
+    .tab {
+      padding: 1rem 1.5rem;
+      color: rgba(255,255,255,0.7);
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      margin-bottom: -2px;
+    }
+
+    .tab:hover {
+      color: white;
+    }
+
+    .tab.active {
+      color: white;
+      border-bottom-color: white;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+    }
+
+    .btn-secondary {
+      background: white;
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+
+    .btn-secondary:hover {
+      background: #667eea;
+      color: white;
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: white;
+    }
+
+    .spinner {
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top: 4px solid white;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 60px;
+      }
+
+      .sidebar-header,
+      .nav-label,
+      .sidebar-footer {
+        display: none;
+      }
+
+      .nav-item {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">🐾 Pet Content Studio</div>
+        <div class="sidebar-tagline">Viral-powered content</div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a class="nav-item active" data-page="dashboard">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Dashboard</span>
+        </a>
+        <a class="nav-item" data-page="discover">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-label">Discover</span>
+        </a>
+        <a class="nav-item" data-page="create">
+          <span class="nav-icon">✏️</span>
+          <span class="nav-label">Create</span>
+        </a>
+        <a class="nav-item" data-page="review">
+          <span class="nav-icon">✅</span>
+          <span class="nav-label">Review</span>
+        </a>
+        <a class="nav-item" data-page="settings">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">Settings</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="budget-indicator">
+          <span>Budget</span>
+          <span id="budget-text">$0 / $15</span>
+        </div>
+        <div class="budget-bar">
+          <div class="budget-fill" id="budget-fill" style="width: 0%"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Dashboard Page -->
+      <div class="page active" id="dashboard-page">
+        <div class="page-header">
+          <h1 class="page-title">📊 Dashboard</h1>
+          <p class="page-subtitle">Overview of your content pipeline and viral intelligence</p>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid" id="dashboard-stats">
+          <div class="stat-card">
+            <div class="stat-value" id="stat-total">-</div>
+            <div class="stat-label">Total Content</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-pending">-</div>
+            <div class="stat-label">Pending Review</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-approved">-</div>
+            <div class="stat-label">Approved</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-published">-</div>
+            <div class="stat-label">Published</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-videos">-</div>
+            <div class="stat-label">Viral Videos</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-engagement">-</div>
+            <div class="stat-label">Avg Engagement</div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+          <h2 class="card-title">Quick Actions</h2>
+          <div style="display: flex; gap: 1rem;">
+            <button class="btn btn-primary" onclick="navigateTo('create')">✨ Create Content</button>
+            <button class="btn btn-primary" onclick="navigateTo('discover')">🔍 Browse Signals</button>
+            <button class="btn btn-secondary" onclick="navigateTo('review')">✅ Review Queue</button>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card">
+          <h2 class="card-title">Recent Activity</h2>
+          <div id="recent-activity" style="color: #666;">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Discover Page -->
+      <div class="page" id="discover-page">
+        <div class="page-header">
+          <h1 class="page-title">🔍 Discover</h1>
+          <p class="page-subtitle">Find trending topics and viral patterns</p>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-tab="signals-tab">Content Signals</button>
+          <button class="tab" data-tab="videos-tab">Trending Videos</button>
+        </div>
+
+        <!-- Signals Tab -->
+        <div class="tab-content active" id="signals-tab">
+          <div class="card">
+            <h2 class="card-title">Top Content Signals</h2>
+            <p style="color: #666; margin-bottom: 1.5rem;">Ranked by relevance score and viral potential</p>
+            <div id="signals-list">Loading...</div>
+          </div>
+        </div>
+
+        <!-- Videos Tab -->
+        <div class="tab-content" id="videos-tab">
+          <div class="card">
+            <h2 class="card-title">Viral Videos</h2>
+            <p style="color: #666; margin-bottom: 1.5rem;">Analyzed pet content from YouTube with engagement metrics</p>
+            <div id="videos-list">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Create Page -->
+      <div class="page" id="create-page">
+        <div class="page-header">
+          <h1 class="page-title">✏️ Create</h1>
+          <p class="page-subtitle">Generate viral-enhanced content</p>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">Content Generation</h2>
+          <p style="color: #666; margin-bottom: 1.5rem;">All content is automatically enhanced with viral insights</p>
+
+          <div style="margin-bottom: 2rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Select Signal</label>
+            <select id="create-signal-select" style="width: 100%; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem;">
+              <option value="">Loading signals...</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom: 2rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Content Type</label>
+            <div style="display: flex; gap: 1rem;">
+              <button class="btn btn-secondary" id="create-carousel-btn" disabled>📱 Carousel (5 slides)</button>
+              <button class="btn btn-secondary" id="create-reel-btn" disabled>🎥 Reel (30-45s video)</button>
+            </div>
+          </div>
+
+          <div id="viral-context-panel" style="display: none; background: linear-gradient(135deg, rgba(240,147,251,0.1) 0%, rgba(245,87,108,0.1) 100%); border: 2px solid rgba(240,147,251,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
+            <h3 style="color: #f5576c; margin-bottom: 1rem;">🔥 Viral Enhancement Active</h3>
+            <div id="viral-context-content"></div>
+          </div>
+
+          <div id="generation-status" style="display: none;"></div>
+        </div>
+      </div>
+
+      <!-- Review Page -->
+      <div class="page" id="review-page">
+        <div class="page-header">
+          <h1 class="page-title">✅ Review</h1>
+          <p class="page-subtitle">Approve and manage generated content</p>
+        </div>
+
+        <div class="card">
+          <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+            <button class="btn btn-secondary filter-btn active" data-filter="all">All</button>
+            <button class="btn btn-secondary filter-btn" data-filter="pending">Pending</button>
+            <button class="btn btn-secondary filter-btn" data-filter="approved">Approved</button>
+            <button class="btn btn-secondary filter-btn" data-filter="rejected">Rejected</button>
+            <button class="btn btn-secondary filter-btn" data-filter="published">Published</button>
+          </div>
+
+          <div id="review-content-grid">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Settings Page -->
+      <div class="page" id="settings-page">
+        <div class="page-header">
+          <h1 class="page-title">⚙️ Settings</h1>
+          <p class="page-subtitle">Manage your budget, API keys, and preferences</p>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">Budget & Costs</h2>
+          <div id="settings-budget">Loading...</div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">Collection Pipeline</h2>
+          <p style="color: #666; margin-bottom: 1.5rem;">Manage viral video collection</p>
+          <button class="btn btn-primary" onclick="runCollectionPipeline()">🚀 Run Collection Pipeline</button>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">API Configuration</h2>
+          <p style="color: #666;">API keys are configured via environment variables.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/studio.js"></script>
+</body>
+</html>
