@@ -7,10 +7,11 @@
 import { Signal } from '../types/signal';
 import { BrandConfig } from '../types/brand';
 import { CarouselContent, GeneratedContent } from '../types/content';
-import { ContentWriter } from './content-writer';
+import { ContentWriter, ViralInsights } from './content-writer';
 import { CarouselTemplate } from '../templates/carousel-template';
 import { ImageRenderer } from '../renderers/image-renderer';
 import { PexelsService } from '../services/pexels-service';
+import { ViralSignalsConnector } from '../storage/viral-signals-connector';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -46,17 +47,54 @@ export class CarouselGenerator {
    * @param signal - The topic signal to convert to carousel
    * @returns Generated content and image paths
    */
-  async generate(signal: Signal): Promise<CarouselGenerationResult> {
+  async generate(signal: Signal, useViralData: boolean = true): Promise<CarouselGenerationResult> {
     console.log(`\n[CarouselGenerator] Starting generation for signal #${signal.id}`);
     console.log(`[CarouselGenerator] Topic: "${signal.title}"`);
 
     try {
-      // Step 1: Generate carousel content with Claude AI
-      console.log('[CarouselGenerator] Step 1/3: Generating content with AI...');
-      const carouselContent = await this.writer.generateCarousel(signal, this.brand);
+      // Step 1: Fetch viral insights (default behavior)
+      let viralInsights: ViralInsights | undefined;
+      if (useViralData) {
+        console.log('[CarouselGenerator] Step 1/4: Fetching viral insights...');
+        try {
+          const viralConnector = new ViralSignalsConnector();
+          const topHooks = viralConnector.getTopViralHooks(7, 5);
+          const trendingThemes = viralConnector.getTrendingThemes(7, 10);
+          const stats = viralConnector.getViralStats(7);
+          viralConnector.close();
 
-      // Step 2: Fetch background photos using LLM-generated search queries
-      console.log('[CarouselGenerator] Step 2/4: Fetching background images...');
+          // Extract themes as strings
+          const themeStrings = trendingThemes
+            .map(t => {
+              try {
+                const parsed = JSON.parse(t.content_themes);
+                return Array.isArray(parsed) ? parsed.join(', ') : '';
+              } catch {
+                return '';
+              }
+            })
+            .filter(t => t.length > 0)
+            .slice(0, 5);
+
+          viralInsights = {
+            topHooks,
+            trendingThemes: themeStrings,
+            avgEngagement: stats.avg_engagement,
+            recommendedHook: topHooks[0]?.hook_formula || undefined
+          };
+
+          console.log(`[CarouselGenerator] 🔥 Using viral data: ${stats.total_analyzed} videos, top hook = ${viralInsights.recommendedHook}`);
+        } catch (error: any) {
+          console.log(`[CarouselGenerator] ⚠️  Could not load viral data: ${error.message}`);
+        }
+      }
+
+      // Step 2: Generate carousel content with Claude AI (with viral enhancement)
+      console.log(`[CarouselGenerator] Step 2/4: Generating content with AI${viralInsights ? ' (viral-enhanced)' : ''}...`);
+      const carouselContent = await this.writer.generateCarousel(signal, this.brand, viralInsights);
+
+      // Step 3: Fetch background photos using LLM-generated search queries
+      console.log('[CarouselGenerator] Step 3/5: Fetching background images...');
       const photoPromises = carouselContent.slides.map(async (slide) => {
         if (slide.pexelsSearchQuery && this.pexels.isEnabled()) {
           const photos = await this.pexels.searchPhotos(slide.pexelsSearchQuery, 1);
@@ -74,14 +112,14 @@ export class CarouselGenerator {
         console.log('[CarouselGenerator] ⚠️  No background photos (Pexels disabled or no results)');
       }
 
-      // Step 3: Convert content to HTML slides
-      console.log('[CarouselGenerator] Step 3/4: Rendering HTML templates...');
+      // Step 4: Convert content to HTML slides
+      console.log('[CarouselGenerator] Step 4/5: Rendering HTML templates...');
       const htmlSlides = carouselContent.slides.map((slide, index) => {
         return this.template.generateSlideHTML(slide, carouselContent.slides.length, backgroundUrls[index]);
       });
 
       // Step 4: Render HTML to PNG images
-      console.log('[CarouselGenerator] Step 4/4: Converting to images...');
+      console.log('[CarouselGenerator] Step 5/5: Converting to images...');
       const carouselDir = path.join(this.outputDir, `signal-${signal.id}`);
       const imagePaths = await this.renderer.renderSlides(
         htmlSlides,
