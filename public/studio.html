@@ -99,21 +99,33 @@
     .budget-indicator {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 0.5rem;
-      color: #666;
+      margin-bottom: 0.75rem;
+      color: #333;
+      font-weight: 600;
+      font-size: 0.875rem;
     }
 
     .budget-bar {
-      height: 4px;
+      height: 8px;
       background: #e0e0e0;
-      border-radius: 2px;
+      border-radius: 4px;
       overflow: hidden;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
     }
 
     .budget-fill {
       height: 100%;
       background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
       transition: width 0.3s;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+    }
+
+    .budget-percentage {
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+      color: #999;
+      text-align: center;
     }
 
     /* Main Content */
@@ -351,12 +363,13 @@
 
       <div class="sidebar-footer">
         <div class="budget-indicator">
-          <span>Budget</span>
+          <span>Monthly Budget</span>
           <span id="budget-text">$0 / $15</span>
         </div>
         <div class="budget-bar">
           <div class="budget-fill" id="budget-fill" style="width: 0%"></div>
         </div>
+        <div class="budget-percentage" id="budget-percentage">0% used</div>
       </div>
     </aside>
 
@@ -462,6 +475,8 @@
               <option value="">Loading signals...</option>
             </select>
           </div>
+
+          <div id="signal-details" style="display: none; margin-bottom: 2rem;"></div>
 
           <div style="margin-bottom: 2rem;">
             <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Content Type</label>

@@ -168,16 +168,17 @@ async function loadSignalsList() {
     signalsList.innerHTML = `
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1rem;">
         ${allSignals.map(signal => `
-          <div style="border: 2px solid #e0e0e0; border-radius: 12px; padding: 1.5rem; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.borderColor='#667eea'" onmouseout="this.style.borderColor='#e0e0e0'" onclick="createFromSignal(${signal.id})">
+          <div style="border: 2px solid #e0e0e0; border-radius: 12px; padding: 1.5rem; transition: all 0.2s;">
             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
               <div style="font-size: 1.5rem; font-weight: 700; color: #667eea;">${signal.relevance_score}</div>
               <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">📄 ${signal.sourceType || 'RSS'}</div>
             </div>
             <div style="font-weight: 600; margin-bottom: 0.5rem; color: #333;">${signal.title}</div>
-            <div style="font-size: 0.875rem; color: #666; line-height: 1.4;">${(signal.description || '').substring(0, 120)}...</div>
-            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e0e0e0; font-size: 0.875rem; color: #999;">
+            <div style="font-size: 0.875rem; color: #666; line-height: 1.4; margin-bottom: 1rem;">${(signal.description || '').substring(0, 150)}...</div>
+            <div style="margin-bottom: 1rem; padding-top: 1rem; border-top: 1px solid #e0e0e0; font-size: 0.875rem; color: #999;">
               📰 ${signal.source} • ${new Date(signal.collected_at).toLocaleDateString()}
             </div>
+            <button class="btn btn-primary" style="width: 100%; padding: 0.75rem;" onclick="createFromSignal(${signal.id})">✨ Create from this signal</button>
           </div>
         `).join('')}
       </div>
@@ -187,9 +188,12 @@ async function loadSignalsList() {
   }
 }
 
+let allVideos = [];
+let videoFilters = { hook: 'all', emotion: 'all', status: 'analyzed' };
+
 async function loadVideosList() {
   try {
-    const response = await fetch('http://localhost:3001/api/videos?limit=20&analyzed_only=true');
+    const response = await fetch('http://localhost:3001/api/videos?limit=100&analyzed_only=true');
     const data = await response.json();
 
     const videosList = document.getElementById('videos-list');
@@ -199,31 +203,172 @@ async function loadVideosList() {
       return;
     }
 
-    const videos = data.data;
+    allVideos = data.data;
 
-    videosList.innerHTML = `
-      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
-        ${videos.map(video => `
-          <div style="border: 2px solid #e0e0e0; border-radius: 12px; overflow: hidden; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.borderColor='#f5576c'" onmouseout="this.style.borderColor='#e0e0e0'">
-            <div style="aspect-ratio: 16/9; background: #000; position: relative;">
-              <iframe width="100%" height="100%" src="https://www.youtube.com/embed/${video.video_id}" frameborder="0" allowfullscreen></iframe>
-            </div>
-            <div style="padding: 1rem;">
-              <div style="font-weight: 600; margin-bottom: 0.5rem; line-height: 1.3; color: #333;">${video.title}</div>
-              <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                <span style="background: rgba(245,87,108,0.1); color: #f5576c; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${video.engagement_rate.toFixed(1)}% engagement</span>
-                <span style="background: rgba(102,126,234,0.1); color: #667eea; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${video.hook_formula || 'unknown'}</span>
-              </div>
-              <div style="font-size: 0.875rem; color: #666;">${(video.view_count || 0).toLocaleString()} views</div>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    `;
+    // Load Top 10 lists
+    await loadTop10Lists();
+
+    // Render filters and videos
+    renderVideoFilters();
+    renderVideoGrid();
   } catch (error) {
     console.error('Error loading videos:', error);
     document.getElementById('videos-list').innerHTML = '<p style="color: #999;">Could not load viral videos. Make sure viral analyzer is running on port 3001.</p>';
   }
+}
+
+async function loadTop10Lists() {
+  try {
+    const response = await fetch('http://localhost:3001/api/trends/today');
+    const data = await response.json();
+
+    if (data.success) {
+      const top10Section = document.getElementById('top10-section');
+      if (!top10Section) {
+        // Create top 10 section if it doesn't exist
+        const videosList = document.getElementById('videos-list');
+        videosList.insertAdjacentHTML('afterbegin', '<div id="top10-section"></div>');
+      }
+
+      const section = document.getElementById('top10-section');
+      const topHooks = data.data.top_hooks.slice(0, 10);
+      const topIdeas = data.data.top_content_ideas.slice(0, 10);
+
+      section.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+          <div style="background: white; border-radius: 12px; padding: 1.5rem; border: 2px solid #e0e0e0;">
+            <h3 style="color: #667eea; margin-bottom: 1rem; font-size: 1.25rem;">🔥 Top 10 Hook Strategies</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              ${topHooks.map((hook, i) => `
+                <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: 8px; background: ${i === 0 ? 'rgba(245,87,108,0.1)' : '#f9fafb'};">
+                  <div style="font-size: 1.25rem; font-weight: 700; color: ${i === 0 ? '#f5576c' : '#999'}; min-width: 30px;">#${i + 1}</div>
+                  <div style="flex: 1;">
+                    <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">${hook.hook_formula}</div>
+                    <div style="font-size: 0.875rem; color: #666;">${hook.engagement_rate.toFixed(1)}% avg engagement • ${hook.video_count} videos</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div style="background: white; border-radius: 12px; padding: 1.5rem; border: 2px solid #e0e0e0;">
+            <h3 style="color: #667eea; margin-bottom: 1rem; font-size: 1.25rem;">💡 Top 10 Content Ideas</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              ${topIdeas.map((idea, i) => `
+                <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: 8px; background: ${i === 0 ? 'rgba(102,126,234,0.1)' : '#f9fafb'};">
+                  <div style="font-size: 1.25rem; font-weight: 700; color: ${i === 0 ? '#667eea' : '#999'}; min-width: 30px;">#${i + 1}</div>
+                  <div style="flex: 1;">
+                    <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">${idea.content_angle}</div>
+                    <div style="font-size: 0.875rem; color: #666;">${idea.avg_engagement_rate.toFixed(1)}% engagement • ${idea.video_count} videos</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.error('Error loading Top 10 lists:', error);
+  }
+}
+
+function renderVideoFilters() {
+  const videosList = document.getElementById('videos-list');
+
+  // Get unique values for filters
+  const hookFormulas = ['all', ...new Set(allVideos.map(v => v.hook_formula).filter(h => h))];
+  const emotions = ['all', ...new Set(allVideos.map(v => v.emotional_trigger).filter(e => e))];
+
+  const filtersSection = document.getElementById('video-filters');
+  if (!filtersSection) {
+    videosList.insertAdjacentHTML('beforeend', '<div id="video-filters"></div>');
+  }
+
+  const section = document.getElementById('video-filters');
+  section.innerHTML = `
+    <div style="background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 2px solid #e0e0e0;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333;">Hook Formula</label>
+          <select id="filter-hook" style="width: 100%; padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.875rem;">
+            ${hookFormulas.map(h => `<option value="${h}" ${videoFilters.hook === h ? 'selected' : ''}>${h === 'all' ? 'All Hooks' : h}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333;">Emotional Trigger</label>
+          <select id="filter-emotion" style="width: 100%; padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.875rem;">
+            ${emotions.map(e => `<option value="${e}" ${videoFilters.emotion === e ? 'selected' : ''}>${e === 'all' ? 'All Emotions' : e}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333;">Min Engagement</label>
+          <input type="number" id="filter-engagement" value="0" min="0" max="100" step="0.1" style="width: 100%; padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.875rem;" placeholder="0%">
+        </div>
+      </div>
+    </div>
+    <div id="video-grid"></div>
+  `;
+
+  // Add event listeners
+  document.getElementById('filter-hook').addEventListener('change', (e) => {
+    videoFilters.hook = e.target.value;
+    renderVideoGrid();
+  });
+  document.getElementById('filter-emotion').addEventListener('change', (e) => {
+    videoFilters.emotion = e.target.value;
+    renderVideoGrid();
+  });
+  document.getElementById('filter-engagement').addEventListener('input', (e) => {
+    videoFilters.minEngagement = parseFloat(e.target.value) || 0;
+    renderVideoGrid();
+  });
+}
+
+function renderVideoGrid() {
+  const grid = document.getElementById('video-grid');
+  if (!grid) return;
+
+  // Apply filters
+  let filtered = allVideos.filter(video => {
+    if (videoFilters.hook !== 'all' && video.hook_formula !== videoFilters.hook) return false;
+    if (videoFilters.emotion !== 'all' && video.emotional_trigger !== videoFilters.emotion) return false;
+    if (videoFilters.minEngagement && video.engagement_rate < videoFilters.minEngagement) return false;
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<p style="text-align: center; color: #999; padding: 3rem;">No videos match your filters</p>';
+    return;
+  }
+
+  grid.innerHTML = `
+    <div style="margin-bottom: 1rem; color: #666;">Showing ${filtered.length} of ${allVideos.length} videos</div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
+      ${filtered.map(video => `
+        <div style="border: 2px solid #e0e0e0; border-radius: 12px; overflow: hidden; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.borderColor='#f5576c'" onmouseout="this.style.borderColor='#e0e0e0'" onclick="window.open('https://www.youtube.com/watch?v=${video.video_id}', '_blank')">
+          <div style="aspect-ratio: 16/9; background: #000; position: relative; overflow: hidden;">
+            <img src="https://img.youtube.com/vi/${video.video_id}/maxresdefault.jpg"
+                 style="width: 100%; height: 100%; object-fit: cover;"
+                 onerror="this.src='https://img.youtube.com/vi/${video.video_id}/hqdefault.jpg'">
+            <div style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">
+              ${formatDuration(video.duration_seconds)}
+            </div>
+          </div>
+          <div style="padding: 1rem;">
+            <div style="font-weight: 600; margin-bottom: 0.5rem; line-height: 1.3; color: #333;">${video.title}</div>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+              <span style="background: rgba(245,87,108,0.1); color: #f5576c; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${video.engagement_rate.toFixed(1)}% engagement</span>
+              <span style="background: rgba(102,126,234,0.1); color: #667eea; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${video.hook_formula || 'unknown'}</span>
+              ${video.emotional_trigger ? `<span style="background: rgba(251,146,60,0.1); color: #fb923c; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${video.emotional_trigger}</span>` : ''}
+            </div>
+            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">${(video.view_count || 0).toLocaleString()} views</div>
+            <button class="btn btn-primary" style="width: 100%; padding: 0.5rem;" onclick="event.stopPropagation(); createFromVideo(${video.id}, '${video.hook_formula}')">✨ Create from this</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 /**
@@ -245,15 +390,38 @@ async function loadCreateData() {
     select.addEventListener('change', () => {
       const carouselBtn = document.getElementById('create-carousel-btn');
       const reelBtn = document.getElementById('create-reel-btn');
+      const signalId = parseInt(select.value);
 
-      if (select.value) {
+      if (signalId) {
         carouselBtn.disabled = false;
         reelBtn.disabled = false;
+
+        // Show signal details
+        const signal = signals.find(s => s.id === signalId);
+        const detailsDiv = document.getElementById('signal-details');
+        if (signal && detailsDiv) {
+          detailsDiv.style.display = 'block';
+          detailsDiv.innerHTML = `
+            <div style="background: #f9fafb; border-radius: 12px; padding: 1.5rem; border: 2px solid #e0e0e0;">
+              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                <h3 style="color: #333; font-size: 1.125rem; margin: 0;">${signal.title}</h3>
+                <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.875rem; font-weight: 600;">${signal.relevance_score} score</span>
+              </div>
+              <p style="color: #666; font-size: 0.875rem; line-height: 1.5; margin: 0;">${signal.description}</p>
+              <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e0e0e0; font-size: 0.875rem; color: #999;">
+                📰 ${signal.source}
+              </div>
+            </div>
+          `;
+        }
+
         loadViralContext();
       } else {
         carouselBtn.disabled = true;
         reelBtn.disabled = true;
         document.getElementById('viral-context-panel').style.display = 'none';
+        const detailsDiv = document.getElementById('signal-details');
+        if (detailsDiv) detailsDiv.style.display = 'none';
       }
     });
 
@@ -411,16 +579,30 @@ function displayReviewContent(filter) {
 
           ${item.content_type === 'carousel' && item.carousel_images ? `
             <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; overflow-x: auto;">
-              ${JSON.parse(item.carousel_images).slice(0, 5).map(img => `
-                <img src="${img.replace('./output', '/output')}" style="height: 120px; border-radius: 8px; border: 2px solid #e0e0e0;">
+              ${(Array.isArray(item.carousel_images) ? item.carousel_images : JSON.parse(item.carousel_images)).slice(0, 5).map(img => `
+                <img src="${img.replace('./output', '/output').replace('output/', '/output/')}" style="height: 120px; border-radius: 8px; border: 2px solid #e0e0e0;">
               `).join('')}
             </div>
           ` : ''}
 
           ${item.content_type === 'reel' && item.reel_video_path ? `
             <video controls style="width: 100%; max-width: 300px; border-radius: 8px; margin-bottom: 1rem;">
-              <source src="${item.reel_video_path.replace('./output', '/output')}" type="video/mp4">
+              <source src="${item.reel_video_path.replace('./output', '/output').replace('output/', '/output/')}" type="video/mp4">
             </video>
+          ` : ''}
+
+          ${item.carousel_content ? `
+            <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+              <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;"><strong>Caption:</strong> ${item.carousel_content.caption}</div>
+              <div style="font-size: 0.875rem; color: #667eea;"><strong>Hashtags:</strong> ${item.carousel_content.hashtags.join(' ')}</div>
+            </div>
+          ` : ''}
+
+          ${item.reel_script ? `
+            <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+              <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;"><strong>Caption:</strong> ${item.reel_script.caption}</div>
+              <div style="font-size: 0.875rem; color: #667eea;"><strong>Hashtags:</strong> ${item.reel_script.hashtags.join(' ')}</div>
+            </div>
           ` : ''}
 
           <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
@@ -540,8 +722,36 @@ async function loadBudget() {
       const costs = data.data.costs;
       document.getElementById('budget-text').textContent = `$${costs.thisMonth.toFixed(2)} / $${costs.budget}`;
       document.getElementById('budget-fill').style.width = `${costs.percentUsed}%`;
+      document.getElementById('budget-percentage').textContent = `${costs.percentUsed.toFixed(1)}% used`;
+
+      // Color-code based on usage
+      const fillEl = document.getElementById('budget-fill');
+      if (costs.percentUsed > 90) {
+        fillEl.style.background = 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)';
+      } else if (costs.percentUsed > 75) {
+        fillEl.style.background = 'linear-gradient(90deg, #fb923c 0%, #f97316 100%)';
+      } else {
+        fillEl.style.background = 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)';
+      }
     }
   } catch (error) {
     console.error('Error loading budget:', error);
   }
+}
+
+/**
+ * Utilities
+ */
+function formatDuration(seconds) {
+  if (!seconds) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function createFromVideo(videoId, hookFormula) {
+  // For now, just navigate to Create page
+  // In future, could pre-populate with video insights
+  navigateTo('create');
+  alert(`Creating content inspired by viral video with "${hookFormula}" hook!`);
 }
