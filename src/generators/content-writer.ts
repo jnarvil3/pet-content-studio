@@ -90,22 +90,43 @@ export class ContentWriter {
     let viralContext = '';
     if (viralInsights && viralInsights.topHooks.length > 0) {
       const topHook = viralInsights.topHooks[0];
-      const hookList = viralInsights.topHooks.slice(0, 3)
-        .map((h, i) => `  ${i + 1}. ${h.hook_formula} (${h.avg_engagement_rate.toFixed(1)}% avg engagement)`)
-        .join('\n');
+
+      // Build hook list with ACTUAL EXAMPLES
+      const hookListWithExamples = viralInsights.topHooks.slice(0, 3)
+        .map((h, i) => {
+          let hookSection = `  ${i + 1}. ${h.hook_formula.toUpperCase()} (${h.avg_engagement_rate.toFixed(1)}% avg engagement, ${h.count} videos)`;
+
+          // Add actual video title examples
+          if (h.examples && h.examples.length > 0) {
+            const exampleTitles = h.examples
+              .map(ex => `     ✓ "${ex.title}" (${ex.engagement_rate.toFixed(1)}% engagement)`)
+              .join('\n');
+            hookSection += '\n' + exampleTitles;
+          }
+
+          return hookSection;
+        })
+        .join('\n\n');
 
       viralContext = `
 ---
 
 🔥 VIRAL INSIGHTS (Last 7 Days):
-Based on analyzing ${viralInsights.topHooks.reduce((sum, h) => sum + h.count, 0)} viral videos:
+Based on analyzing ${viralInsights.topHooks.reduce((sum, h) => sum + h.count, 0)} viral pet videos:
 
-TOP PERFORMING HOOK FORMULAS:
-${hookList}
+TOP PERFORMING HOOK FORMULAS WITH REAL EXAMPLES:
+${hookListWithExamples}
+
+CRITICAL INSTRUCTION: Your hook MUST mirror the style and pattern of the examples above.
+Notice how they:
+- Use specific, relatable scenarios
+- Create curiosity gaps or pattern interrupts
+- Sound like real people talking, not marketing copy
+- Are emotionally engaging and scroll-stopping
 
 RECOMMENDED: Use "${viralInsights.recommendedHook || topHook.hook_formula}" hook formula for maximum engagement potential.
 
-${viralInsights.trendingThemes.length > 0 ? `TRENDING THEMES: ${viralInsights.trendingThemes.slice(0, 5).join(', ')}` : ''}
+${viralInsights.trendingThemes.length > 0 ? `TRENDING THEMES IN VIRAL PET CONTENT: ${viralInsights.trendingThemes.slice(0, 5).join(', ')}` : ''}
 
 ---
 `;

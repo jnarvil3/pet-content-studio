@@ -10,6 +10,13 @@ export interface ViralHook {
   hook_formula: string;
   count: number;
   avg_engagement_rate: number;
+  examples?: ViralVideoExample[];
+}
+
+export interface ViralVideoExample {
+  title: string;
+  engagement_rate: number;
+  content_angle?: string;
 }
 
 export interface ViralTheme {
@@ -48,8 +55,9 @@ export class ViralSignalsConnector {
 
   /**
    * Get top performing hook formulas from recent viral content
+   * Now includes actual video examples for each hook type
    */
-  getTopViralHooks(days: number = 7, limit: number = 10): ViralHook[] {
+  getTopViralHooks(days: number = 7, limit: number = 10, includeExamples: boolean = true): ViralHook[] {
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
     const rows = this.db.prepare(`
@@ -66,7 +74,37 @@ export class ViralSignalsConnector {
       LIMIT ?
     `).all(cutoffDate, limit) as ViralHook[];
 
+    // Fetch examples for each hook formula
+    if (includeExamples) {
+      for (const hook of rows) {
+        hook.examples = this.getHookExamples(hook.hook_formula, days, 3);
+      }
+    }
+
     return rows;
+  }
+
+  /**
+   * Get specific video examples for a hook formula
+   */
+  private getHookExamples(hookFormula: string, days: number = 7, limit: number = 3): ViralVideoExample[] {
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+    const examples = this.db.prepare(`
+      SELECT
+        title,
+        engagement_rate,
+        content_angle
+      FROM viral_signals
+      WHERE hook_formula = ?
+        AND text_analyzed_at IS NOT NULL
+        AND collected_at >= ?
+        AND engagement_rate > 0
+      ORDER BY engagement_rate DESC
+      LIMIT ?
+    `).all(hookFormula, cutoffDate, limit) as ViralVideoExample[];
+
+    return examples;
   }
 
   /**
