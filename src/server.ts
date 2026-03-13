@@ -11,6 +11,7 @@ import cors from 'cors';
 import path from 'path';
 import { ContentStorage } from './storage/content-storage';
 import { IntelConnector } from './storage/intel-connector';
+import { ViralSignalsConnector } from './storage/viral-signals-connector';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -26,6 +27,7 @@ app.use('/output', express.static('output'));
 // Initialize storage
 const contentStorage = new ContentStorage();
 const intelConnector = new IntelConnector();
+const viralConnector = new ViralSignalsConnector();
 
 /**
  * API Routes
@@ -165,6 +167,146 @@ app.post('/api/content/:id/publish', (req, res) => {
     contentStorage.markPublished(id);
     res.json({ success: true, message: 'Content marked as published' });
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get viral insights
+app.get('/api/viral/insights', (req, res) => {
+  try {
+    const days = parseInt(req.query.days as string) || 7;
+
+    const topHooks = viralConnector.getTopViralHooks(days, 10);
+    const trendingThemes = viralConnector.getTrendingThemes(days, 20);
+    const viralPatterns = viralConnector.getViralPatterns(days, 10);
+    const stats = viralConnector.getViralStats(days);
+    const emotionalTriggers = viralConnector.getTopEmotionalTriggers(days, 5);
+
+    res.json({
+      success: true,
+      data: {
+        stats,
+        topHooks,
+        trendingThemes,
+        viralPatterns,
+        emotionalTriggers
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Demo: Generate carousel with viral comparison
+app.post('/api/demo/viral-comparison', async (req, res) => {
+  try {
+    const signalId = parseInt(req.body.signalId);
+    if (!signalId) {
+      return res.status(400).json({ error: 'signalId is required' });
+    }
+
+    // Get the signal
+    const signal = intelConnector.getSignal(signalId);
+    if (!signal) {
+      return res.status(404).json({ error: 'Signal not found' });
+    }
+
+    // Import dependencies
+    const { ContentWriter } = await import('./generators/content-writer');
+    const { getBrandConfig } = await import('./config/brand-config');
+
+    const brand = getBrandConfig();
+    const writer = new ContentWriter();
+
+    // Get viral insights
+    const topHooks = viralConnector.getTopViralHooks(7, 5);
+    const trendingThemes = viralConnector.getTrendingThemes(7, 10);
+    const stats = viralConnector.getViralStats(7);
+
+    // Extract themes as strings
+    const themeStrings = trendingThemes
+      .map(t => {
+        try {
+          const parsed = JSON.parse(t.content_themes);
+          return Array.isArray(parsed) ? parsed.join(', ') : '';
+        } catch {
+          return '';
+        }
+      })
+      .filter(t => t.length > 0)
+      .slice(0, 5);
+
+    const viralInsights = {
+      topHooks,
+      trendingThemes: themeStrings,
+      avgEngagement: stats.avg_engagement,
+      recommendedHook: topHooks[0]?.hook_formula || undefined
+    };
+
+    console.log('\n' + '='.repeat(60));
+    console.log('🎬 DEMO: Viral-Enhanced vs Standard Carousel Generation');
+    console.log('='.repeat(60));
+    console.log(`Signal: ${signal.title}`);
+    console.log(`Viral Data: ${stats.total_analyzed} videos analyzed over ${stats.date_range_days} days`);
+    console.log(`Top Hook: ${viralInsights.recommendedHook} (${topHooks[0]?.avg_engagement_rate.toFixed(1)}% avg engagement)`);
+    console.log('='.repeat(60) + '\n');
+
+    // Generate STANDARD carousel
+    console.log('[Demo] Generating STANDARD carousel (no viral data)...');
+    const standardContent = await writer.generateCarousel(signal, brand);
+
+    // Generate VIRAL-ENHANCED carousel
+    console.log('[Demo] Generating VIRAL-ENHANCED carousel (with viral insights)...');
+    const viralContent = await writer.generateCarousel(signal, brand, viralInsights);
+
+    console.log('\n' + '='.repeat(60));
+    console.log('✅ DEMO COMPLETE - Comparison Ready');
+    console.log('='.repeat(60) + '\n');
+
+    res.json({
+      success: true,
+      signal: {
+        id: signal.id,
+        title: signal.title,
+        description: signal.description,
+        relevance_score: signal.relevance_score
+      },
+      viralInsights: {
+        analyzedVideos: stats.total_analyzed,
+        avgEngagement: stats.avg_engagement,
+        topHook: viralInsights.recommendedHook,
+        topHookEngagement: topHooks[0]?.avg_engagement_rate || 0,
+        trendingThemes: themeStrings
+      },
+      standard: {
+        hook: standardContent.slides[0].title,
+        hookFormula: standardContent.hookFormula,
+        caption: standardContent.caption,
+        slides: standardContent.slides.map(s => ({
+          number: s.slideNumber,
+          title: s.title,
+          body: s.body
+        }))
+      },
+      viralEnhanced: {
+        hook: viralContent.slides[0].title,
+        hookFormula: viralContent.hookFormula,
+        caption: viralContent.caption,
+        slides: viralContent.slides.map(s => ({
+          number: s.slideNumber,
+          title: s.title,
+          body: s.body
+        }))
+      },
+      comparison: {
+        hookChanged: standardContent.hookFormula !== viralContent.hookFormula,
+        usedRecommendedHook: viralContent.hookFormula === viralInsights.recommendedHook,
+        expectedEngagementBoost: topHooks[0] ? `+${((topHooks[0].avg_engagement_rate / 3.5 - 1) * 100).toFixed(0)}%` : 'Unknown'
+      }
+    });
+
+  } catch (error: any) {
+    console.error('[Demo] Error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -319,12 +461,19 @@ app.listen(PORT, () => {
   console.log(`✅ Server running at: http://localhost:${PORT}`);
   console.log();
   console.log('Available endpoints:');
-  console.log('  GET  /api/stats              - Dashboard statistics');
-  console.log('  GET  /api/content            - List all content');
-  console.log('  GET  /api/content/:id        - Get specific content');
-  console.log('  POST /api/content/:id/approve - Approve content');
-  console.log('  POST /api/content/:id/reject  - Reject content');
-  console.log('  POST /api/content/:id/publish - Mark as published');
+  console.log('  GET  /api/stats                  - Dashboard statistics');
+  console.log('  GET  /api/signals                - Available signals');
+  console.log('  GET  /api/content                - List all content');
+  console.log('  GET  /api/content/:id            - Get specific content');
+  console.log('  POST /api/content/:id/approve    - Approve content');
+  console.log('  POST /api/content/:id/reject     - Reject content');
+  console.log('  POST /api/content/:id/publish    - Mark as published');
+  console.log('  POST /api/generate               - Generate carousels');
+  console.log('  POST /api/generate-reel          - Generate reels');
+  console.log();
+  console.log('🔥 Viral Integration:');
+  console.log('  GET  /api/viral/insights         - Get viral trends & insights');
+  console.log('  POST /api/demo/viral-comparison  - Demo: Compare standard vs viral-enhanced');
   console.log();
   console.log('='.repeat(60));
 });
@@ -333,5 +482,6 @@ app.listen(PORT, () => {
 process.on('SIGINT', () => {
   contentStorage.close();
   intelConnector.close();
+  viralConnector.close();
   process.exit();
 });

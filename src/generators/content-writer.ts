@@ -10,6 +10,14 @@ import OpenAI from 'openai';
 import { Signal } from '../types/signal';
 import { CarouselContent } from '../types/content';
 import { BrandConfig } from '../types/brand';
+import { ViralSignalsConnector, ViralHook } from '../storage/viral-signals-connector';
+
+export interface ViralInsights {
+  topHooks: ViralHook[];
+  trendingThemes: string[];
+  avgEngagement: number;
+  recommendedHook?: string;
+}
 
 export class ContentWriter {
   private client: OpenAI;
@@ -27,11 +35,21 @@ export class ContentWriter {
   /**
    * Generate carousel content from a topic signal
    * Uses GPT-4o-mini for cost efficiency
+   * Optionally uses viral insights to enhance content
    */
-  async generateCarousel(signal: Signal, brand: BrandConfig): Promise<CarouselContent> {
-    const prompt = this.buildCarouselPrompt(signal, brand);
+  async generateCarousel(
+    signal: Signal,
+    brand: BrandConfig,
+    viralInsights?: ViralInsights
+  ): Promise<CarouselContent> {
+    const prompt = this.buildCarouselPrompt(signal, brand, viralInsights);
 
-    console.log(`[ContentWriter] Generating carousel for signal #${signal.id}: "${signal.title}"`);
+    const mode = viralInsights ? 'viral-enhanced' : 'standard';
+    console.log(`[ContentWriter] Generating ${mode} carousel for signal #${signal.id}: "${signal.title}"`);
+
+    if (viralInsights) {
+      console.log(`[ContentWriter] 🔥 Using viral insights: Top hook = ${viralInsights.recommendedHook || 'auto'}, Avg engagement = ${viralInsights.avgEngagement.toFixed(1)}%`);
+    }
 
     try {
       const response = await this.client.chat.completions.create({
@@ -62,13 +80,39 @@ export class ContentWriter {
 
   /**
    * Build the improved system prompt for carousel generation
+   * Optionally enhanced with viral insights
    */
-  private buildCarouselPrompt(signal: Signal, brand: BrandConfig): string {
+  private buildCarouselPrompt(signal: Signal, brand: BrandConfig, viralInsights?: ViralInsights): string {
     const services = brand.services.join(', ');
     const brandHandle = brand.handle;
 
-    return `You are an Instagram carousel copywriter for ${brand.name}, a pet industry superapp (${services}).
+    // Build viral context if insights provided
+    let viralContext = '';
+    if (viralInsights && viralInsights.topHooks.length > 0) {
+      const topHook = viralInsights.topHooks[0];
+      const hookList = viralInsights.topHooks.slice(0, 3)
+        .map((h, i) => `  ${i + 1}. ${h.hook_formula} (${h.avg_engagement_rate.toFixed(1)}% avg engagement)`)
+        .join('\n');
 
+      viralContext = `
+---
+
+🔥 VIRAL INSIGHTS (Last 7 Days):
+Based on analyzing ${viralInsights.topHooks.reduce((sum, h) => sum + h.count, 0)} viral videos:
+
+TOP PERFORMING HOOK FORMULAS:
+${hookList}
+
+RECOMMENDED: Use "${viralInsights.recommendedHook || topHook.hook_formula}" hook formula for maximum engagement potential.
+
+${viralInsights.trendingThemes.length > 0 ? `TRENDING THEMES: ${viralInsights.trendingThemes.slice(0, 5).join(', ')}` : ''}
+
+---
+`;
+    }
+
+    return `You are an Instagram carousel copywriter for ${brand.name}, a pet industry superapp (${services}).
+${viralContext}
 Your job is to turn a topic card into a scroll-stopping, save-worthy 5-slide Instagram carousel.
 
 You write like a knowledgeable dog owner talking to a friend — not like a textbook, not like a marketing agency, and definitely not like an AI. Use contractions. Use "you" and "your." Be specific. Be opinionated. Occasionally ask the reader a question. Never use corporate jargon.
