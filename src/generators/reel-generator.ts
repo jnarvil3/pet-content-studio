@@ -29,6 +29,8 @@ export class ReelGenerator {
   private pexels: PexelsVideoService;
   private brand: BrandConfig;
   private outputDir: string;
+  private hasDrawtext: boolean = false;
+  private hasXfade: boolean = false;
 
   constructor(brand: BrandConfig, outputDir: string = './output/reels') {
     this.brand = brand;
@@ -40,6 +42,34 @@ export class ReelGenerator {
     // Ensure output directory exists
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    // Check FFmpeg capabilities
+    this.checkFFmpegCapabilities();
+  }
+
+  /**
+   * Check which FFmpeg features are available
+   */
+  private async checkFFmpegCapabilities(): Promise<void> {
+    try {
+      // Check for drawtext filter
+      const { stdout: drawtextCheck } = await execAsync('ffmpeg -filters 2>&1 | grep drawtext || true');
+      this.hasDrawtext = drawtextCheck.includes('drawtext');
+
+      // Check for xfade filter
+      const { stdout: xfadeCheck } = await execAsync('ffmpeg -filters 2>&1 | grep xfade || true');
+      this.hasXfade = xfadeCheck.includes('xfade');
+
+      if (!this.hasDrawtext) {
+        console.warn('[ReelGenerator] ⚠️  FFmpeg missing drawtext filter - text overlays disabled');
+        console.warn('[ReelGenerator] To enable: brew reinstall ffmpeg');
+      }
+      if (!this.hasXfade) {
+        console.warn('[ReelGenerator] ⚠️  FFmpeg missing xfade filter - transitions disabled');
+      }
+    } catch (error) {
+      console.warn('[ReelGenerator] Could not check FFmpeg capabilities');
     }
   }
 
@@ -183,8 +213,8 @@ export class ReelGenerator {
         // Build video filter chain
         let videoFilter = 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920';
 
-        // Add animated text overlay for hook (first scene only)
-        if (i === 0 && script.scenes[0].captionText) {
+        // Add animated text overlay for hook (first scene only) - if drawtext available
+        if (this.hasDrawtext && i === 0 && script.scenes[0].captionText) {
           const hookText = this.escapeFFmpegText(script.scenes[0].captionText);
           // Animated text: fade in at 0.2s, stay for 2.5s, fade out at 2.7s
           videoFilter += `,drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial Bold.ttf:text='${hookText}':fontcolor=white:fontsize=64:` +
@@ -192,8 +222,8 @@ export class ReelGenerator {
             `enable='between(t,0.2,2.9)':alpha='if(lt(t,0.4),(t-0.2)*5,if(gt(t,2.7),(2.9-t)*5,1))'`;
         }
 
-        // Add caption text for all scenes (bottom of screen)
-        if (script.scenes[i].captionText) {
+        // Add caption text for all scenes (bottom of screen) - if drawtext available
+        if (this.hasDrawtext && script.scenes[i].captionText) {
           const captionText = this.escapeFFmpegText(script.scenes[i].captionText);
           videoFilter += `,drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial.ttf:text='${captionText}':fontcolor=white:fontsize=48:` +
             `box=1:boxcolor=black@0.7:boxborderw=15:x=(w-text_w)/2:y=h-150`;
@@ -214,7 +244,7 @@ export class ReelGenerator {
         throw new Error('No scene videos were processed');
       }
 
-      // Step 2: Concatenate scene videos with crossfade transitions
+      // Step 2: Concatenate scene videos with crossfade transitions (if available)
       const concatenatedVideoPath = path.join(workDir, 'concatenated-video.mp4');
 
       if (sceneVideos.length === 1) {
@@ -222,9 +252,23 @@ export class ReelGenerator {
         await execAsync(
           `ffmpeg -y -i "${sceneVideos[0]}" -c:v libx264 -preset fast -crf 23 -r 25 "${concatenatedVideoPath}" < /dev/null`
         );
-      } else {
+      } else if (this.hasXfade) {
         // Multiple scenes - add crossfade transitions (0.5s each)
         await this.concatenateWithTransitions(sceneVideos, concatenatedVideoPath, 0.5);
+      } else {
+        // Fallback: simple concatenation without transitions
+        const videoListPath = path.join(workDir, 'video-list.txt');
+        const videoList = sceneVideos.map(p => `file '${path.resolve(p)}'`).join('\n');
+        fs.writeFileSync(videoListPath, videoList);
+
+        await execAsync(
+          `ffmpeg -y -f concat -safe 0 -i "${videoListPath}" ` +
+          `-c:v libx264 -preset fast -crf 23 -r 25 "${concatenatedVideoPath}" < /dev/null`
+        );
+
+        if (fs.existsSync(videoListPath)) {
+          fs.unlinkSync(videoListPath);
+        }
       }
 
       // Step 3: Concatenate all audio files

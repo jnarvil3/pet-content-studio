@@ -9,7 +9,10 @@
     "dev": "tsx watch src/server.ts",
     "generate": "tsx src/cli/generate-carousels.ts",
     "generate:batch": "tsx src/cli/generate-carousels.ts 10 70",
-    "test": "tsx src/test.ts"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ffmpeg": "vitest run src/tests/ffmpeg-capabilities.test.ts",
+    "test:api": "vitest run src/tests/content-generation.test.ts"
   },
   "keywords": [
     "instagram",
@@ -40,6 +43,7 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.2",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.0"
   }
 }
