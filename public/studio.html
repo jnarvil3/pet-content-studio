@@ -311,6 +311,30 @@
       100% { transform: rotate(360deg); }
     }
 
+    /* Toggle buttons */
+    .toggle-btn {
+      padding: 0.5rem 1rem;
+      border: 2px solid #e0e0e0;
+      background: white;
+      color: #666;
+      font-size: 0.875rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .toggle-btn:hover {
+      border-color: #667eea;
+      color: #667eea;
+    }
+
+    .toggle-btn.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-color: transparent;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .sidebar {
@@ -358,6 +382,10 @@
         <a class="nav-item" data-page="settings">
           <span class="nav-icon">⚙️</span>
           <span class="nav-label">Settings</span>
+        </a>
+        <a class="nav-item" data-page="help">
+          <span class="nav-icon">❓</span>
+          <span class="nav-label">Help</span>
         </a>
       </nav>
 
@@ -437,13 +465,31 @@
         <div class="tabs">
           <button class="tab active" data-tab="signals-tab">Content Signals</button>
           <button class="tab" data-tab="videos-tab">Trending Videos</button>
+          <button class="tab" data-tab="hooks-tab">Hooks</button>
         </div>
 
         <!-- Signals Tab -->
         <div class="tab-content active" id="signals-tab">
           <div class="card">
-            <h2 class="card-title">Top Content Signals</h2>
-            <p style="color: #666; margin-bottom: 1.5rem;">Ranked by relevance score and viral potential</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+              <div>
+                <h2 class="card-title" style="margin-bottom: 0.25rem;">Top Content Signals</h2>
+                <p style="color: #666;">Ranked by relevance score and viral potential</p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div id="refresh-status" style="display: none; font-size: 0.875rem; color: #667eea;"></div>
+                <button class="btn btn-primary" id="refresh-signals-btn" onclick="triggerCollection()" style="white-space: nowrap;">🔄 Get Newest Trends</button>
+              </div>
+            </div>
+            <div id="collection-progress" style="display: none; margin-bottom: 1.5rem; padding: 1rem; background: rgba(102,126,234,0.05); border-radius: 8px;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                <div class="spinner" style="width: 20px; height: 20px; border-width: 3px; margin: 0;"></div>
+                <span id="collection-status" style="color: #667eea; font-weight: 500;">Initializing...</span>
+              </div>
+              <div style="width: 100%; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
+                <div id="collection-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); transition: width 0.3s;"></div>
+              </div>
+            </div>
             <div id="signals-list">Loading...</div>
           </div>
         </div>
@@ -451,9 +497,40 @@
         <!-- Videos Tab -->
         <div class="tab-content" id="videos-tab">
           <div class="card">
-            <h2 class="card-title">Viral Videos</h2>
-            <p style="color: #666; margin-bottom: 1.5rem;">Analyzed pet content from YouTube with engagement metrics</p>
+            <h2 class="card-title">Trending Videos</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
+              <div style="display: flex; gap: 0.5rem;">
+                <button class="btn toggle-btn active" id="video-filter-pet" onclick="setVideoFilter('pet')">🐾 Pet Videos</button>
+                <button class="btn toggle-btn" id="video-filter-all" onclick="setVideoFilter('all')">🌐 All Videos</button>
+              </div>
+              <select id="video-time-period" onchange="setVideoTimePeriod(this.value)" style="padding: 0.5rem 1rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.875rem; background: white; cursor: pointer;">
+                <option value="today" selected>Today</option>
+                <option value="7days">Last 7 Days</option>
+                <option value="30days">Last 30 Days</option>
+                <option value="90days">Last 90 Days</option>
+              </select>
+            </div>
             <div id="videos-list">Loading...</div>
+          </div>
+        </div>
+
+        <!-- Hooks Tab -->
+        <div class="tab-content" id="hooks-tab">
+          <div class="card">
+            <h2 class="card-title">Trending Hooks</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
+              <div style="display: flex; gap: 0.5rem;">
+                <button class="btn toggle-btn active" id="hook-filter-pet" onclick="setHookFilter('pet')">🐾 Pet Hooks</button>
+                <button class="btn toggle-btn" id="hook-filter-all" onclick="setHookFilter('all')">🌐 All Hooks</button>
+              </div>
+              <select id="hook-time-period" onchange="setHookTimePeriod(this.value)" style="padding: 0.5rem 1rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.875rem; background: white; cursor: pointer;">
+                <option value="today" selected>Today</option>
+                <option value="7days">Last 7 Days</option>
+                <option value="30days">Last 30 Days</option>
+                <option value="90days">Last 90 Days</option>
+              </select>
+            </div>
+            <div id="hooks-grid">Loading...</div>
           </div>
         </div>
       </div>
@@ -548,6 +625,15 @@
           <h2 class="card-title">API Configuration</h2>
           <p style="color: #666;">API keys are configured via environment variables.</p>
         </div>
+      </div>
+      <!-- Help Page -->
+      <div class="page" id="help-page">
+        <div class="page-header">
+          <h1 class="page-title">❓ Help</h1>
+          <p class="page-subtitle">Platform guide, API usage, and credit information</p>
+        </div>
+
+        <div id="help-content">Loading...</div>
       </div>
     </main>
   </div>

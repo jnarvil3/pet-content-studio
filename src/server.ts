@@ -523,6 +523,242 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
+// Pet classification helper
+function isPetRelated(themes: string): boolean {
+  const petKeywords = ['pet', 'dog', 'cat', 'puppy', 'kitten', 'animal', 'pup', 'kitty', 'canine', 'feline', 'doggo', 'pupper', 'fur baby', 'vet', 'breed'];
+  const lower = (themes || '').toLowerCase();
+  return petKeywords.some(kw => lower.includes(kw));
+}
+
+// Collection trigger
+app.post('/api/collection/trigger', async (req, res) => {
+  try {
+    const jobId = await orchestrator.triggerCollection();
+    res.json({ success: true, jobId });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Collection status (SSE)
+app.get('/api/collection/status/:jobId', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const jobId = req.params.jobId;
+
+  // Send current status immediately
+  const job = orchestrator.getJob(jobId);
+  if (job) {
+    res.write(`data: ${JSON.stringify(job)}\n\n`);
+  }
+
+  // Listen for updates
+  const onUpdate = (updatedJob: any) => {
+    if (updatedJob.jobId === jobId) {
+      res.write(`data: ${JSON.stringify(updatedJob)}\n\n`);
+      if (updatedJob.status === 'complete' || updatedJob.status === 'error') {
+        res.end();
+      }
+    }
+  };
+
+  orchestrator.on('job-update', onUpdate);
+
+  req.on('close', () => {
+    orchestrator.removeListener('job-update', onUpdate);
+  });
+});
+
+// Historical trending videos
+app.get('/api/trending/videos', async (req, res) => {
+  try {
+    const period = (req.query.period as string) || 'today';
+    const petOnly = req.query.petOnly === 'true';
+
+    // For 'today', fetch live data from viral connector with pet filtering
+    if (period === 'today') {
+      const topHooks = viralConnector.getTopViralHooks(7, 20);
+      const themes = viralConnector.getTrendingThemes(7, 50);
+      const stats = viralConnector.getViralStats(7);
+
+      // Filter by pet if needed
+      let filteredThemes = themes;
+      if (petOnly) {
+        filteredThemes = themes.filter(t => isPetRelated(t.content_themes));
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          period,
+          petOnly,
+          videos: filteredThemes.slice(0, 20),
+          hooks: topHooks.slice(0, 10),
+          stats: {
+            totalAnalyzed: stats.total_analyzed,
+            avgEngagement: stats.avg_engagement
+          }
+        }
+      });
+    }
+
+    // For historical periods, use snapshot manager
+    const data = await snapshotManager.getHistoricalData(
+      period as any,
+      'videos',
+      petOnly
+    );
+
+    res.json({ success: true, data });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Historical trending hooks
+app.get('/api/trending/hooks', async (req, res) => {
+  try {
+    const period = (req.query.period as string) || 'today';
+    const petOnly = req.query.petOnly === 'true';
+
+    // For 'today', fetch live data
+    if (period === 'today') {
+      const hooks = viralConnector.getTopViralHooks(7, 20, true);
+      const stats = viralConnector.getViralStats(7);
+
+      // For pet filtering on hooks, filter examples
+      let filteredHooks = hooks;
+      if (petOnly) {
+        filteredHooks = hooks.map(hook => ({
+          ...hook,
+          examples: (hook.examples || []).filter(ex =>
+            isPetRelated(ex.title) || isPetRelated(ex.content_angle || '')
+          )
+        })).filter(hook => hook.examples && hook.examples.length > 0);
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          period,
+          petOnly,
+          hooks: filteredHooks.slice(0, 20),
+          stats: {
+            totalAnalyzed: stats.total_analyzed,
+            avgEngagement: stats.avg_engagement
+          }
+        }
+      });
+    }
+
+    // For historical periods, use snapshot manager
+    const data = await snapshotManager.getHistoricalData(
+      period as any,
+      'hooks',
+      petOnly
+    );
+
+    res.json({ success: true, data });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Help / API info endpoint
+app.get('/api/help/info', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      platform: {
+        name: 'Pet Content Studio',
+        version: '1.0',
+        description: 'AI-powered content generation platform for pet-focused social media. Combines viral trend analysis with intelligent content signals to create high-engagement Instagram carousels and reels.'
+      },
+      pages: [
+        { name: 'Dashboard', icon: '📊', description: 'Overview of content pipeline stats, recent activity, and quick actions.' },
+        { name: 'Discover', icon: '🔍', description: 'Browse content signals (RSS-sourced topics), trending videos, and viral hooks. Use pet/all filters and time period dropdowns to find the best content opportunities.' },
+        { name: 'Create', icon: '✏️', description: 'Generate carousels (5-slide image sets) or reels (30-45s videos with narration and stock footage). Select a signal topic, choose AI quality, and optionally apply a viral pattern.' },
+        { name: 'Review', icon: '✅', description: 'Review generated content. Approve, reject, or mark as published. Filter by status.' },
+        { name: 'Help', icon: '❓', description: 'Platform guide, API usage, and credit information.' }
+      ],
+      apis: [
+        {
+          name: 'OpenAI (GPT-4o)',
+          usage: 'Content script generation (fast mode), viral video text analysis',
+          costPer: '~$0.01 per generation (fast mode)',
+          monthlyBudget: '$15.00',
+          keyConfigured: !!process.env.OPENAI_API_KEY
+        },
+        {
+          name: 'Anthropic (Claude Sonnet 4)',
+          usage: 'Premium content script generation for higher-quality, viral-optimized scripts',
+          costPer: '~$0.15-0.20 per generation (premium mode)',
+          monthlyBudget: 'Shared with OpenAI budget',
+          keyConfigured: !!process.env.ANTHROPIC_API_KEY
+        },
+        {
+          name: 'ElevenLabs',
+          usage: 'Text-to-speech narration for reels. Generates professional voiceover for each scene.',
+          costPer: '~10,000 characters/month free tier',
+          monthlyBudget: 'Free tier (10k chars)',
+          keyConfigured: !!process.env.ELEVENLABS_API_KEY
+        },
+        {
+          name: 'Pexels',
+          usage: 'Stock video footage for reels. Searches pet-related B-roll to accompany narration.',
+          costPer: 'Free (unlimited)',
+          monthlyBudget: 'Unlimited',
+          keyConfigured: !!process.env.PEXELS_API_KEY
+        },
+        {
+          name: 'YouTube Data API',
+          usage: 'Viral video collection and trend discovery. Searches for trending pet content to analyze.',
+          costPer: '10,000 units/day free quota',
+          monthlyBudget: 'Free (10k units/day)',
+          keyConfigured: !!process.env.YOUTUBE_API_KEY
+        }
+      ],
+      workflow: [
+        { step: 1, title: 'Collect Intelligence', description: 'RSS feeds and YouTube trends are collected and scored for pet content relevance.' },
+        { step: 2, title: 'Analyze Viral Patterns', description: 'Top-performing videos are analyzed for hooks, emotional triggers, and engagement patterns.' },
+        { step: 3, title: 'Discover Signals', description: 'Browse ranked content signals in the Discover tab. Filter by pet/all and time period.' },
+        { step: 4, title: 'Generate Content', description: 'Select a signal, choose AI quality (fast/premium), and generate a carousel or reel.' },
+        { step: 5, title: 'Review & Publish', description: 'Review generated content, approve or reject, and mark as published when posted.' }
+      ]
+    }
+  });
+});
+
+// Create snapshot on demand (for saving current trends to history)
+app.post('/api/trending/snapshot', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+
+    // Snapshot videos (all and pet)
+    const themes = viralConnector.getTrendingThemes(7, 50);
+    const hooks = viralConnector.getTopViralHooks(7, 20, true);
+    const stats = viralConnector.getViralStats(7);
+
+    const petThemes = themes.filter(t => isPetRelated(t.content_themes));
+    const petHooks = hooks.map(h => ({
+      ...h,
+      examples: (h.examples || []).filter(ex => isPetRelated(ex.title) || isPetRelated(ex.content_angle || ''))
+    })).filter(h => h.examples && h.examples.length > 0);
+
+    // Save all snapshots
+    await snapshotManager.createDailySnapshot(today, 'videos', themes.slice(0, 20), false, stats.total_analyzed, stats.avg_engagement);
+    await snapshotManager.createDailySnapshot(today, 'videos', petThemes.slice(0, 20), true, petThemes.length, stats.avg_engagement);
+    await snapshotManager.createDailySnapshot(today, 'hooks', hooks.slice(0, 20), false, stats.total_analyzed, stats.avg_engagement);
+    await snapshotManager.createDailySnapshot(today, 'hooks', petHooks.slice(0, 20), true, petHooks.length, stats.avg_engagement);
+
+    res.json({ success: true, message: `Snapshot saved for ${today}` });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 /**
  * Serve frontend
  */
@@ -544,16 +780,17 @@ app.listen(PORT, () => {
   console.log('  GET  /api/stats                  - Dashboard statistics');
   console.log('  GET  /api/signals                - Available signals');
   console.log('  GET  /api/content                - List all content');
-  console.log('  GET  /api/content/:id            - Get specific content');
-  console.log('  POST /api/content/:id/approve    - Approve content');
-  console.log('  POST /api/content/:id/reject     - Reject content');
-  console.log('  POST /api/content/:id/publish    - Mark as published');
   console.log('  POST /api/generate               - Generate carousels');
   console.log('  POST /api/generate-reel          - Generate reels');
   console.log();
-  console.log('🔥 Viral Integration:');
+  console.log('🔥 Viral & Trending:');
   console.log('  GET  /api/viral/insights         - Get viral trends & insights');
-  console.log('  POST /api/demo/viral-comparison  - Demo: Compare standard vs viral-enhanced');
+  console.log('  GET  /api/trending/videos        - Trending videos (pet/all, time periods)');
+  console.log('  GET  /api/trending/hooks         - Trending hooks (pet/all, time periods)');
+  console.log('  POST /api/trending/snapshot      - Save current trends to history');
+  console.log('  POST /api/collection/trigger     - Trigger new data collection');
+  console.log('  GET  /api/collection/status/:id  - Collection progress (SSE)');
+  console.log('  GET  /api/help/info              - Platform & API info');
   console.log();
   console.log('='.repeat(60));
 });
@@ -563,5 +800,6 @@ process.on('SIGINT', () => {
   contentStorage.close();
   intelConnector.close();
   viralConnector.close();
+  snapshotManager.close();
   process.exit();
 });

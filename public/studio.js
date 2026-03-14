@@ -8,6 +8,12 @@ let allContent = [];
 let allSignals = [];
 let currentFilter = 'all';
 
+// Trending filter state
+let videoPetFilter = 'pet';
+let videoTimePeriod = 'today';
+let hookPetFilter = 'pet';
+let hookTimePeriod = 'today';
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   setupNavigation();
@@ -54,6 +60,8 @@ function navigateTo(pageName) {
     loadReviewData();
   } else if (pageName === 'settings') {
     loadSettingsData();
+  } else if (pageName === 'help') {
+    loadHelpData();
   }
 }
 
@@ -148,7 +156,8 @@ async function loadRecentActivity() {
 async function loadDiscoverData() {
   await Promise.all([
     loadSignalsList(),
-    loadVideosList()
+    loadVideosList(),
+    loadHooksList()
   ]);
 }
 
@@ -191,19 +200,57 @@ async function loadSignalsList() {
 let allVideos = [];
 let videoFilters = { hook: 'all', emotion: 'all', status: 'analyzed' };
 
+function setVideoFilter(filter) {
+  videoPetFilter = filter;
+  document.getElementById('video-filter-pet').classList.toggle('active', filter === 'pet');
+  document.getElementById('video-filter-all').classList.toggle('active', filter === 'all');
+  loadVideosList();
+}
+
+function setVideoTimePeriod(period) {
+  videoTimePeriod = period;
+  loadVideosList();
+}
+
 async function loadVideosList() {
   try {
-    const response = await fetch('http://localhost:3001/api/videos?limit=100&analyzed_only=true');
-    const data = await response.json();
-
     const videosList = document.getElementById('videos-list');
+    videosList.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #667eea;"></div><p style="color: #666;">Loading videos...</p></div>';
 
-    if (!data.success || data.data.length === 0) {
-      videosList.innerHTML = '<p style="color: #999;">No viral videos analyzed yet.</p>';
-      return;
+    // Try new trending API first
+    const trendingResponse = await fetch(`/api/trending/videos?period=${videoTimePeriod}&petOnly=${videoPetFilter === 'pet'}`);
+    const trendingData = await trendingResponse.json();
+
+    if (trendingData.success && trendingData.data) {
+      // For 'today' period, also load from viral analyzer for full video list
+      if (videoTimePeriod === 'today') {
+        try {
+          const response = await fetch('http://localhost:3001/api/videos?limit=100&analyzed_only=true');
+          const data = await response.json();
+          if (data.success && data.data.length > 0) {
+            allVideos = data.data;
+
+            // Apply pet filter
+            if (videoPetFilter === 'pet') {
+              allVideos = allVideos.filter(v =>
+                isPetRelatedClient(v.content_themes || v.title || '')
+              );
+            }
+          }
+        } catch (e) {
+          // Viral analyzer not running, use trending data
+          allVideos = trendingData.data.videos || [];
+        }
+      } else {
+        // Historical data from snapshots
+        allVideos = trendingData.data.items || trendingData.data.videos || [];
+      }
     }
 
-    allVideos = data.data;
+    if (allVideos.length === 0) {
+      videosList.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">No videos found for this filter. Try "All Videos" or a different time period.</p>';
+      return;
+    }
 
     // Load Top 10 lists
     await loadTop10Lists();
@@ -213,8 +260,15 @@ async function loadVideosList() {
     renderVideoGrid();
   } catch (error) {
     console.error('Error loading videos:', error);
-    document.getElementById('videos-list').innerHTML = '<p style="color: #999;">Could not load viral videos. Make sure viral analyzer is running on port 3001.</p>';
+    document.getElementById('videos-list').innerHTML = '<p style="color: #999;">Could not load viral videos. Make sure the server is running.</p>';
   }
+}
+
+// Client-side pet classification (mirrors server-side)
+function isPetRelatedClient(text) {
+  const petKeywords = ['pet', 'dog', 'cat', 'puppy', 'kitten', 'animal', 'pup', 'kitty', 'canine', 'feline', 'doggo', 'pupper', 'fur baby', 'vet', 'breed'];
+  const lower = (text || '').toLowerCase();
+  return petKeywords.some(kw => lower.includes(kw));
 }
 
 async function loadTop10Lists() {
@@ -956,4 +1010,280 @@ function getHookEngagement(hookFormula) {
     'authority': '4.9'
   };
   return engagementRates[hookFormula] || '5.0';
+}
+
+/**
+ * Hooks Tab
+ */
+function setHookFilter(filter) {
+  hookPetFilter = filter;
+  document.getElementById('hook-filter-pet').classList.toggle('active', filter === 'pet');
+  document.getElementById('hook-filter-all').classList.toggle('active', filter === 'all');
+  loadHooksList();
+}
+
+function setHookTimePeriod(period) {
+  hookTimePeriod = period;
+  loadHooksList();
+}
+
+async function loadHooksList() {
+  const grid = document.getElementById('hooks-grid');
+  if (!grid) return;
+
+  grid.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #667eea;"></div><p style="color: #666;">Loading hooks...</p></div>';
+
+  try {
+    const response = await fetch(`/api/trending/hooks?period=${hookTimePeriod}&petOnly=${hookPetFilter === 'pet'}`);
+    const data = await response.json();
+
+    if (!data.success) {
+      grid.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">Could not load hooks data.</p>';
+      return;
+    }
+
+    const hooks = data.data.hooks || data.data.items || [];
+
+    if (hooks.length === 0) {
+      grid.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">No hooks found for this filter. Try "All Hooks" or a different time period.</p>';
+      return;
+    }
+
+    renderHooksGrid(hooks);
+  } catch (error) {
+    console.error('Error loading hooks:', error);
+    grid.innerHTML = '<p style="color: #999;">Could not load hooks. Make sure the server is running.</p>';
+  }
+}
+
+function renderHooksGrid(hooks) {
+  const grid = document.getElementById('hooks-grid');
+
+  grid.innerHTML = `
+    <div style="margin-bottom: 1rem; color: #666; font-size: 0.875rem;">Showing ${hooks.length} hook strategies</div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1rem;">
+      ${hooks.map((hook, i) => `
+        <div style="border: 2px solid ${i === 0 ? '#f5576c' : '#e0e0e0'}; border-radius: 12px; padding: 1.5rem; transition: all 0.2s; ${i === 0 ? 'background: rgba(245,87,108,0.03);' : ''}" onmouseover="this.style.borderColor='#667eea'" onmouseout="this.style.borderColor='${i === 0 ? '#f5576c' : '#e0e0e0'}'">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <div style="font-size: 1.5rem; font-weight: 700; color: ${i === 0 ? '#f5576c' : i < 3 ? '#667eea' : '#999'};">#${i + 1}</div>
+              <div style="font-weight: 700; font-size: 1.1rem; color: #333;">${hook.hook_formula}</div>
+            </div>
+            ${i === 0 ? '<span style="background: rgba(245,87,108,0.1); color: #f5576c; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">TOP HOOK</span>' : ''}
+          </div>
+          <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+            <div style="background: rgba(102,126,234,0.1); padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.875rem;">
+              <span style="color: #667eea; font-weight: 700;">${(hook.avg_engagement_rate || hook.engagement_rate || 0).toFixed(1)}%</span>
+              <span style="color: #666;"> avg engagement</span>
+            </div>
+            <div style="background: rgba(139,92,246,0.1); padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.875rem;">
+              <span style="color: #8b5cf6; font-weight: 700;">${hook.count || 0}</span>
+              <span style="color: #666;"> videos</span>
+            </div>
+          </div>
+          ${hook.examples && hook.examples.length > 0 ? `
+            <div style="border-top: 1px solid #e0e0e0; padding-top: 1rem; margin-top: 0.5rem;">
+              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Examples</div>
+              ${hook.examples.slice(0, 2).map(ex => `
+                <div style="font-size: 0.875rem; color: #555; margin-bottom: 0.25rem; line-height: 1.3;">
+                  "${(ex.title || '').substring(0, 80)}${(ex.title || '').length > 80 ? '...' : ''}"
+                  <span style="color: #667eea; font-weight: 600;">(${(ex.engagement_rate || 0).toFixed(1)}%)</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+          <button class="btn btn-primary" style="width: 100%; margin-top: 1rem; padding: 0.625rem;" onclick="selectHook('${(hook.hook_formula || '').replace(/'/g, "\\'")}')">✨ Use This Hook</button>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function selectHook(hookFormula) {
+  // Store hook for use in creation
+  selectedViralPattern = {
+    hookFormula,
+    videoId: null,
+    viralTitle: '',
+    contentAngle: hookFormula
+  };
+
+  navigateTo('create');
+
+  setTimeout(() => {
+    const statusDiv = document.getElementById('generation-status');
+    statusDiv.style.display = 'block';
+    statusDiv.innerHTML = `
+      <div style="padding: 1.5rem; background: rgba(102,126,234,0.1); border-radius: 12px; border-left: 4px solid #667eea;">
+        <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">✨ Hook Selected</p>
+        <p style="color: #333; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Hook Formula:</strong> ${hookFormula}</p>
+        <p style="color: #666; font-size: 0.875rem;">Select a topic below. Your content will use this hook formula for maximum engagement!</p>
+      </div>
+    `;
+
+    document.getElementById('create-signal-select').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 200);
+}
+
+/**
+ * Collection Trigger (Refresh)
+ */
+async function triggerCollection() {
+  const btn = document.getElementById('refresh-signals-btn');
+  const progressDiv = document.getElementById('collection-progress');
+  const statusText = document.getElementById('collection-status');
+  const progressBar = document.getElementById('collection-progress-bar');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Starting...';
+  btn.style.opacity = '0.6';
+  progressDiv.style.display = 'block';
+
+  try {
+    const response = await fetch('/api/collection/trigger', { method: 'POST' });
+    const { jobId } = await response.json();
+
+    // Connect to SSE for progress updates
+    const eventSource = new EventSource(`/api/collection/status/${jobId}`);
+
+    eventSource.addEventListener('message', (event) => {
+      const update = JSON.parse(event.data);
+      statusText.textContent = update.message;
+      progressBar.style.width = `${update.progress}%`;
+
+      if (update.status === 'complete') {
+        eventSource.close();
+        progressDiv.style.display = 'none';
+        btn.disabled = false;
+        btn.textContent = '🔄 Get Newest Trends';
+        btn.style.opacity = '1';
+
+        // Save snapshot of current trends
+        fetch('/api/trending/snapshot', { method: 'POST' });
+
+        // Reload data
+        loadSignalsList();
+        loadVideosList();
+        loadHooksList();
+
+        // Show success
+        const refreshStatus = document.getElementById('refresh-status');
+        refreshStatus.style.display = 'block';
+        refreshStatus.textContent = '✓ Updated just now';
+        setTimeout(() => { refreshStatus.style.display = 'none'; }, 5000);
+      }
+
+      if (update.status === 'error') {
+        eventSource.close();
+        progressDiv.style.display = 'none';
+        btn.disabled = false;
+        btn.textContent = '🔄 Get Newest Trends';
+        btn.style.opacity = '1';
+        alert('Collection failed: ' + update.message);
+      }
+    });
+
+    eventSource.addEventListener('error', () => {
+      eventSource.close();
+      progressDiv.style.display = 'none';
+      btn.disabled = false;
+      btn.textContent = '🔄 Get Newest Trends';
+      btn.style.opacity = '1';
+    });
+
+  } catch (error) {
+    console.error('Collection trigger error:', error);
+    progressDiv.style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '🔄 Get Newest Trends';
+    btn.style.opacity = '1';
+    alert('Failed to start collection: ' + error.message);
+  }
+}
+
+/**
+ * Help Page
+ */
+async function loadHelpData() {
+  const helpDiv = document.getElementById('help-content');
+
+  try {
+    const response = await fetch('/api/help/info');
+    const data = await response.json();
+
+    if (!data.success) {
+      helpDiv.innerHTML = '<p style="color: #999;">Could not load help info.</p>';
+      return;
+    }
+
+    const info = data.data;
+
+    helpDiv.innerHTML = `
+      <!-- Platform Overview -->
+      <div class="card">
+        <h2 class="card-title">🐾 ${info.platform.name}</h2>
+        <p style="color: #555; line-height: 1.6; font-size: 1rem;">${info.platform.description}</p>
+      </div>
+
+      <!-- How It Works -->
+      <div class="card">
+        <h2 class="card-title">How It Works</h2>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          ${info.workflow.map(step => `
+            <div style="display: flex; gap: 1rem; align-items: start; padding: 1rem; background: #f9fafb; border-radius: 8px;">
+              <div style="min-width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem;">${step.step}</div>
+              <div>
+                <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">${step.title}</div>
+                <div style="color: #666; font-size: 0.875rem; line-height: 1.4;">${step.description}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Pages Guide -->
+      <div class="card">
+        <h2 class="card-title">Pages Guide</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+          ${info.pages.map(page => `
+            <div style="border: 2px solid #e0e0e0; border-radius: 12px; padding: 1.25rem;">
+              <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">${page.icon}</div>
+              <div style="font-weight: 600; color: #333; margin-bottom: 0.5rem;">${page.name}</div>
+              <div style="color: #666; font-size: 0.875rem; line-height: 1.4;">${page.description}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- External APIs -->
+      <div class="card">
+        <h2 class="card-title">External APIs & Credits</h2>
+        <p style="color: #666; margin-bottom: 1.5rem;">These are the APIs powering the platform. API keys are configured via environment variables.</p>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          ${info.apis.map(api => `
+            <div style="border: 2px solid ${api.keyConfigured ? '#e0e0e0' : 'rgba(239,68,68,0.3)'}; border-radius: 12px; padding: 1.25rem; ${!api.keyConfigured ? 'background: rgba(239,68,68,0.03);' : ''}">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <div style="font-weight: 700; font-size: 1.1rem; color: #333;">${api.name}</div>
+                <span style="padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; ${api.keyConfigured ? 'background: rgba(34,197,94,0.1); color: #22c55e;' : 'background: rgba(239,68,68,0.1); color: #ef4444;'}">${api.keyConfigured ? '✓ Configured' : '✗ Not Configured'}</span>
+              </div>
+              <div style="color: #555; font-size: 0.875rem; line-height: 1.4; margin-bottom: 0.75rem;">${api.usage}</div>
+              <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+                <div style="font-size: 0.875rem;">
+                  <span style="color: #999;">Cost:</span>
+                  <span style="color: #333; font-weight: 600;">${api.costPer}</span>
+                </div>
+                <div style="font-size: 0.875rem;">
+                  <span style="color: #999;">Budget:</span>
+                  <span style="color: #667eea; font-weight: 600;">${api.monthlyBudget}</span>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Error loading help data:', error);
+    helpDiv.innerHTML = '<div class="card"><p style="color: #999;">Could not load help information. Make sure the server is running.</p></div>';
+  }
 }
