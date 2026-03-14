@@ -406,7 +406,7 @@ function renderVideoGrid() {
           ? video.url || `https://www.tiktok.com/@user/video/${video.video_id}`
           : `https://www.youtube.com/watch?v=${video.video_id}`;
         const thumbnailUrl = isTikTok
-          ? (video.thumbnail_url || '')
+          ? (video.thumbnail_url || video.thumbnails?.cover_url || '')
           : `https://img.youtube.com/vi/${video.video_id}/maxresdefault.jpg`;
         const thumbnailFallback = isTikTok
           ? ''
