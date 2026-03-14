@@ -12,6 +12,8 @@ import path from 'path';
 import { ContentStorage } from './storage/content-storage';
 import { IntelConnector } from './storage/intel-connector';
 import { ViralSignalsConnector } from './storage/viral-signals-connector';
+import { SnapshotManager } from './services/snapshot-manager';
+import { CollectionOrchestrator } from './services/collection-orchestrator';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,6 +30,8 @@ app.use('/output', express.static('output'));
 const contentStorage = new ContentStorage();
 const intelConnector = new IntelConnector();
 const viralConnector = new ViralSignalsConnector();
+const snapshotManager = new SnapshotManager();
+const orchestrator = new CollectionOrchestrator();
 
 // Progress tracking
 interface GenerationProgress {

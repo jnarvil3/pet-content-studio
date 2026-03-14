@@ -57,6 +57,23 @@ export class ContentStorage {
       CREATE INDEX IF NOT EXISTS idx_status ON generated_content(status);
       CREATE INDEX IF NOT EXISTS idx_signal_id ON generated_content(signal_id);
       CREATE INDEX IF NOT EXISTS idx_content_type ON generated_content(content_type);
+
+      CREATE TABLE IF NOT EXISTS trending_snapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        snapshot_date TEXT NOT NULL,
+        snapshot_period TEXT NOT NULL,
+        data_type TEXT NOT NULL,
+        top_items TEXT NOT NULL,
+        pet_only INTEGER DEFAULT 0,
+        total_analyzed INTEGER DEFAULT 0,
+        avg_engagement REAL DEFAULT 0.0,
+        created_at TEXT NOT NULL,
+        UNIQUE(snapshot_date, snapshot_period, data_type, pet_only)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_snapshot_date ON trending_snapshots(snapshot_date);
+      CREATE INDEX IF NOT EXISTS idx_data_type ON trending_snapshots(data_type);
+      CREATE INDEX IF NOT EXISTS idx_pet_only ON trending_snapshots(pet_only);
     `);
   }
 

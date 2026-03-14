@@ -226,10 +226,16 @@ export class ReelGenerator {
         }
 
         // Get audio duration for this scene
-        const { stdout } = await execAsync(
+        const { stdout: audioDurationStr } = await execAsync(
           `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`
         );
-        const sceneDuration = parseFloat(stdout.trim());
+        const sceneDuration = parseFloat(audioDurationStr.trim());
+
+        // Get video duration
+        const { stdout: videoDurationStr } = await execAsync(
+          `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${videoPath}"`
+        );
+        const videoDuration = parseFloat(videoDurationStr.trim());
 
         // Create scene video that matches audio duration
         const sceneVideoPath = path.join(workDir, `scene-${i + 1}-processed.mp4`);
@@ -253,12 +259,26 @@ export class ReelGenerator {
             `box=1:boxcolor=black@0.7:boxborderw=15:x=(w-text_w)/2:y=h-150`;
         }
 
-        // Scale, crop, trim/loop video to match audio duration with text overlays
-        await execAsync(
-          `ffmpeg -y -stream_loop -1 -i "${videoPath}" -t ${sceneDuration} ` +
-          `-vf "${videoFilter}" ` +
-          `-c:v libx264 -preset fast -crf 23 -r 25 -an "${sceneVideoPath}" < /dev/null`
-        );
+        // Build FFmpeg command based on video length
+        let ffmpegCmd: string;
+
+        if (videoDuration < sceneDuration) {
+          // Video is too short - loop it to fill the duration
+          ffmpegCmd = `ffmpeg -y -stream_loop -1 -i "${videoPath}" -t ${sceneDuration} ` +
+            `-vf "${videoFilter}" ` +
+            `-c:v libx264 -preset fast -crf 23 -r 25 -an "${sceneVideoPath}" < /dev/null`;
+          console.log(`[ReelGenerator] Scene ${i + 1}: Looping ${videoDuration.toFixed(1)}s video to fill ${sceneDuration.toFixed(1)}s`);
+        } else {
+          // Video is long enough - seek to middle section and trim
+          const seekStart = Math.max(0, (videoDuration - sceneDuration) / 2);
+          ffmpegCmd = `ffmpeg -y -ss ${seekStart.toFixed(2)} -i "${videoPath}" -t ${sceneDuration} ` +
+            `-vf "${videoFilter}" ` +
+            `-c:v libx264 -preset fast -crf 23 -r 25 -an "${sceneVideoPath}" < /dev/null`;
+          console.log(`[ReelGenerator] Scene ${i + 1}: Trimming ${videoDuration.toFixed(1)}s video to ${sceneDuration.toFixed(1)}s (seek: ${seekStart.toFixed(1)}s)`);
+        }
+
+        // Process the video
+        await execAsync(ffmpegCmd);
 
         sceneVideos.push(sceneVideoPath);
         console.log(`[ReelGenerator] Processed scene ${i + 1} video (${sceneDuration.toFixed(2)}s)${i === 0 ? ' with hook overlay' : ''}`);

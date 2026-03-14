@@ -15,6 +15,7 @@
     "test:api": "vitest run src/tests/content-generation.test.ts",
     "test:ai": "vitest run src/tests/ai-model-selection.test.ts",
     "test:viral": "vitest run src/tests/viral-pattern-integration.test.ts",
+    "test:video-looping": "vitest run src/tests/video-looping.test.ts",
     "test:all": "vitest run src/tests/"
   },
   "keywords": [

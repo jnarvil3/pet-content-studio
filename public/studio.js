@@ -499,8 +499,32 @@ async function generateContent(type) {
     return;
   }
 
+  // Get buttons and disable them immediately
+  const carouselBtn = document.getElementById('create-carousel-btn');
+  const reelBtn = document.getElementById('create-reel-btn');
+
+  carouselBtn.disabled = true;
+  reelBtn.disabled = true;
+  carouselBtn.style.opacity = '0.5';
+  carouselBtn.style.cursor = 'not-allowed';
+  reelBtn.style.opacity = '0.5';
+  reelBtn.style.cursor = 'not-allowed';
+
+  // Show confirmation
   const statusDiv = document.getElementById('generation-status');
   statusDiv.style.display = 'block';
+  const contentType = type === 'carousel' ? '📱 Carousel' : '🎥 Reel';
+  const aiQuality = selectedAIModel === 'claude-sonnet-4' ? 'Premium (Claude)' : 'Fast (GPT)';
+
+  statusDiv.innerHTML = `
+    <div style="text-align: center; padding: 1.5rem; background: rgba(102,126,234,0.1); border-radius: 12px; border: 2px solid #667eea;">
+      <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">✓ Confirmed: Generating ${contentType}</p>
+      <p style="color: #666; font-size: 0.875rem;">AI Quality: ${aiQuality}</p>
+    </div>
+  `;
+
+  // Small delay to show confirmation
+  await new Promise(resolve => setTimeout(resolve, 800));
 
   try {
     const endpoint = type === 'carousel' ? '/api/generate' : '/api/generate-reel';
@@ -535,8 +559,17 @@ async function generateContent(type) {
 
     // For reels, show progress
     if (type === 'reel') {
-      await pollProgress(signalId, statusDiv);
+      await pollProgress(signalId, statusDiv, carouselBtn, reelBtn);
     } else {
+      // Re-enable buttons for carousels (they complete quickly)
+      setTimeout(() => {
+        carouselBtn.disabled = false;
+        reelBtn.disabled = false;
+        carouselBtn.style.opacity = '1';
+        carouselBtn.style.cursor = 'pointer';
+        reelBtn.style.opacity = '1';
+        reelBtn.style.cursor = 'pointer';
+      }, 2000);
       // Carousels are fast
       statusDiv.innerHTML = `
         <div style="text-align: center; padding: 2rem; background: rgba(34,197,94,0.1); border-radius: 12px; color: #22c55e;">
@@ -548,17 +581,26 @@ async function generateContent(type) {
       `;
     }
   } catch (error) {
+    // Re-enable buttons on error
+    carouselBtn.disabled = false;
+    reelBtn.disabled = false;
+    carouselBtn.style.opacity = '1';
+    carouselBtn.style.cursor = 'pointer';
+    reelBtn.style.opacity = '1';
+    reelBtn.style.cursor = 'pointer';
+
     statusDiv.innerHTML = `
       <div style="text-align: center; padding: 2rem; background: rgba(239,68,68,0.1); border-radius: 12px; color: #ef4444;">
         <div style="font-size: 3rem; margin-bottom: 0.5rem;">❌</div>
         <p style="font-weight: 600;">Generation failed</p>
         <p style="color: #666; margin-top: 0.5rem;">${error.message}</p>
+        <button class="btn btn-secondary" style="margin-top: 1rem;" onclick="document.getElementById('generation-status').style.display='none'">Try Again</button>
       </div>
     `;
   }
 }
 
-async function pollProgress(signalId, statusDiv) {
+async function pollProgress(signalId, statusDiv, carouselBtn, reelBtn) {
   let lastStep = 0;
   const pollInterval = setInterval(async () => {
     try {
@@ -566,8 +608,17 @@ async function pollProgress(signalId, statusDiv) {
       const progress = await response.json();
 
       if (!progress.inProgress) {
-        // Generation complete
+        // Generation complete - re-enable buttons
         clearInterval(pollInterval);
+
+        // Re-enable buttons
+        carouselBtn.disabled = false;
+        reelBtn.disabled = false;
+        carouselBtn.style.opacity = '1';
+        carouselBtn.style.cursor = 'pointer';
+        reelBtn.style.opacity = '1';
+        reelBtn.style.cursor = 'pointer';
+
         statusDiv.innerHTML = `
           <div style="text-align: center; padding: 2rem; background: rgba(34,197,94,0.1); border-radius: 12px; color: #22c55e;">
             <div style="font-size: 3rem; margin-bottom: 0.5rem;">✅</div>
@@ -599,6 +650,24 @@ async function pollProgress(signalId, statusDiv) {
   // Timeout after 2 minutes
   setTimeout(() => {
     clearInterval(pollInterval);
+
+    // Re-enable buttons on timeout
+    carouselBtn.disabled = false;
+    reelBtn.disabled = false;
+    carouselBtn.style.opacity = '1';
+    carouselBtn.style.cursor = 'pointer';
+    reelBtn.style.opacity = '1';
+    reelBtn.style.cursor = 'pointer';
+
+    // Show timeout message
+    statusDiv.innerHTML = `
+      <div style="text-align: center; padding: 2rem; background: rgba(251,191,36,0.1); border-radius: 12px; color: #f59e0b;">
+        <div style="font-size: 3rem; margin-bottom: 0.5rem;">⏱️</div>
+        <p style="font-weight: 600; margin-bottom: 0.5rem;">Generation taking longer than expected</p>
+        <p style="color: #666; font-size: 0.875rem;">The reel is still being generated. Check the Review queue in a few moments.</p>
+        <button class="btn btn-primary" style="margin-top: 1rem;" onclick="navigateTo('review')">Go to Review Queue</button>
+      </div>
+    `;
   }, 120000);
 }
 
