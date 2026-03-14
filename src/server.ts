@@ -718,6 +718,13 @@ app.get('/api/help/info', (req, res) => {
           costPer: '10,000 units/day free quota',
           monthlyBudget: 'Free (10k units/day)',
           keyConfigured: !!process.env.YOUTUBE_API_KEY
+        },
+        {
+          name: 'TikTok Scraper API',
+          usage: 'TikTok trending video collection. Fetches trending videos with engagement metrics, thumbnails, and metadata.',
+          costPer: '5,000 requests/month free tier',
+          monthlyBudget: 'Free (5k req/month)',
+          keyConfigured: !!process.env.TIKTOK_API_KEY
         }
       ],
       workflow: [

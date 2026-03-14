@@ -399,28 +399,49 @@ function renderVideoGrid() {
   grid.innerHTML = `
     <div style="margin-bottom: 1rem; color: #666;">Showing ${filtered.length} of ${allVideos.length} videos</div>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
-      ${filtered.map(video => `
-        <div style="border: 2px solid #e0e0e0; border-radius: 12px; overflow: hidden; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.borderColor='#f5576c'" onmouseout="this.style.borderColor='#e0e0e0'" onclick="window.open('https://www.youtube.com/watch?v=${video.video_id}', '_blank')">
-          <div style="aspect-ratio: 16/9; background: #000; position: relative; overflow: hidden;">
-            <img src="https://img.youtube.com/vi/${video.video_id}/maxresdefault.jpg"
-                 style="width: 100%; height: 100%; object-fit: cover;"
-                 onerror="this.src='https://img.youtube.com/vi/${video.video_id}/hqdefault.jpg'">
+      ${filtered.map(video => {
+        const platform = video.platform || 'youtube';
+        const isTikTok = platform === 'tiktok';
+        const videoUrl = isTikTok
+          ? video.url || `https://www.tiktok.com/@user/video/${video.video_id}`
+          : `https://www.youtube.com/watch?v=${video.video_id}`;
+        const thumbnailUrl = isTikTok
+          ? (video.thumbnail_url || '')
+          : `https://img.youtube.com/vi/${video.video_id}/maxresdefault.jpg`;
+        const thumbnailFallback = isTikTok
+          ? ''
+          : `onerror="this.src='https://img.youtube.com/vi/${video.video_id}/hqdefault.jpg'"`;
+        const platformBadge = isTikTok
+          ? '<span style="position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.8); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">🎵 TikTok</span>'
+          : '<span style="position: absolute; top: 8px; left: 8px; background: rgba(255,0,0,0.85); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">▶ YouTube</span>';
+        const safeTitle = (video.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const safeAngle = (video.content_angle || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+        return `
+        <div style="border: 2px solid #e0e0e0; border-radius: 12px; overflow: hidden; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.borderColor='${isTikTok ? '#00f2ea' : '#f5576c'}'" onmouseout="this.style.borderColor='#e0e0e0'" onclick="window.open('${videoUrl}', '_blank')">
+          <div style="aspect-ratio: ${isTikTok ? '9/16' : '16/9'}; max-height: 250px; background: #000; position: relative; overflow: hidden;">
+            ${thumbnailUrl
+              ? `<img src="${thumbnailUrl}" style="width: 100%; height: 100%; object-fit: cover;" ${thumbnailFallback}>`
+              : `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #00f2ea, #ff0050); color: white; font-size: 3rem;">🎵</div>`
+            }
+            ${platformBadge}
             <div style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">
-              ${formatDuration(video.duration_seconds)}
+              ${formatDuration(video.duration_seconds || video.duration)}
             </div>
           </div>
           <div style="padding: 1rem;">
             <div style="font-weight: 600; margin-bottom: 0.5rem; line-height: 1.3; color: #333;">${video.title}</div>
+            ${video.channel_name ? `<div style="font-size: 0.8rem; color: #999; margin-bottom: 0.5rem;">${video.channel_name}</div>` : ''}
             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
-              <span style="background: rgba(245,87,108,0.1); color: #f5576c; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${video.engagement_rate.toFixed(1)}% engagement</span>
-              <span style="background: rgba(102,126,234,0.1); color: #667eea; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${video.hook_formula || 'unknown'}</span>
+              <span style="background: rgba(245,87,108,0.1); color: #f5576c; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${(video.engagement_rate || 0).toFixed(1)}% engagement</span>
+              ${video.hook_formula ? `<span style="background: rgba(102,126,234,0.1); color: #667eea; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${video.hook_formula}</span>` : ''}
               ${video.emotional_trigger ? `<span style="background: rgba(251,146,60,0.1); color: #fb923c; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${video.emotional_trigger}</span>` : ''}
             </div>
             <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">${(video.view_count || 0).toLocaleString()} views</div>
-            <button class="btn btn-primary" style="width: 100%; padding: 0.5rem;" onclick="event.stopPropagation(); createFromVideo(${video.id}, '${video.hook_formula}', '${video.title.replace(/'/g, "\\'")}', '${(video.content_angle || '').replace(/'/g, "\\'")}')">✨ Create from this</button>
+            <button class="btn btn-primary" style="width: 100%; padding: 0.5rem;" onclick="event.stopPropagation(); createFromVideo(${video.id}, '${video.hook_formula || ''}', '${safeTitle}', '${safeAngle}')">✨ Create from this</button>
           </div>
         </div>
-      `).join('')}
+      `}).join('')}
     </div>
   `;
 }
