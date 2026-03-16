@@ -808,7 +808,7 @@ async function loadReviewData() {
   }
 }
 
-function displayReviewContent(filter) {
+async function displayReviewContent(filter) {
   const grid = document.getElementById('review-content-grid');
 
   let filtered = allContent;
@@ -821,51 +821,109 @@ function displayReviewContent(filter) {
     return;
   }
 
+  // Load feedback for all visible items in parallel
+  const feedbackMap = {};
+  await Promise.all(filtered.map(async item => {
+    try {
+      const res = await fetch(`/api/content/${item.id}/feedback`);
+      feedbackMap[item.id] = await res.json();
+    } catch (e) { feedbackMap[item.id] = []; }
+  }));
+
+  const contentTypeLabel = (t) => t === 'carousel' ? '📱 Carrossel' : t === 'reel' ? '🎥 Reel' : '💼 LinkedIn';
+
+  const statusColors = {
+    pending: { bg: 'rgba(251,146,60,0.1)', fg: '#fb923c', border: '#fb923c' },
+    revision_requested: { bg: 'rgba(234,179,8,0.15)', fg: '#ca8a04', border: '#eab308' },
+    approved: { bg: 'rgba(34,197,94,0.1)', fg: '#22c55e', border: '#22c55e' },
+    rejected: { bg: 'rgba(239,68,68,0.1)', fg: '#ef4444', border: '#ef4444' },
+    published: { bg: 'rgba(139,92,246,0.1)', fg: '#8b5cf6', border: '#8b5cf6' }
+  };
+
   grid.innerHTML = `
     <div style="display: grid; gap: 1.5rem;">
-      ${filtered.map(item => `
-        <div style="border: 2px solid #e0e0e0; border-radius: 12px; padding: 1.5rem; background: white;">
+      ${filtered.map(item => {
+        const feedback = feedbackMap[item.id] || [];
+        const pendingFb = feedback.filter(f => f.status === 'pending');
+        const addressedFb = feedback.filter(f => f.status === 'addressed');
+        const sc = statusColors[item.status] || statusColors.pending;
+
+        return `
+        <div style="border: 2px solid ${sc.border}; border-radius: 12px; padding: 1.5rem; background: white;">
+          <!-- Header -->
           <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
-            <div>
-              <div style="font-weight: 600; font-size: 1.125rem; margin-bottom: 0.25rem;">${item.signal?.title || 'Untitled'}</div>
-              <div style="font-size: 0.875rem; color: #666;">${item.content_type === 'carousel' ? '📱 Carousel' : '🎥 Reel'}</div>
+            <div style="flex: 1;">
+              <div style="font-weight: 600; font-size: 1.125rem; margin-bottom: 0.25rem;">${item.signal?.title || 'Sem titulo'}</div>
+              <div style="display: flex; gap: 0.75rem; align-items: center; font-size: 0.8rem; color: #999; margin-top: 0.25rem; flex-wrap: wrap;">
+                <span>${contentTypeLabel(item.content_type)}</span>
+                <span>•</span>
+                <span>Criado em ${new Date(item.generated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                ${item.version > 1 ? `<span style="background: #ede9fe; color: #7c3aed; padding: 1px 8px; border-radius: 10px; font-weight: 600;">v${item.version}</span>` : ''}
+                ${feedback.length > 0 ? `<span style="color: #667eea;">📝 ${feedback.length} feedback${feedback.length > 1 ? 's' : ''}</span>` : ''}
+              </div>
             </div>
-            <div style="padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; font-size: 0.875rem;
-              ${item.status === 'pending' ? 'background: rgba(251,146,60,0.1); color: #fb923c;' : ''}
-              ${item.status === 'approved' ? 'background: rgba(34,197,94,0.1); color: #22c55e;' : ''}
-              ${item.status === 'rejected' ? 'background: rgba(239,68,68,0.1); color: #ef4444;' : ''}
-              ${item.status === 'published' ? 'background: rgba(139,92,246,0.1); color: #8b5cf6;' : ''}
-              ${item.status === 'revision_requested' ? 'background: rgba(234,179,8,0.1); color: #eab308;' : ''}
-            ">
+            <div style="padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; font-size: 0.8rem; white-space: nowrap; background: ${sc.bg}; color: ${sc.fg};">
               ${statusLabel(item.status)}
             </div>
           </div>
 
+          ${item.status === 'revision_requested' ? `
+          <!-- Revision requested banner -->
+          <div style="background: #fefce8; border: 1px solid #fde047; border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
+            <div style="font-weight: 600; color: #a16207; margin-bottom: 0.5rem;">⏳ Alteracoes solicitadas</div>
+            ${pendingFb.length > 0 ? pendingFb.map(f => `
+              <div style="background: white; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; border-left: 3px solid #eab308;">
+                <div style="color: #333; font-size: 0.875rem;">${f.feedback_text}</div>
+                <div style="color: #a3a3a3; font-size: 0.7rem; margin-top: 0.25rem;">${new Date(f.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+              </div>
+            `).join('') : '<div style="font-size: 0.875rem; color: #92400e;">Aguardando regeneracao...</div>'}
+            <div style="font-size: 0.8rem; color: #a16207; margin-top: 0.5rem;">Clique em <strong>Regenerar</strong> para criar uma nova versao com as alteracoes acima.</div>
+          </div>
+          ` : ''}
+
+          ${item.status === 'rejected' && item.rejection_reason ? `
+          <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem;">
+            <div style="font-size: 0.8rem; font-weight: 600; color: #dc2626; margin-bottom: 0.25rem;">Motivo da rejeicao:</div>
+            <div style="font-size: 0.875rem; color: #7f1d1d;">${item.rejection_reason}</div>
+          </div>
+          ` : ''}
+
+          <!-- Content preview -->
           ${item.content_type === 'carousel' && item.carousel_images ? `
-            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; overflow-x: auto;">
-              ${(Array.isArray(item.carousel_images) ? item.carousel_images : JSON.parse(item.carousel_images)).slice(0, 5).map(img => `
-                <img src="${img.replace('./output', '/output').replace('output/', '/output/')}" style="height: 120px; border-radius: 8px; border: 2px solid #e0e0e0;">
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; overflow-x: auto; padding-bottom: 0.5rem;">
+              ${(Array.isArray(item.carousel_images) ? item.carousel_images : JSON.parse(item.carousel_images)).slice(0, 5).map((img, idx) => `
+                <div style="position: relative; flex-shrink: 0;">
+                  <img src="${img.replace('./output', '/output').replace('output/', '/output/')}" style="height: 140px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                  <div style="position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px;">${idx+1}/5</div>
+                </div>
               `).join('')}
             </div>
           ` : ''}
 
           ${item.content_type === 'reel' && item.reel_video_path ? `
-            <video controls style="width: 100%; max-width: 300px; border-radius: 8px; margin-bottom: 1rem;">
-              <source src="${item.reel_video_path.replace('./output', '/output').replace('output/', '/output/')}" type="video/mp4">
-            </video>
+            <div style="margin-bottom: 1rem;">
+              <video controls style="width: 100%; max-width: 300px; border-radius: 8px;">
+                <source src="${item.reel_video_path.replace('./output', '/output').replace('output/', '/output/')}" type="video/mp4">
+              </video>
+              ${item.reel_script ? `<div style="margin-top: 0.5rem; font-size: 0.8rem; color: #666;">
+                Duracao: ~${item.reel_script.totalDurationTarget}s • ${item.reel_script.scenes?.length || 0} cenas • Gancho: ${item.reel_script.hookFormula || '-'}
+              </div>` : ''}
+            </div>
           ` : ''}
 
           ${item.carousel_content ? `
             <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-              <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;"><strong>Legenda:</strong> ${item.carousel_content.caption}</div>
-              <div style="font-size: 0.875rem; color: #667eea;"><strong>Hashtags:</strong> ${item.carousel_content.hashtags.join(' ')}</div>
+              <div style="font-size: 0.8rem; font-weight: 600; color: #333; margin-bottom: 0.5rem;">Legenda</div>
+              <div style="font-size: 0.875rem; color: #666; line-height: 1.5;">${item.carousel_content.caption}</div>
+              <div style="font-size: 0.8rem; color: #667eea; margin-top: 0.5rem;">${item.carousel_content.hashtags.map(h => '#'+h).join(' ')}</div>
             </div>
           ` : ''}
 
           ${item.reel_script ? `
             <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-              <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;"><strong>Legenda:</strong> ${item.reel_script.caption}</div>
-              <div style="font-size: 0.875rem; color: #667eea;"><strong>Hashtags:</strong> ${item.reel_script.hashtags.join(' ')}</div>
+              <div style="font-size: 0.8rem; font-weight: 600; color: #333; margin-bottom: 0.5rem;">Legenda</div>
+              <div style="font-size: 0.875rem; color: #666; line-height: 1.5;">${item.reel_script.caption}</div>
+              <div style="font-size: 0.8rem; color: #667eea; margin-top: 0.5rem;">${item.reel_script.hashtags.map(h => '#'+h).join(' ')}</div>
             </div>
           ` : ''}
 
@@ -874,32 +932,61 @@ function displayReviewContent(filter) {
               <div style="font-weight: 700; color: #0077b5; margin-bottom: 0.5rem;">${item.linkedin_content.headline}</div>
               <div style="font-size: 0.875rem; color: #333; white-space: pre-line; line-height: 1.6; margin-bottom: 0.75rem;">${(item.linkedin_content.body || '').substring(0, 300)}${item.linkedin_content.body?.length > 300 ? '...' : ''}</div>
               <div style="font-size: 0.8rem; color: #0077b5;">${(item.linkedin_content.hashtags || []).map(h => '#' + h).join(' ')}</div>
-              <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #666; font-style: italic;">${item.linkedin_content.ctaText || ''}</div>
-              <button class="btn btn-secondary" style="margin-top: 0.75rem; font-size: 0.8rem; padding: 0.4rem 0.8rem;" onclick="navigator.clipboard.writeText(\`${(item.linkedin_content.headline || '').replace(/`/g, '')}\n\n${(item.linkedin_content.body || '').replace(/`/g, '').replace(/\\/g, '\\\\')}\n\n${(item.linkedin_content.hashtags || []).map(h => '#' + h).join(' ')}\`); this.textContent='Copiado!'">📋 Copiar Texto</button>
+              ${item.linkedin_content.ctaText ? `<div style="margin-top: 0.5rem; font-size: 0.8rem; color: #666; font-style: italic;">${item.linkedin_content.ctaText}</div>` : ''}
+              <button class="btn btn-secondary" style="margin-top: 0.75rem; font-size: 0.8rem; padding: 0.4rem 0.8rem;" onclick="copyLinkedIn(${item.id})">📋 Copiar Texto</button>
             </div>
           ` : ''}
 
-          ${item.version && item.version > 1 ? `
-            <div style="margin-bottom: 0.5rem; font-size: 0.8rem; color: #667eea; font-weight: 600;">v${item.version}</div>
+          ${addressedFb.length > 0 ? `
+          <details style="margin-bottom: 0.75rem;">
+            <summary style="font-size: 0.8rem; color: #16a34a; cursor: pointer; padding: 0.25rem 0;">
+              ✅ ${addressedFb.length} alterac${addressedFb.length > 1 ? 'oes atendidas' : 'ao atendida'}
+            </summary>
+            <div style="padding-top: 0.5rem;">
+              ${addressedFb.map(f => `
+                <div style="background: #f0fdf4; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.25rem; font-size: 0.8rem; border-left: 3px solid #22c55e;">
+                  <span style="color: #333;">${f.feedback_text}</span>
+                  <span style="color: #22c55e; margin-left: 0.25rem;">✓</span>
+                </div>
+              `).join('')}
+            </div>
+          </details>
           ` : ''}
 
-          <div style="display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap;">
-            ${item.status === 'pending' || item.status === 'revision_requested' ? `
+          <!-- Actions -->
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; padding-top: 0.75rem; border-top: 1px solid #f0f0f0;">
+            ${item.status === 'pending' ? `
               <button class="btn btn-primary" onclick="approveContent(${item.id})">✅ Aprovar</button>
               <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">✏️ Solicitar Alteracoes</button>
-              <button class="btn btn-secondary" onclick="rejectContent(${item.id})">❌ Rejeitar</button>
+              <button class="btn btn-secondary" style="color: #ef4444; border-color: #fecaca;" onclick="rejectContent(${item.id})">❌ Rejeitar</button>
             ` : ''}
             ${item.status === 'revision_requested' ? `
-              <button class="btn btn-primary" onclick="regenerateContent(${item.id})">🔄 Regenerar</button>
+              <button class="btn btn-primary" style="background: linear-gradient(135deg, #eab308, #ca8a04);" onclick="regenerateContent(${item.id})">🔄 Regenerar com Alteracoes</button>
+              <button class="btn btn-primary" onclick="approveContent(${item.id})">✅ Aprovar Assim Mesmo</button>
+              <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">✏️ Mais Feedback</button>
             ` : ''}
             ${item.status === 'approved' ? `
               <button class="btn btn-primary" onclick="publishContent(${item.id})">🚀 Publicar</button>
+              <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">✏️ Solicitar Alteracoes</button>
+            ` : ''}
+            ${item.status === 'published' ? `
+              <span style="font-size: 0.8rem; color: #8b5cf6; font-weight: 500;">Publicado em ${item.published_at ? new Date(item.published_at).toLocaleDateString('pt-BR') : '-'}</span>
+            ` : ''}
+            ${item.status === 'rejected' ? `
+              <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">✏️ Solicitar Nova Versao</button>
             ` : ''}
           </div>
         </div>
-      `).join('')}
+      `}).join('')}
     </div>
   `;
+}
+
+function copyLinkedIn(id) {
+  const item = allContent.find(c => c.id === id);
+  if (!item?.linkedin_content) return;
+  const text = item.linkedin_content.headline + '\n\n' + item.linkedin_content.body + '\n\n' + (item.linkedin_content.hashtags || []).map(h => '#' + h).join(' ');
+  navigator.clipboard.writeText(text);
 }
 
 async function approveContent(id) {
