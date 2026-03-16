@@ -45,8 +45,8 @@ export interface ReelScript {
 export interface GeneratedContent {
   id?: number;
   signal_id: number;
-  content_type: 'carousel' | 'reel';
-  status: 'pending' | 'approved' | 'rejected' | 'published';
+  content_type: 'carousel' | 'reel' | 'linkedin';
+  status: 'pending' | 'approved' | 'rejected' | 'published' | 'revision_requested';
 
   // Carousel-specific
   carousel_content?: CarouselContent;
@@ -56,6 +56,13 @@ export interface GeneratedContent {
   reel_script?: ReelScript;
   reel_video_path?: string; // Path to MP4
 
+  // LinkedIn-specific
+  linkedin_content?: LinkedInPost;
+
+  // Version tracking
+  version?: number;
+  parent_id?: number;
+
   // Metadata
   source_url?: string;
   generated_at: string;
@@ -63,4 +70,23 @@ export interface GeneratedContent {
   rejected_at?: string;
   rejection_reason?: string;
   published_at?: string;
+}
+
+export interface LinkedInPost {
+  headline: string;
+  body: string;
+  hashtags: string[];
+  ctaText: string;
+  imagePrompt?: string;
+}
+
+export interface ContentFeedback {
+  id?: number;
+  content_id: number;
+  feedback_type: 'edit_request' | 'rejection' | 'comment';
+  feedback_text: string;
+  specific_changes?: Array<{ field: string; current?: string; requested: string }>;
+  status: 'pending' | 'addressed' | 'dismissed';
+  created_at: string;
+  addressed_at?: string;
 }

@@ -49,7 +49,13 @@ export class ViralSignalsConnector {
     const defaultPath = path.join(__dirname, '../../../../viral-social-media-analyzer/data/viral-signals.db');
     const finalPath = dbPath || process.env.VIRAL_DATABASE_PATH || defaultPath;
 
-    this.db = new Database(finalPath, { readonly: true });
+    this.db = new Database(finalPath);
+    // Flush WAL data so we can read recently written rows
+    try {
+      this.db.pragma('wal_checkpoint(PASSIVE)');
+    } catch (e) {
+      // Ignore if WAL mode not active
+    }
     console.log(`[ViralSignalsConnector] Connected to viral signals database at ${finalPath}`);
   }
 
@@ -58,9 +64,30 @@ export class ViralSignalsConnector {
    * Now includes actual video examples for each hook type
    */
   getTopViralHooks(days: number = 7, limit: number = 10, includeExamples: boolean = true): ViralHook[] {
-    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    let effectiveDays = days;
+    let rows = this._queryHooks(effectiveDays, limit);
 
-    const rows = this.db.prepare(`
+    // Widen date range if no results found
+    if (rows.length === 0 && effectiveDays < 90) {
+      for (const fallback of [30, 90]) {
+        if (fallback <= effectiveDays) continue;
+        rows = this._queryHooks(fallback, limit);
+        if (rows.length > 0) { effectiveDays = fallback; break; }
+      }
+    }
+
+    if (includeExamples) {
+      for (const hook of rows) {
+        hook.examples = this.getHookExamples(hook.hook_formula, effectiveDays, 3);
+      }
+    }
+
+    return rows;
+  }
+
+  private _queryHooks(days: number, limit: number): ViralHook[] {
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    return this.db.prepare(`
       SELECT
         hook_formula,
         COUNT(*) as count,
@@ -73,15 +100,6 @@ export class ViralSignalsConnector {
       ORDER BY avg_engagement_rate DESC, count DESC
       LIMIT ?
     `).all(cutoffDate, limit) as ViralHook[];
-
-    // Fetch examples for each hook formula
-    if (includeExamples) {
-      for (const hook of rows) {
-        hook.examples = this.getHookExamples(hook.hook_formula, days, 3);
-      }
-    }
-
-    return rows;
   }
 
   /**
@@ -111,9 +129,22 @@ export class ViralSignalsConnector {
    * Get trending content themes from viral videos
    */
   getTrendingThemes(days: number = 7, limit: number = 20): ViralTheme[] {
-    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    let rows = this._queryThemes(days, limit);
 
-    const rows = this.db.prepare(`
+    if (rows.length === 0 && days < 90) {
+      for (const fallback of [30, 90]) {
+        if (fallback <= days) continue;
+        rows = this._queryThemes(fallback, limit);
+        if (rows.length > 0) break;
+      }
+    }
+
+    return rows;
+  }
+
+  private _queryThemes(days: number, limit: number): ViralTheme[] {
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    return this.db.prepare(`
       SELECT
         content_themes,
         engagement_rate,
@@ -126,8 +157,6 @@ export class ViralSignalsConnector {
       ORDER BY engagement_rate DESC
       LIMIT ?
     `).all(cutoffDate, limit) as ViralTheme[];
-
-    return rows;
   }
 
   /**

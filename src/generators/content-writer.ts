@@ -40,9 +40,10 @@ export class ContentWriter {
   async generateCarousel(
     signal: Signal,
     brand: BrandConfig,
-    viralInsights?: ViralInsights
+    viralInsights?: ViralInsights,
+    editFeedback?: string
   ): Promise<CarouselContent> {
-    const prompt = this.buildCarouselPrompt(signal, brand, viralInsights);
+    const prompt = this.buildCarouselPrompt(signal, brand, viralInsights, editFeedback);
 
     const mode = viralInsights ? 'viral-enhanced' : 'standard';
     console.log(`[ContentWriter] Generating ${mode} carousel for signal #${signal.id}: "${signal.title}"`);
@@ -82,7 +83,7 @@ export class ContentWriter {
    * Build the improved system prompt for carousel generation
    * Optionally enhanced with viral insights
    */
-  private buildCarouselPrompt(signal: Signal, brand: BrandConfig, viralInsights?: ViralInsights): string {
+  private buildCarouselPrompt(signal: Signal, brand: BrandConfig, viralInsights?: ViralInsights, editFeedback?: string): string {
     const services = brand.services.join(', ');
     const brandHandle = brand.handle;
 
@@ -132,11 +133,36 @@ ${viralInsights.trendingThemes.length > 0 ? `TRENDING THEMES IN VIRAL PET CONTEN
 `;
     }
 
+    // Build feedback context if regenerating
+    let feedbackContext = '';
+    if (editFeedback) {
+      feedbackContext = `
+---
+
+REVISION REQUEST:
+The client reviewed the previous version and requests these changes:
+${editFeedback}
+
+Generate a REVISED version that addresses ALL of the feedback above while maintaining quality. The revision should be noticeably different from the original.
+
+---
+`;
+    }
+
     return `You are an Instagram carousel copywriter for ${brand.name}, a pet industry superapp (${services}).
-${viralContext}
+${viralContext}${feedbackContext}
 Your job is to turn a topic card into a scroll-stopping, save-worthy 5-slide Instagram carousel.
 
-You write like a knowledgeable dog owner talking to a friend — not like a textbook, not like a marketing agency, and definitely not like an AI. Use contractions. Use "you" and "your." Be specific. Be opinionated. Occasionally ask the reader a question. Never use corporate jargon.
+IMPORTANT — LANGUAGE REQUIREMENT:
+Write ALL content in Brazilian Portuguese (PT-BR). The target audience is Brazilian pet owners.
+- Use natural, conversational Brazilian Portuguese — NOT European Portuguese.
+- Use informal "voce" (not "tu"). Use contractions natural to PT-BR.
+- Adapt cultural references for Brazil (e.g., Brazilian cities, products, habits).
+- Hashtags should also be in Portuguese (e.g., #cachorro, #petlovers, #dicaspet).
+- The Instagram caption must be entirely in Portuguese.
+- pexelsSearchQuery must REMAIN IN ENGLISH (Pexels search works best in English).
+
+You write like a knowledgeable dog owner talking to a friend — not like a textbook, not like a marketing agency, and definitely not like an AI. Be specific. Be opinionated. Occasionally ask the reader a question. Never use corporate jargon.
 
 ---
 

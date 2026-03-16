@@ -106,15 +106,16 @@ app.get('/api/content', (req, res) => {
     const status = req.query.status as string;
     let content;
 
-    if (status && ['pending', 'approved', 'rejected', 'published'].includes(status)) {
+    if (status && ['pending', 'approved', 'rejected', 'published', 'revision_requested'].includes(status)) {
       content = contentStorage.getByStatus(status as any);
     } else {
       // Get all content
       const pending = contentStorage.getByStatus('pending');
+      const revision = contentStorage.getByStatus('revision_requested');
       const approved = contentStorage.getByStatus('approved');
       const rejected = contentStorage.getByStatus('rejected');
       const published = contentStorage.getByStatus('published');
-      content = [...pending, ...approved, ...rejected, ...published];
+      content = [...pending, ...revision, ...approved, ...rejected, ...published];
     }
 
     // Enrich with signal info
@@ -190,12 +191,196 @@ app.post('/api/content/:id/reject', (req, res) => {
   }
 });
 
+// Request revision with feedback
+app.post('/api/content/:id/request-revision', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { feedback_text, specific_changes } = req.body;
+
+    if (!feedback_text) {
+      return res.status(400).json({ error: 'feedback_text is required' });
+    }
+
+    // Save feedback
+    contentStorage.saveFeedback({
+      content_id: id,
+      feedback_type: 'edit_request',
+      feedback_text,
+      specific_changes: specific_changes || undefined,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    });
+
+    // Update content status
+    contentStorage.requestRevision(id);
+
+    res.json({ success: true, message: 'Revision requested' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Submit feedback (comment without status change)
+app.post('/api/content/:id/feedback', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { feedback_text, feedback_type } = req.body;
+
+    if (!feedback_text) {
+      return res.status(400).json({ error: 'feedback_text is required' });
+    }
+
+    const feedbackId = contentStorage.saveFeedback({
+      content_id: id,
+      feedback_type: feedback_type || 'comment',
+      feedback_text,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    });
+
+    res.json({ success: true, id: feedbackId });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get feedback for content
+app.get('/api/content/:id/feedback', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const feedback = contentStorage.getFeedback(id);
+    res.json(feedback);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get version history
+app.get('/api/content/:id/versions', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const versions = contentStorage.getVersions(id);
+    res.json(versions);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Regenerate content with feedback
+app.post('/api/content/:id/regenerate', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const original = contentStorage.get(id);
+
+    if (!original) {
+      return res.status(404).json({ error: 'Content not found' });
+    }
+
+    // Get pending feedback for this content
+    const feedback = contentStorage.getFeedback(id);
+    const pendingFeedback = feedback.filter(f => f.status === 'pending');
+    const feedbackText = pendingFeedback.map(f => f.feedback_text).join('\n');
+
+    if (!feedbackText) {
+      return res.status(400).json({ error: 'No pending feedback to address' });
+    }
+
+    const signal = intelConnector.getSignal(original.signal_id);
+    if (!signal) {
+      return res.status(404).json({ error: 'Original signal not found' });
+    }
+
+    // Start regeneration in background
+    res.json({ success: true, message: 'Regeneration started' });
+
+    (async () => {
+      try {
+        const { getBrandConfig } = await import('./config/brand-config');
+        const brand = getBrandConfig();
+
+        if (original.content_type === 'carousel') {
+          const { CarouselGenerator } = await import('./generators/carousel-generator');
+          const generator = new CarouselGenerator(brand, './output/carousels');
+          await generator.initialize();
+
+          try {
+            const result = await generator.generate(signal, true, feedbackText);
+            result.content.version = (original.version || 1) + 1;
+            result.content.parent_id = original.id;
+            const newId = contentStorage.save(result.content);
+            console.log(`[Server] Regenerated carousel as v${result.content.version}, id #${newId}`);
+          } finally {
+            await generator.close();
+          }
+        } else if (original.content_type === 'reel') {
+          const { ReelGenerator } = await import('./generators/reel-generator');
+          const generator = new ReelGenerator(brand, './output/reels');
+
+          const onProgress = (step: number, totalSteps: number, message: string) => {
+            progressMap.set(signal.id.toString(), { step, totalSteps, message });
+          };
+
+          const result = await generator.generate(signal, onProgress, undefined, feedbackText);
+          result.content.version = (original.version || 1) + 1;
+          result.content.parent_id = original.id;
+          const newId = contentStorage.save(result.content);
+          progressMap.delete(signal.id.toString());
+          console.log(`[Server] Regenerated reel as v${result.content.version}, id #${newId}`);
+        }
+
+        // Mark feedback as addressed
+        for (const fb of pendingFeedback) {
+          if (fb.id) contentStorage.addressFeedback(fb.id);
+        }
+      } catch (error: any) {
+        console.error('[Server] Regeneration failed:', error.message);
+      }
+    })();
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Mark as published
 app.post('/api/content/:id/publish', (req, res) => {
   try {
     const id = parseInt(req.params.id);
     contentStorage.markPublished(id);
     res.json({ success: true, message: 'Content marked as published' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Brand configuration
+app.get('/api/brand', async (req, res) => {
+  try {
+    const { getBrandConfig } = await import('./config/brand-config');
+    const brand = getBrandConfig();
+    res.json(brand);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/brand', async (req, res) => {
+  try {
+    const { saveBrandConfig, clearBrandCache } = await import('./config/brand-config');
+    saveBrandConfig(req.body);
+    clearBrandCache();
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/brand/reset', async (req, res) => {
+  try {
+    const { saveBrandConfig, clearBrandCache } = await import('./config/brand-config');
+    const { defaultBrandConfig } = await import('./types/brand');
+    saveBrandConfig(defaultBrandConfig);
+    clearBrandCache();
+    res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

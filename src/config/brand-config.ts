@@ -66,3 +66,10 @@ export function getBrandConfig(): BrandConfig {
   }
   return brandConfigInstance;
 }
+
+/**
+ * Clear brand config cache (call after saving new config)
+ */
+export function clearBrandCache(): void {
+  brandConfigInstance = null;
+}

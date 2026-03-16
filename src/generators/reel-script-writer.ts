@@ -52,9 +52,10 @@ export class ReelScriptWriter {
       viralHook?: string;
       viralTitle?: string;
       viralContentAngle?: string;
-    }
+    },
+    editFeedback?: string
   ): Promise<ReelScript> {
-    const prompt = this.buildScriptPrompt(signal, brand, viralPattern);
+    const prompt = this.buildScriptPrompt(signal, brand, viralPattern, editFeedback);
 
     console.log(`[ReelScriptWriter] Generating script for signal #${signal.id}: "${signal.title}"`);
     if (viralPattern?.viralTitle) {
@@ -125,7 +126,8 @@ export class ReelScriptWriter {
       viralHook?: string;
       viralTitle?: string;
       viralContentAngle?: string;
-    }
+    },
+    editFeedback?: string
   ): string {
     const brandHandle = brand.handle;
 
@@ -147,7 +149,30 @@ export class ReelScriptWriter {
   * PERSONAL: "I wish I knew this before getting my puppy."`;
     }
 
+    // Build feedback context if regenerating
+    let feedbackContext = '';
+    if (editFeedback) {
+      feedbackContext = `
+---
+
+REVISION REQUEST:
+The client reviewed the previous version and requests these changes:
+${editFeedback}
+
+Generate a REVISED version that addresses ALL of the feedback above while maintaining quality.
+
+---
+`;
+    }
+
     return `You are a Reel scriptwriter for ${brand.name}, a pet industry superapp. Your job is to turn a topic card into a 30–45 second Instagram Reel script.
+${feedbackContext}
+IMPORTANT — LANGUAGE REQUIREMENT:
+Write ALL narration, captions, and the Instagram caption in Brazilian Portuguese (PT-BR).
+- Use natural, conversational Brazilian Portuguese — NOT European Portuguese.
+- Use informal "voce" (not "tu"). Write how Brazilian pet owners actually talk.
+- Hashtags should be in Portuguese (e.g., #cachorro, #petlovers, #dicaspet).
+- pexelsSearchTerms must REMAIN IN ENGLISH (Pexels search works best in English).
 
 You write scripts that sound like a knowledgeable dog owner talking directly to camera — natural, conversational, specific. Not a textbook. Not a voiceover for a corporate video. Write how real pet owners talk.
 

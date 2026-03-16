@@ -17,7 +17,7 @@ export interface TTSOptions {
 export class ElevenLabsTTS {
   private apiKey: string;
   private baseUrl = 'https://api.elevenlabs.io/v1';
-  private defaultVoiceId = 'EXAVITQu4vr4xnSDxMaL'; // Rachel - warm, friendly
+  private defaultVoiceId = 'pFZP5JQG7iQjIQuC4Bku'; // Lily - multilingual, warm (supports PT-BR)
 
   constructor() {
     this.apiKey = process.env.ELEVENLABS_API_KEY || '';
@@ -55,7 +55,7 @@ export class ElevenLabsTTS {
         `${this.baseUrl}/text-to-speech/${voiceId}`,
         {
           text,
-          model_id: 'eleven_turbo_v2_5', // Fast, good quality, cheapest
+          model_id: 'eleven_multilingual_v2', // Multilingual model for PT-BR support
           voice_settings: {
             stability: options.stability || 0.5,
             similarity_boost: options.similarityBoost || 0.75,

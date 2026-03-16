@@ -14,6 +14,19 @@ let videoTimePeriod = 'today';
 let hookPetFilter = 'pet';
 let hookTimePeriod = 'today';
 
+// Status labels (PT-BR)
+const STATUS_LABELS = {
+  pending: 'Pendente',
+  approved: 'Aprovado',
+  rejected: 'Rejeitado',
+  published: 'Publicado',
+  revision_requested: 'Revisao Solicitada'
+};
+
+function statusLabel(status) {
+  return STATUS_LABELS[status] || status;
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   setupNavigation();
@@ -112,7 +125,7 @@ async function loadDashboardStats() {
     document.getElementById('stat-published').textContent = contentStats.published || 0;
 
     // Load viral stats
-    const viralResponse = await fetch('http://localhost:3001/api/stats');
+    const viralResponse = await fetch('/api/stats');
     const viralData = await viralResponse.json();
 
     if (viralData.success) {
@@ -140,7 +153,7 @@ async function loadRecentActivity() {
       <div style="padding: 1rem; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
         <div>
           <div style="font-weight: 600; margin-bottom: 0.25rem;">${item.signal?.title || 'Untitled'}</div>
-          <div style="font-size: 0.875rem; color: #666;">${item.content_type === 'carousel' ? '📱 Carousel' : '🎥 Reel'} • ${item.status}</div>
+          <div style="font-size: 0.875rem; color: #666;">${item.content_type === 'carousel' ? '📱 Carrossel' : item.content_type === 'reel' ? '🎥 Reel' : '💼 LinkedIn'} • ${statusLabel(item.status)}</div>
         </div>
         <div style="color: #999; font-size: 0.875rem;">${new Date(item.generated_at).toLocaleDateString()}</div>
       </div>
@@ -225,7 +238,7 @@ async function loadVideosList() {
       // For 'today' period, also load from viral analyzer for full video list
       if (videoTimePeriod === 'today') {
         try {
-          const response = await fetch('http://localhost:3001/api/videos?limit=100&analyzed_only=true');
+          const response = await fetch('/api/trending/videos');
           const data = await response.json();
           if (data.success && data.data.length > 0) {
             allVideos = data.data;
@@ -273,7 +286,7 @@ function isPetRelatedClient(text) {
 
 async function loadTop10Lists() {
   try {
-    const response = await fetch('http://localhost:3001/api/trends/today');
+    const response = await fetch('/api/trending/hooks');
     const data = await response.json();
 
     if (data.success) {
@@ -539,7 +552,7 @@ async function loadCreateData() {
 
 async function loadViralContext() {
   try {
-    const response = await fetch('http://localhost:3001/api/trends/today');
+    const response = await fetch('/api/trending/hooks');
     const data = await response.json();
 
     if (data.success) {
@@ -795,7 +808,7 @@ function displayReviewContent(filter) {
   }
 
   if (filtered.length === 0) {
-    grid.innerHTML = '<p style="text-align: center; color: #999; padding: 3rem;">No content found</p>';
+    grid.innerHTML = '<p style="text-align: center; color: #999; padding: 3rem;">Nenhum conteudo encontrado</p>';
     return;
   }
 
@@ -813,8 +826,9 @@ function displayReviewContent(filter) {
               ${item.status === 'approved' ? 'background: rgba(34,197,94,0.1); color: #22c55e;' : ''}
               ${item.status === 'rejected' ? 'background: rgba(239,68,68,0.1); color: #ef4444;' : ''}
               ${item.status === 'published' ? 'background: rgba(139,92,246,0.1); color: #8b5cf6;' : ''}
+              ${item.status === 'revision_requested' ? 'background: rgba(234,179,8,0.1); color: #eab308;' : ''}
             ">
-              ${item.status.toUpperCase()}
+              ${statusLabel(item.status)}
             </div>
           </div>
 
@@ -834,25 +848,33 @@ function displayReviewContent(filter) {
 
           ${item.carousel_content ? `
             <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-              <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;"><strong>Caption:</strong> ${item.carousel_content.caption}</div>
+              <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;"><strong>Legenda:</strong> ${item.carousel_content.caption}</div>
               <div style="font-size: 0.875rem; color: #667eea;"><strong>Hashtags:</strong> ${item.carousel_content.hashtags.join(' ')}</div>
             </div>
           ` : ''}
 
           ${item.reel_script ? `
             <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-              <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;"><strong>Caption:</strong> ${item.reel_script.caption}</div>
+              <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;"><strong>Legenda:</strong> ${item.reel_script.caption}</div>
               <div style="font-size: 0.875rem; color: #667eea;"><strong>Hashtags:</strong> ${item.reel_script.hashtags.join(' ')}</div>
             </div>
           ` : ''}
 
-          <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-            ${item.status === 'pending' ? `
-              <button class="btn btn-primary" onclick="approveContent(${item.id})">✅ Approve</button>
-              <button class="btn btn-secondary" onclick="rejectContent(${item.id})">❌ Reject</button>
+          ${item.version && item.version > 1 ? `
+            <div style="margin-bottom: 0.5rem; font-size: 0.8rem; color: #667eea; font-weight: 600;">v${item.version}</div>
+          ` : ''}
+
+          <div style="display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap;">
+            ${item.status === 'pending' || item.status === 'revision_requested' ? `
+              <button class="btn btn-primary" onclick="approveContent(${item.id})">✅ Aprovar</button>
+              <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">✏️ Solicitar Alteracoes</button>
+              <button class="btn btn-secondary" onclick="rejectContent(${item.id})">❌ Rejeitar</button>
+            ` : ''}
+            ${item.status === 'revision_requested' ? `
+              <button class="btn btn-primary" onclick="regenerateContent(${item.id})">🔄 Regenerar</button>
             ` : ''}
             ${item.status === 'approved' ? `
-              <button class="btn btn-primary" onclick="publishContent(${item.id})">🚀 Mark Published</button>
+              <button class="btn btn-primary" onclick="publishContent(${item.id})">🚀 Publicar</button>
             ` : ''}
           </div>
         </div>
@@ -898,34 +920,40 @@ async function publishContent(id) {
  * Settings Page
  */
 async function loadSettingsData() {
+  // Load brand config
+  loadBrandConfig();
+
   try {
-    const response = await fetch('http://localhost:3001/api/stats');
+    const response = await fetch('/api/stats');
     const data = await response.json();
 
-    if (data.success) {
-      const budgetDiv = document.getElementById('settings-budget');
-      const costs = data.data.costs;
+    const budgetDiv = document.getElementById('settings-budget');
 
+    if (data.success && data.data?.costs) {
+      const costs = data.data.costs;
       budgetDiv.innerHTML = `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
           <div>
-            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Monthly Budget</div>
+            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Orcamento Mensal</div>
             <div style="font-size: 2rem; font-weight: 700; color: #667eea;">$${costs.budget}</div>
           </div>
           <div>
-            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Spent This Month</div>
+            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Gasto este Mes</div>
             <div style="font-size: 2rem; font-weight: 700; color: #f5576c;">$${costs.thisMonth.toFixed(2)}</div>
           </div>
           <div>
-            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Remaining</div>
+            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Restante</div>
             <div style="font-size: 2rem; font-weight: 700; color: #22c55e;">$${costs.remaining.toFixed(2)}</div>
           </div>
           <div>
-            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Budget Used</div>
+            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Orcamento Usado</div>
             <div style="font-size: 2rem; font-weight: 700; color: #8b5cf6;">${costs.percentUsed.toFixed(1)}%</div>
           </div>
         </div>
       `;
+    } else {
+      // Simple stats display
+      budgetDiv.innerHTML = `<p style="color: #666;">Dados de orcamento nao disponiveis</p>`;
     }
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -938,7 +966,7 @@ async function runCollectionPipeline() {
   }
 
   try {
-    const response = await fetch('http://localhost:3001/api/collect', { method: 'POST' });
+    const response = await fetch('/api/collection/trigger', { method: 'POST' });
     const result = await response.json();
 
     if (result.success) {
@@ -956,7 +984,7 @@ async function runCollectionPipeline() {
  */
 async function loadBudget() {
   try {
-    const response = await fetch('http://localhost:3001/api/stats');
+    const response = await fetch('/api/stats');
     const data = await response.json();
 
     if (data.success) {
@@ -1306,5 +1334,148 @@ async function loadHelpData() {
   } catch (error) {
     console.error('Error loading help data:', error);
     helpDiv.innerHTML = '<div class="card"><p style="color: #999;">Could not load help information. Make sure the server is running.</p></div>';
+  }
+}
+
+/**
+ * Feedback Modal
+ */
+async function openFeedbackModal(contentId) {
+  document.getElementById('feedback-content-id').value = contentId;
+  document.getElementById('feedback-text').value = '';
+  document.getElementById('feedback-modal').style.display = 'flex';
+
+  // Load existing feedback
+  try {
+    const res = await fetch(`/api/content/${contentId}/feedback`);
+    const feedback = await res.json();
+    const historyDiv = document.getElementById('feedback-history');
+
+    if (feedback.length > 0) {
+      historyDiv.innerHTML = `
+        <h3 style="font-size: 1rem; color: #333; margin-bottom: 0.75rem;">Historico de Feedback</h3>
+        ${feedback.map(f => `
+          <div style="padding: 0.75rem; background: ${f.status === 'addressed' ? '#f0fdf4' : '#fefce8'}; border-radius: 8px; margin-bottom: 0.5rem; font-size: 0.875rem;">
+            <div style="color: #333;">${f.feedback_text}</div>
+            <div style="color: #999; font-size: 0.75rem; margin-top: 0.25rem;">
+              ${new Date(f.created_at).toLocaleDateString('pt-BR')} - ${f.status === 'addressed' ? 'Atendido' : 'Pendente'}
+            </div>
+          </div>
+        `).join('')}
+      `;
+    } else {
+      historyDiv.innerHTML = '';
+    }
+  } catch (e) {
+    console.error('Error loading feedback:', e);
+  }
+}
+
+function closeFeedbackModal() {
+  document.getElementById('feedback-modal').style.display = 'none';
+}
+
+async function submitFeedback() {
+  const contentId = document.getElementById('feedback-content-id').value;
+  const feedbackText = document.getElementById('feedback-text').value.trim();
+
+  if (!feedbackText) {
+    alert('Por favor, descreva as alteracoes desejadas.');
+    return;
+  }
+
+  try {
+    await fetch(`/api/content/${contentId}/request-revision`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ feedback_text: feedbackText })
+    });
+
+    closeFeedbackModal();
+    await loadReviewData();
+  } catch (error) {
+    alert('Erro ao enviar feedback');
+  }
+}
+
+async function regenerateContent(id) {
+  if (!confirm('Regenerar este conteudo com base no feedback?')) return;
+
+  try {
+    const res = await fetch(`/api/content/${id}/regenerate`, { method: 'POST' });
+    const data = await res.json();
+
+    if (data.success) {
+      alert('Regeneracao iniciada! Uma nova versao aparecera em breve.');
+      // Reload after a short delay
+      setTimeout(() => loadReviewData(), 5000);
+    } else {
+      alert(data.error || 'Erro ao regenerar');
+    }
+  } catch (error) {
+    alert('Erro ao regenerar conteudo');
+  }
+}
+
+/**
+ * Brand Configuration
+ */
+async function loadBrandConfig() {
+  try {
+    const res = await fetch('/api/brand');
+    if (res.ok) {
+      const brand = await res.json();
+      document.getElementById('brand-name').value = brand.name || '';
+      document.getElementById('brand-handle').value = brand.handle || '';
+      document.getElementById('brand-color-primary').value = brand.colors?.primary || '#667eea';
+      document.getElementById('brand-color-secondary').value = brand.colors?.secondary || '#764ba2';
+      document.getElementById('brand-color-accent').value = brand.colors?.accent || '#4caf50';
+      document.getElementById('brand-tone').value = (brand.voice?.tone || []).join(', ');
+      document.getElementById('brand-services').value = (brand.services || []).join(', ');
+    }
+  } catch (e) {
+    console.error('Error loading brand config:', e);
+  }
+}
+
+async function saveBrandConfig() {
+  const config = {
+    name: document.getElementById('brand-name').value,
+    handle: document.getElementById('brand-handle').value,
+    colors: {
+      primary: document.getElementById('brand-color-primary').value,
+      secondary: document.getElementById('brand-color-secondary').value,
+      accent: document.getElementById('brand-color-accent').value
+    },
+    voice: {
+      tone: document.getElementById('brand-tone').value.split(',').map(s => s.trim()).filter(Boolean)
+    },
+    services: document.getElementById('brand-services').value.split(',').map(s => s.trim()).filter(Boolean)
+  };
+
+  try {
+    const res = await fetch('/api/brand', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+    if (res.ok) {
+      alert('Marca salva com sucesso!');
+    } else {
+      alert('Erro ao salvar configuracao da marca');
+    }
+  } catch (e) {
+    alert('Erro ao salvar configuracao da marca');
+  }
+}
+
+async function resetBrandConfig() {
+  if (!confirm('Restaurar configuracoes padrao da marca?')) return;
+  try {
+    await fetch('/api/brand/reset', { method: 'POST' });
+    await loadBrandConfig();
+    alert('Marca restaurada para o padrao');
+  } catch (e) {
+    alert('Erro ao restaurar');
   }
 }

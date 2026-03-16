@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -359,39 +359,39 @@
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">🐾 Pet Content Studio</div>
-        <div class="sidebar-tagline">Viral-powered content</div>
+        <div class="sidebar-tagline">Conteudo viral automatizado</div>
       </div>
 
       <nav class="sidebar-nav">
         <a class="nav-item active" data-page="dashboard">
           <span class="nav-icon">📊</span>
-          <span class="nav-label">Dashboard</span>
+          <span class="nav-label" data-i18n="nav.dashboard">Painel</span>
         </a>
         <a class="nav-item" data-page="discover">
           <span class="nav-icon">🔍</span>
-          <span class="nav-label">Discover</span>
+          <span class="nav-label" data-i18n="nav.discover">Descobrir</span>
         </a>
         <a class="nav-item" data-page="create">
           <span class="nav-icon">✏️</span>
-          <span class="nav-label">Create</span>
+          <span class="nav-label" data-i18n="nav.create">Criar</span>
         </a>
         <a class="nav-item" data-page="review">
           <span class="nav-icon">✅</span>
-          <span class="nav-label">Review</span>
+          <span class="nav-label" data-i18n="nav.review">Revisar</span>
         </a>
         <a class="nav-item" data-page="settings">
           <span class="nav-icon">⚙️</span>
-          <span class="nav-label">Settings</span>
+          <span class="nav-label" data-i18n="nav.settings">Config</span>
         </a>
         <a class="nav-item" data-page="help">
           <span class="nav-icon">❓</span>
-          <span class="nav-label">Help</span>
+          <span class="nav-label" data-i18n="nav.help">Ajuda</span>
         </a>
       </nav>
 
       <div class="sidebar-footer">
         <div class="budget-indicator">
-          <span>Monthly Budget</span>
+          <span data-i18n="settings.budget">Orcamento Mensal</span>
           <span id="budget-text">$0 / $15</span>
         </div>
         <div class="budget-bar">
@@ -406,66 +406,66 @@
       <!-- Dashboard Page -->
       <div class="page active" id="dashboard-page">
         <div class="page-header">
-          <h1 class="page-title">📊 Dashboard</h1>
-          <p class="page-subtitle">Overview of your content pipeline and viral intelligence</p>
+          <h1 class="page-title" data-i18n="dashboard.title">📊 Painel</h1>
+          <p class="page-subtitle" data-i18n="dashboard.subtitle">Visao geral do pipeline de conteudo e inteligencia viral</p>
         </div>
 
         <!-- Stats Grid -->
         <div class="stats-grid" id="dashboard-stats">
           <div class="stat-card">
             <div class="stat-value" id="stat-total">-</div>
-            <div class="stat-label">Total Content</div>
+            <div class="stat-label" data-i18n="dashboard.total_content">Total de Conteudo</div>
           </div>
           <div class="stat-card">
             <div class="stat-value" id="stat-pending">-</div>
-            <div class="stat-label">Pending Review</div>
+            <div class="stat-label" data-i18n="dashboard.pending_review">Pendente</div>
           </div>
           <div class="stat-card">
             <div class="stat-value" id="stat-approved">-</div>
-            <div class="stat-label">Approved</div>
+            <div class="stat-label" data-i18n="dashboard.approved">Aprovado</div>
           </div>
           <div class="stat-card">
             <div class="stat-value" id="stat-published">-</div>
-            <div class="stat-label">Published</div>
+            <div class="stat-label" data-i18n="dashboard.published">Publicado</div>
           </div>
           <div class="stat-card">
             <div class="stat-value" id="stat-videos">-</div>
-            <div class="stat-label">Viral Videos</div>
+            <div class="stat-label" data-i18n="dashboard.viral_videos">Videos Virais</div>
           </div>
           <div class="stat-card">
             <div class="stat-value" id="stat-engagement">-</div>
-            <div class="stat-label">Avg Engagement</div>
+            <div class="stat-label" data-i18n="dashboard.engagement">Engajamento</div>
           </div>
         </div>
 
         <!-- Quick Actions -->
         <div class="card">
-          <h2 class="card-title">Quick Actions</h2>
+          <h2 class="card-title" data-i18n="dashboard.quick_actions">Acoes Rapidas</h2>
           <div style="display: flex; gap: 1rem;">
-            <button class="btn btn-primary" onclick="navigateTo('create')">✨ Create Content</button>
-            <button class="btn btn-primary" onclick="navigateTo('discover')">🔍 Browse Signals</button>
-            <button class="btn btn-secondary" onclick="navigateTo('review')">✅ Review Queue</button>
+            <button class="btn btn-primary" onclick="navigateTo('create')">✨ Criar Conteudo</button>
+            <button class="btn btn-primary" onclick="navigateTo('discover')">🔍 Explorar Sinais</button>
+            <button class="btn btn-secondary" onclick="navigateTo('review')">✅ Fila de Revisao</button>
           </div>
         </div>
 
         <!-- Recent Activity -->
         <div class="card">
-          <h2 class="card-title">Recent Activity</h2>
-          <div id="recent-activity" style="color: #666;">Loading...</div>
+          <h2 class="card-title" data-i18n="dashboard.recent_activity">Atividade Recente</h2>
+          <div id="recent-activity" style="color: #666;">Carregando...</div>
         </div>
       </div>
 
       <!-- Discover Page -->
       <div class="page" id="discover-page">
         <div class="page-header">
-          <h1 class="page-title">🔍 Discover</h1>
-          <p class="page-subtitle">Find trending topics and viral patterns</p>
+          <h1 class="page-title" data-i18n="discover.title">🔍 Descobrir</h1>
+          <p class="page-subtitle" data-i18n="discover.subtitle">Encontre sinais de conteudo e tendencias virais</p>
         </div>
 
         <div class="tabs">
-          <button class="tab active" data-tab="signals-tab">Content Signals</button>
-          <button class="tab" data-tab="videos-tab">Trending Videos</button>
-          <button class="tab" data-tab="hooks-tab">Hooks</button>
+          <button class="tab active" data-tab="signals-tab" data-i18n="discover.signals_tab">Sinais de Conteudo</button>
+          <button class="tab" data-tab="videos-tab" data-i18n="discover.videos_tab">Videos em Alta</button>
+          <button class="tab" data-tab="hooks-tab" data-i18n="discover.hooks_tab">Ganchos Virais</button>
         </div>
 
         <!-- Signals Tab -->
@@ -538,8 +538,8 @@
       <!-- Create Page -->
       <div class="page" id="create-page">
         <div class="page-header">
-          <h1 class="page-title">✏️ Create</h1>
-          <p class="page-subtitle">Generate viral-enhanced content</p>
+          <h1 class="page-title" data-i18n="create.title">✏️ Criar</h1>
+          <p class="page-subtitle" data-i18n="create.subtitle">Gere conteudo a partir de sinais de inteligencia</p>
         </div>
 
         <div class="card">
@@ -586,17 +586,18 @@
       <!-- Review Page -->
       <div class="page" id="review-page">
         <div class="page-header">
-          <h1 class="page-title">✅ Review</h1>
-          <p class="page-subtitle">Approve and manage generated content</p>
+          <h1 class="page-title" data-i18n="review.title">✅ Revisar</h1>
+          <p class="page-subtitle" data-i18n="review.subtitle">Revise, aprove ou solicite alteracoes no conteudo gerado</p>
         </div>
 
         <div class="card">
-          <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
-            <button class="btn btn-secondary filter-btn active" data-filter="all">All</button>
-            <button class="btn btn-secondary filter-btn" data-filter="pending">Pending</button>
-            <button class="btn btn-secondary filter-btn" data-filter="approved">Approved</button>
-            <button class="btn btn-secondary filter-btn" data-filter="rejected">Rejected</button>
-            <button class="btn btn-secondary filter-btn" data-filter="published">Published</button>
+          <div style="display: flex; gap: 0.75rem; margin-bottom: 2rem; flex-wrap: wrap;">
+            <button class="btn btn-secondary filter-btn active" data-filter="all" data-i18n="review.filter_all">Todos</button>
+            <button class="btn btn-secondary filter-btn" data-filter="pending" data-i18n="review.filter_pending">Pendentes</button>
+            <button class="btn btn-secondary filter-btn" data-filter="revision_requested" data-i18n="review.filter_revision">Revisao</button>
+            <button class="btn btn-secondary filter-btn" data-filter="approved" data-i18n="review.filter_approved">Aprovados</button>
+            <button class="btn btn-secondary filter-btn" data-filter="rejected" data-i18n="review.filter_rejected">Rejeitados</button>
+            <button class="btn btn-secondary filter-btn" data-filter="published" data-i18n="review.filter_published">Publicados</button>
           </div>
 
           <div id="review-content-grid">Loading...</div>
@@ -606,31 +607,71 @@
       <!-- Settings Page -->
       <div class="page" id="settings-page">
         <div class="page-header">
-          <h1 class="page-title">⚙️ Settings</h1>
-          <p class="page-subtitle">Manage your budget, API keys, and preferences</p>
+          <h1 class="page-title" data-i18n="settings.title">⚙️ Configuracoes</h1>
+          <p class="page-subtitle" data-i18n="settings.subtitle">Gerencie custos, APIs e configuracoes da marca</p>
         </div>
 
         <div class="card">
-          <h2 class="card-title">Budget & Costs</h2>
-          <div id="settings-budget">Loading...</div>
+          <h2 class="card-title" data-i18n="settings.budget">Orcamento e Custos</h2>
+          <div id="settings-budget">Carregando...</div>
         </div>
 
         <div class="card">
-          <h2 class="card-title">Collection Pipeline</h2>
-          <p style="color: #666; margin-bottom: 1.5rem;">Manage viral video collection</p>
-          <button class="btn btn-primary" onclick="runCollectionPipeline()">🚀 Run Collection Pipeline</button>
+          <h2 class="card-title" data-i18n="settings.brand">Configuracao da Marca</h2>
+          <div id="brand-config-form">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+              <div>
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="settings.brand_name">Nome da Marca</label>
+                <input type="text" id="brand-name" style="width: 100%; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem;" placeholder="Ex: PetShop Brasil">
+              </div>
+              <div>
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="settings.brand_handle">Handle</label>
+                <input type="text" id="brand-handle" style="width: 100%; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem;" placeholder="@seupet">
+              </div>
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="settings.brand_colors">Cores</label>
+              <div style="display: flex; gap: 1rem; align-items: center;">
+                <div>
+                  <label style="font-size: 0.8rem; color: #666;" data-i18n="settings.brand_primary">Primaria</label>
+                  <input type="color" id="brand-color-primary" value="#667eea" style="width: 60px; height: 40px; border: none; cursor: pointer;">
+                </div>
+                <div>
+                  <label style="font-size: 0.8rem; color: #666;" data-i18n="settings.brand_secondary">Secundaria</label>
+                  <input type="color" id="brand-color-secondary" value="#764ba2" style="width: 60px; height: 40px; border: none; cursor: pointer;">
+                </div>
+                <div>
+                  <label style="font-size: 0.8rem; color: #666;" data-i18n="settings.brand_accent">Destaque</label>
+                  <input type="color" id="brand-color-accent" value="#4caf50" style="width: 60px; height: 40px; border: none; cursor: pointer;">
+                </div>
+              </div>
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="settings.brand_tone">Tom de Voz</label>
+              <input type="text" id="brand-tone" style="width: 100%; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem;" placeholder="amigavel, educativo, confiavel">
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="settings.brand_services">Servicos</label>
+              <input type="text" id="brand-services" style="width: 100%; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem;" placeholder="pet shop, banho e tosa, veterinario">
+            </div>
+            <div style="display: flex; gap: 1rem;">
+              <button class="btn btn-primary" onclick="saveBrandConfig()" data-i18n="settings.brand_save">Salvar Marca</button>
+              <button class="btn btn-secondary" onclick="resetBrandConfig()" data-i18n="settings.brand_reset">Restaurar Padrao</button>
+            </div>
+          </div>
         </div>
 
         <div class="card">
-          <h2 class="card-title">API Configuration</h2>
-          <p style="color: #666;">API keys are configured via environment variables.</p>
+          <h2 class="card-title" data-i18n="settings.collection">Pipeline de Coleta</h2>
+          <p style="color: #666; margin-bottom: 1.5rem;">Gerenciar coleta de videos virais</p>
+          <button class="btn btn-primary" onclick="runCollectionPipeline()" data-i18n="settings.trigger_collection">Iniciar Coleta</button>
         </div>
       </div>
       <!-- Help Page -->
       <div class="page" id="help-page">
         <div class="page-header">
-          <h1 class="page-title">❓ Help</h1>
-          <p class="page-subtitle">Platform guide, API usage, and credit information</p>
+          <h1 class="page-title" data-i18n="help.title">❓ Ajuda</h1>
+          <p class="page-subtitle" data-i18n="help.subtitle">Guia da plataforma, uso de APIs e informacoes de creditos</p>
         </div>
 
         <div id="help-content">Loading...</div>
@@ -638,6 +679,23 @@
     </main>
   </div>
 
+  <!-- Feedback Modal -->
+  <div id="feedback-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
+    <div style="background:white; border-radius:15px; padding:2rem; max-width:600px; width:90%; max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <h2 style="margin-bottom:1rem; color:#333;" data-i18n="feedback.title">Solicitar Alteracoes</h2>
+      <input type="hidden" id="feedback-content-id">
+      <div style="margin-bottom:1.5rem;">
+        <textarea id="feedback-text" rows="5" style="width:100%; padding:0.75rem; border:2px solid #e0e0e0; border-radius:8px; font-size:1rem; resize:vertical; font-family:inherit;" data-i18n-placeholder="feedback.placeholder" placeholder="Descreva as alteracoes que voce deseja..."></textarea>
+      </div>
+      <div id="feedback-history" style="margin-bottom:1.5rem;"></div>
+      <div style="display:flex; gap:1rem; justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeFeedbackModal()" data-i18n="feedback.cancel">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitFeedback()" data-i18n="feedback.submit">Enviar e Solicitar Revisao</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/i18n.js"></script>
   <script src="/studio.js"></script>
 </body>
 </html>
