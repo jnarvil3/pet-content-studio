@@ -137,6 +137,10 @@ function navigateTo(pageName) {
   } else if (pageName === 'create') {
     loadCreateData();
   } else if (pageName === 'review') {
+    currentFilter = 'all';
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-filter') === 'all');
+    });
     loadReviewData();
   } else if (pageName === 'settings') {
     loadSettingsData();
@@ -187,17 +191,25 @@ async function loadDashboardStats() {
     const contentStats = await contentResponse.json();
 
     document.getElementById('stat-total').textContent = contentStats.total || 0;
-    document.getElementById('stat-pending').textContent = contentStats.pending || 0;
+    document.getElementById('stat-pending').textContent = (contentStats.pending || 0) + (contentStats.revision_requested || 0);
     document.getElementById('stat-approved').textContent = contentStats.approved || 0;
     document.getElementById('stat-published').textContent = contentStats.published || 0;
 
-    // Load viral stats
-    const viralResponse = await fetch('/api/stats');
-    const viralData = await viralResponse.json();
+    // Load viral stats from viral insights endpoint
+    try {
+      const viralResponse = await fetch('/api/viral/insights?days=30');
+      const viralData = await viralResponse.json();
 
-    if (viralData.success) {
-      document.getElementById('stat-videos').textContent = viralData.data.overall.total || 0;
-      document.getElementById('stat-engagement').textContent = (viralData.data.overall.avg_engagement_rate || 0).toFixed(1) + '%';
+      if (viralData.success && viralData.data?.stats) {
+        document.getElementById('stat-videos').textContent = viralData.data.stats.total_analyzed || 0;
+        document.getElementById('stat-engagement').textContent = (viralData.data.stats.avg_engagement || 0).toFixed(1) + '%';
+      } else {
+        document.getElementById('stat-videos').textContent = '0';
+        document.getElementById('stat-engagement').textContent = '0%';
+      }
+    } catch (e) {
+      document.getElementById('stat-videos').textContent = '0';
+      document.getElementById('stat-engagement').textContent = '0%';
     }
   } catch (error) {
     console.error('Error loading dashboard stats:', error);
@@ -298,40 +310,18 @@ function setVideoTimePeriod(period) {
 async function loadVideosList() {
   try {
     const videosList = document.getElementById('videos-list');
-    videosList.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #667eea;"></div><p style="color: #666;">Loading videos...</p></div>';
+    videosList.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #667eea;"></div><p style="color: #666;">Carregando vídeos...</p></div>';
 
     // Try new trending API first
     const trendingResponse = await fetch(`/api/trending/videos?period=${videoTimePeriod}&petOnly=${videoPetFilter === 'pet'}`);
     const trendingData = await trendingResponse.json();
 
     if (trendingData.success && trendingData.data) {
-      // For 'today' period, also load from viral analyzer for full video list
-      if (videoTimePeriod === 'today') {
-        try {
-          const response = await fetch('/api/trending/videos');
-          const data = await response.json();
-          if (data.success && data.data.length > 0) {
-            allVideos = data.data;
-
-            // Apply pet filter
-            if (videoPetFilter === 'pet') {
-              allVideos = allVideos.filter(v =>
-                isPetRelatedClient(v.content_themes || v.title || '')
-              );
-            }
-          }
-        } catch (e) {
-          // Viral analyzer not running, use trending data
-          allVideos = trendingData.data.videos || [];
-        }
-      } else {
-        // Historical data from snapshots
-        allVideos = trendingData.data.items || trendingData.data.videos || [];
-      }
+      allVideos = trendingData.data.videos || trendingData.data.items || [];
     }
 
     if (allVideos.length === 0) {
-      videosList.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">No videos found for this filter. Try "All Videos" or a different time period.</p>';
+      videosList.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">Nenhum vídeo encontrado. Tente outro filtro ou período de tempo.</p>';
       return;
     }
 
@@ -381,7 +371,7 @@ async function loadTop10Lists() {
                   <div style="font-size: 1.25rem; font-weight: 700; color: ${i === 0 ? '#f5576c' : '#999'}; min-width: 30px;">#${i + 1}</div>
                   <div style="flex: 1;">
                     <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">${hookLabel(hook.hook_formula)}</div>
-                    <div style="font-size: 0.875rem; color: #666;">${hook.engagement_rate.toFixed(1)}% engajamento medio • ${hook.video_count} videos</div>
+                    <div style="font-size: 0.875rem; color: #666;">${hook.engagement_rate.toFixed(1)}% engajamento medio • ${hook.video_count} ${hook.video_count === 1 ? 'vídeo' : 'vídeos'}</div>
                   </div>
                 </div>
               `).join('')}
@@ -396,7 +386,7 @@ async function loadTop10Lists() {
                   <div style="font-size: 1.25rem; font-weight: 700; color: ${i === 0 ? '#667eea' : '#999'}; min-width: 30px;">#${i + 1}</div>
                   <div style="flex: 1;">
                     <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">${idea.content_angle}</div>
-                    <div style="font-size: 0.875rem; color: #666;">${idea.avg_engagement_rate.toFixed(1)}% engagement • ${idea.video_count} videos</div>
+                    <div style="font-size: 0.875rem; color: #666;">${idea.avg_engagement_rate.toFixed(1)}% engagement • ${idea.video_count} ${idea.video_count === 1 ? 'vídeo' : 'vídeos'}</div>
                   </div>
                 </div>
               `).join('')}
@@ -626,24 +616,32 @@ async function loadCreateData() {
 
 async function loadViralContext() {
   try {
-    const response = await fetch('/api/trending/hooks');
+    const response = await fetch('/api/viral/insights');
     const data = await response.json();
 
-    if (data.success) {
+    if (data.success && data.data) {
       const panel = document.getElementById('viral-context-panel');
       const content = document.getElementById('viral-context-content');
 
-      const topHook = data.data.top_hooks[0];
+      const hooks = data.data.topHooks || [];
+      const themes = (data.data.trendingThemes || []).slice(0, 5);
+      const stats = data.data.stats || {};
+      const topHook = hooks[0];
+
+      if (!topHook) {
+        panel.style.display = 'none';
+        return;
+      }
 
       content.innerHTML = `
         <div style="margin-bottom: 1rem;">
-          <strong>Top Hook Formula:</strong> ${topHook?.hook_formula || 'N/A'} (${(topHook?.engagement_rate || 0).toFixed(1)}% avg engagement)
+          <strong>Melhor gancho:</strong> ${hookLabel(topHook.hook_formula)} (${(topHook.avg_engagement_rate || 0).toFixed(1)}% engajamento)
         </div>
-        <div style="margin-bottom: 1rem;">
-          <strong>Trending Themes:</strong> ${data.data.top_content_ideas.slice(0, 3).map(idea => idea.content_angle).join(', ')}
-        </div>
+        ${themes.length > 0 ? `<div style="margin-bottom: 1rem;">
+          <strong>Temas em alta:</strong> ${themes.map(t => t.content_themes || '').filter(Boolean).slice(0, 3).join(', ') || 'N/A'}
+        </div>` : ''}
         <div style="font-size: 0.875rem; color: #666;">
-          Based on analysis of viral pet videos from the last 7 days
+          Baseado na análise de ${stats.total_analyzed || 0} vídeos virais de pet
         </div>
       `;
 
@@ -982,7 +980,7 @@ async function displayReviewContent(filter) {
             <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
               <div style="font-size: 0.8rem; font-weight: 600; color: #333; margin-bottom: 0.5rem;">Legenda</div>
               <div style="font-size: 0.875rem; color: #666; line-height: 1.5;">${item.carousel_content.caption}</div>
-              <div style="font-size: 0.8rem; color: #667eea; margin-top: 0.5rem;">${item.carousel_content.hashtags.map(h => '#'+h).join(' ')}</div>
+              <div style="font-size: 0.8rem; color: #667eea; margin-top: 0.5rem;">${item.carousel_content.hashtags.map(h => h.startsWith('#') ? h : '#'+h).join(' ')}</div>
             </div>
           ` : ''}
 
@@ -990,7 +988,7 @@ async function displayReviewContent(filter) {
             <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
               <div style="font-size: 0.8rem; font-weight: 600; color: #333; margin-bottom: 0.5rem;">Legenda</div>
               <div style="font-size: 0.875rem; color: #666; line-height: 1.5;">${item.reel_script.caption}</div>
-              <div style="font-size: 0.8rem; color: #667eea; margin-top: 0.5rem;">${item.reel_script.hashtags.map(h => '#'+h).join(' ')}</div>
+              <div style="font-size: 0.8rem; color: #667eea; margin-top: 0.5rem;">${item.reel_script.hashtags.map(h => h.startsWith('#') ? h : '#'+h).join(' ')}</div>
             </div>
           ` : ''}
 
@@ -1161,29 +1159,11 @@ async function runCollectionPipeline() {
  * Budget indicator in sidebar
  */
 async function loadBudget() {
-  try {
-    const response = await fetch('/api/stats');
-    const data = await response.json();
-
-    if (data.success) {
-      const costs = data.data.costs;
-      document.getElementById('budget-text').textContent = `$${costs.thisMonth.toFixed(2)} / $${costs.budget}`;
-      document.getElementById('budget-fill').style.width = `${costs.percentUsed}%`;
-      document.getElementById('budget-percentage').textContent = `${costs.percentUsed.toFixed(1)}% used`;
-
-      // Color-code based on usage
-      const fillEl = document.getElementById('budget-fill');
-      if (costs.percentUsed > 90) {
-        fillEl.style.background = 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)';
-      } else if (costs.percentUsed > 75) {
-        fillEl.style.background = 'linear-gradient(90deg, #fb923c 0%, #f97316 100%)';
-      } else {
-        fillEl.style.background = 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)';
-      }
-    }
-  } catch (error) {
-    console.error('Error loading budget:', error);
-  }
+  // Budget is not tracked server-side currently, show static estimate
+  const budgetTotal = 15;
+  document.getElementById('budget-text').textContent = `$0 / $${budgetTotal}`;
+  document.getElementById('budget-fill').style.width = '0%';
+  document.getElementById('budget-percentage').textContent = 'Sem dados de custo';
 }
 
 /**
@@ -1305,7 +1285,7 @@ function renderHooksGrid(hooks) {
             </div>
             <div style="background: rgba(139,92,246,0.1); padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.875rem;">
               <span style="color: #8b5cf6; font-weight: 700;">${hook.count || 0}</span>
-              <span style="color: #666;"> videos</span>
+              <span style="color: #666;"> ${(hook.count || 0) === 1 ? 'vídeo' : 'vídeos'}</span>
             </div>
           </div>
           ${hook.examples && hook.examples.length > 0 ? `

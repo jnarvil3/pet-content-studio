@@ -473,18 +473,18 @@
           <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
               <div>
-                <h2 class="card-title" style="margin-bottom: 0.25rem;">Top Content Signals</h2>
-                <p style="color: #666;">Ranked by relevance score and viral potential</p>
+                <h2 class="card-title" style="margin-bottom: 0.25rem;">Sinais de Conteúdo</h2>
+                <p style="color: #666;">Classificados por pontuação de relevância e potencial viral</p>
               </div>
               <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <div id="refresh-status" style="display: none; font-size: 0.875rem; color: #667eea;"></div>
-                <button class="btn btn-primary" id="refresh-signals-btn" onclick="triggerCollection()" style="white-space: nowrap;">🔄 Get Newest Trends</button>
+                <button class="btn btn-primary" id="refresh-signals-btn" onclick="triggerCollection()" style="white-space: nowrap;">🔄 Atualizar Tendências</button>
               </div>
             </div>
             <div id="collection-progress" style="display: none; margin-bottom: 1.5rem; padding: 1rem; background: rgba(102,126,234,0.05); border-radius: 8px;">
               <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
                 <div class="spinner" style="width: 20px; height: 20px; border-width: 3px; margin: 0;"></div>
-                <span id="collection-status" style="color: #667eea; font-weight: 500;">Initializing...</span>
+                <span id="collection-status" style="color: #667eea; font-weight: 500;">Inicializando...</span>
               </div>
               <div style="width: 100%; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
                 <div id="collection-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); transition: width 0.3s;"></div>
@@ -497,17 +497,17 @@
         <!-- Videos Tab -->
         <div class="tab-content" id="videos-tab">
           <div class="card">
-            <h2 class="card-title">Trending Videos</h2>
+            <h2 class="card-title" data-i18n="discover.videos_tab">Vídeos em Alta</h2>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
               <div style="display: flex; gap: 0.5rem;">
-                <button class="btn toggle-btn active" id="video-filter-pet" onclick="setVideoFilter('pet')">🐾 Pet Videos</button>
-                <button class="btn toggle-btn" id="video-filter-all" onclick="setVideoFilter('all')">🌐 All Videos</button>
+                <button class="btn toggle-btn active" id="video-filter-pet" onclick="setVideoFilter('pet')">🐾 Vídeos Pet</button>
+                <button class="btn toggle-btn" id="video-filter-all" onclick="setVideoFilter('all')">🌐 Todos os Vídeos</button>
               </div>
               <select id="video-time-period" onchange="setVideoTimePeriod(this.value)" style="padding: 0.5rem 1rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.875rem; background: white; cursor: pointer;">
-                <option value="today" selected>Today</option>
-                <option value="7days">Last 7 Days</option>
-                <option value="30days">Last 30 Days</option>
-                <option value="90days">Last 90 Days</option>
+                <option value="today" selected>Hoje</option>
+                <option value="7days">Últimos 7 Dias</option>
+                <option value="30days">Últimos 30 Dias</option>
+                <option value="90days">Últimos 90 Dias</option>
               </select>
             </div>
             <div id="videos-list">Loading...</div>
@@ -517,17 +517,17 @@
         <!-- Hooks Tab -->
         <div class="tab-content" id="hooks-tab">
           <div class="card">
-            <h2 class="card-title">Trending Hooks</h2>
+            <h2 class="card-title" data-i18n="discover.hooks_tab">Ganchos Virais</h2>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
               <div style="display: flex; gap: 0.5rem;">
-                <button class="btn toggle-btn active" id="hook-filter-pet" onclick="setHookFilter('pet')">🐾 Pet Hooks</button>
-                <button class="btn toggle-btn" id="hook-filter-all" onclick="setHookFilter('all')">🌐 All Hooks</button>
+                <button class="btn toggle-btn active" id="hook-filter-pet" onclick="setHookFilter('pet')">🐾 Ganchos Pet</button>
+                <button class="btn toggle-btn" id="hook-filter-all" onclick="setHookFilter('all')">🌐 Todos os Ganchos</button>
               </div>
               <select id="hook-time-period" onchange="setHookTimePeriod(this.value)" style="padding: 0.5rem 1rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.875rem; background: white; cursor: pointer;">
-                <option value="today" selected>Today</option>
-                <option value="7days">Last 7 Days</option>
-                <option value="30days">Last 30 Days</option>
-                <option value="90days">Last 90 Days</option>
+                <option value="today" selected>Hoje</option>
+                <option value="7days">Últimos 7 Dias</option>
+                <option value="30days">Últimos 30 Dias</option>
+                <option value="90days">Últimos 90 Dias</option>
               </select>
             </div>
             <div id="hooks-grid">Loading...</div>
@@ -543,31 +543,31 @@
         </div>
 
         <div class="card">
-          <h2 class="card-title">Content Generation</h2>
-          <p style="color: #666; margin-bottom: 1.5rem;">All content is automatically enhanced with viral insights</p>
+          <h2 class="card-title" data-i18n="create.content_type">Geração de Conteúdo</h2>
+          <p style="color: #666; margin-bottom: 1.5rem;">Todo conteúdo é automaticamente aprimorado com insights virais</p>
 
           <div style="margin-bottom: 2rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Select Signal</label>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="create.select_signal">Selecione um Sinal</label>
             <select id="create-signal-select" style="width: 100%; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem;">
-              <option value="">Loading signals...</option>
+              <option value="">Carregando sinais...</option>
             </select>
           </div>
 
           <div style="margin-bottom: 2rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">AI Quality</label>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="create.ai_quality">Qualidade da IA</label>
             <div style="display: flex; gap: 0.5rem; align-items: center; padding: 0.75rem; background: #f8f9fa; border-radius: 8px;">
-              <button id="model-fast-btn" class="btn" style="flex: 1; padding: 0.5rem; background: white; color: #666; border: 2px solid #e0e0e0; font-size: 0.875rem;">⚡ Fast (~$0.01)</button>
+              <button id="model-fast-btn" class="btn" style="flex: 1; padding: 0.5rem; background: white; color: #666; border: 2px solid #e0e0e0; font-size: 0.875rem;">⚡ Rápido (~$0.01)</button>
               <button id="model-premium-btn" class="btn btn-primary" style="flex: 1; padding: 0.5rem; font-size: 0.875rem;">✨ Premium (~$0.20)</button>
             </div>
             <p style="margin-top: 0.5rem; font-size: 0.875rem; color: #666;">
-              <span id="model-description">Premium: Claude Sonnet 4 for viral-quality scripts</span>
+              <span id="model-description">Premium: Claude Sonnet 4 para scripts de qualidade viral</span>
             </p>
           </div>
 
           <div id="signal-details" style="display: none; margin-bottom: 2rem;"></div>
 
           <div style="margin-bottom: 2rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Content Type</label>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="create.content_type">Tipo de Conteúdo</label>
             <div style="display: flex; gap: 1rem;">
               <button class="btn btn-secondary" id="create-carousel-btn" disabled>📱 Carrossel (5 slides)</button>
               <button class="btn btn-secondary" id="create-reel-btn" disabled>🎥 Reel (30-45s video)</button>
@@ -576,7 +576,7 @@
           </div>
 
           <div id="viral-context-panel" style="display: none; background: linear-gradient(135deg, rgba(240,147,251,0.1) 0%, rgba(245,87,108,0.1) 100%); border: 2px solid rgba(240,147,251,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
-            <h3 style="color: #f5576c; margin-bottom: 1rem;">🔥 Viral Enhancement Active</h3>
+            <h3 style="color: #f5576c; margin-bottom: 1rem;">🔥 Melhoria Viral Ativa</h3>
             <div id="viral-context-content"></div>
           </div>
 
