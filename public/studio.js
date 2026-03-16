@@ -14,6 +14,50 @@ let videoTimePeriod = 'today';
 let hookPetFilter = 'pet';
 let hookTimePeriod = 'today';
 
+/**
+ * Toast notification system (replaces alert())
+ */
+function showToast(message, type = 'info', duration = 4000) {
+  const container = document.getElementById('toast-container');
+  const colors = {
+    success: { bg: '#f0fdf4', border: '#22c55e', text: '#166534', icon: '✅' },
+    error: { bg: '#fef2f2', border: '#ef4444', text: '#991b1b', icon: '❌' },
+    info: { bg: '#eff6ff', border: '#3b82f6', text: '#1e40af', icon: 'ℹ️' },
+    warning: { bg: '#fefce8', border: '#eab308', text: '#854d0e', icon: '⚠️' },
+    loading: { bg: '#f5f3ff', border: '#8b5cf6', text: '#5b21b6', icon: '⏳' }
+  };
+  const c = colors[type] || colors.info;
+  const toast = document.createElement('div');
+  toast.style.cssText = `background:${c.bg}; border:2px solid ${c.border}; color:${c.text}; padding:0.875rem 1.25rem; border-radius:10px; font-size:0.9rem; font-weight:500; box-shadow:0 4px 12px rgba(0,0,0,0.15); animation:fadeIn 0.3s ease; max-width:380px; display:flex; align-items:center; gap:0.5rem;`;
+  toast.innerHTML = `<span>${c.icon}</span><span>${message}</span>`;
+  container.appendChild(toast);
+  if (type !== 'loading') {
+    setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, duration);
+  }
+  return toast;
+}
+
+/**
+ * Confirmation dialog (replaces confirm() / prompt())
+ */
+function showConfirm(message, { showInput = false, inputPlaceholder = '', okText = 'Confirmar', cancelText = 'Cancelar' } = {}) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirm-modal');
+    document.getElementById('confirm-message').textContent = message;
+    const inputWrap = document.getElementById('confirm-input-wrap');
+    const input = document.getElementById('confirm-input');
+    inputWrap.style.display = showInput ? 'block' : 'none';
+    if (showInput) { input.value = ''; input.placeholder = inputPlaceholder; }
+    document.getElementById('confirm-ok').textContent = okText;
+    document.getElementById('confirm-cancel').textContent = cancelText;
+    modal.style.display = 'flex';
+
+    const cleanup = (result) => { modal.style.display = 'none'; resolve(result); };
+    document.getElementById('confirm-ok').onclick = () => cleanup(showInput ? (input.value || true) : true);
+    document.getElementById('confirm-cancel').onclick = () => cleanup(false);
+  });
+}
+
 // Hook formula display labels (PT-BR, descriptive)
 const HOOK_LABELS = {
   curiosity_gap: '🤔 Fato curioso que prende atencao',
@@ -613,7 +657,7 @@ async function loadViralContext() {
 async function generateContent(type) {
   const signalId = document.getElementById('create-signal-select').value;
   if (!signalId) {
-    alert('Selecione um topico primeiro');
+    showToast('Selecione um topico primeiro', 'warning');
     return;
   }
 
@@ -1015,33 +1059,37 @@ function copyLinkedIn(id) {
 async function approveContent(id) {
   try {
     await fetch(`/api/content/${id}/approve`, { method: 'POST' });
+    showToast('Conteudo aprovado!', 'success');
     await loadReviewData();
   } catch (error) {
-    alert('Failed to approve content');
+    showToast('Erro ao aprovar conteudo', 'error');
   }
 }
 
 async function rejectContent(id) {
-  const reason = prompt('Rejection reason (optional):');
+  const reason = await showConfirm('Motivo da rejeicao:', { showInput: true, inputPlaceholder: 'Opcional: descreva por que esta rejeitando...', okText: 'Rejeitar', cancelText: 'Cancelar' });
+  if (reason === false) return;
   try {
     await fetch(`/api/content/${id}/reject`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason: reason || 'No reason provided' })
+      body: JSON.stringify({ reason: (typeof reason === 'string' ? reason : '') || 'Sem motivo informado' })
     });
+    showToast('Conteudo rejeitado', 'info');
     await loadReviewData();
   } catch (error) {
-    alert('Failed to reject content');
+    showToast('Erro ao rejeitar conteudo', 'error');
   }
 }
 
 async function publishContent(id) {
   try {
     await fetch(`/api/content/${id}/publish`, { method: 'POST' });
+    showToast('Conteudo marcado como publicado!', 'success');
     await loadReviewData();
     await loadDashboardStats();
   } catch (error) {
-    alert('Failed to publish content');
+    showToast('Erro ao publicar conteudo', 'error');
   }
 }
 
@@ -1090,7 +1138,8 @@ async function loadSettingsData() {
 }
 
 async function runCollectionPipeline() {
-  if (!confirm('This will collect and analyze new viral videos. This can cost $0.03-$0.05 per video. Continue?')) {
+  const ok = await showConfirm('Isso vai coletar e analisar novos videos virais. Pode custar $0.03-$0.05 por video. Continuar?', { okText: 'Iniciar', cancelText: 'Cancelar' });
+  if (!ok) {
     return;
   }
 
@@ -1099,12 +1148,12 @@ async function runCollectionPipeline() {
     const result = await response.json();
 
     if (result.success) {
-      alert('Collection pipeline started! Check the viral analyzer for progress.');
+      showToast('Pipeline de coleta iniciado!', 'success');
     } else {
-      alert('Failed to start collection: ' + (result.error || 'Unknown error'));
+      showToast('Erro ao iniciar coleta: ' + (result.error || 'Erro desconhecido'), 'error');
     }
   } catch (error) {
-    alert('Failed to start collection pipeline. Make sure viral analyzer is running.');
+    showToast('Erro ao iniciar pipeline de coleta', 'error');
   }
 }
 
@@ -1357,7 +1406,7 @@ async function triggerCollection() {
         btn.disabled = false;
         btn.textContent = '🔄 Get Newest Trends';
         btn.style.opacity = '1';
-        alert('Collection failed: ' + update.message);
+        showToast('Coleta falhou: ' + update.message, 'error');
       }
     });
 
@@ -1375,7 +1424,7 @@ async function triggerCollection() {
     btn.disabled = false;
     btn.textContent = '🔄 Get Newest Trends';
     btn.style.opacity = '1';
-    alert('Failed to start collection: ' + error.message);
+    showToast('Erro ao iniciar coleta: ' + error.message, 'error');
   }
 }
 
@@ -1509,9 +1558,14 @@ async function submitFeedback() {
   const feedbackText = document.getElementById('feedback-text').value.trim();
 
   if (!feedbackText) {
-    alert('Por favor, descreva as alteracoes desejadas.');
+    showToast('Por favor, descreva as alteracoes desejadas.', 'warning');
     return;
   }
+
+  closeFeedbackModal();
+
+  // Submit feedback and request revision
+  const loadingToast = showToast('Enviando feedback e gerando nova versao...', 'loading');
 
   try {
     await fetch(`/api/content/${contentId}/request-revision`, {
@@ -1520,30 +1574,68 @@ async function submitFeedback() {
       body: JSON.stringify({ feedback_text: feedbackText })
     });
 
-    closeFeedbackModal();
-    await loadReviewData();
+    // Auto-trigger regeneration immediately
+    const res = await fetch(`/api/content/${contentId}/regenerate`, { method: 'POST' });
+    const data = await res.json();
+
+    loadingToast.remove();
+
+    if (data.success) {
+      showToast('Nova versao sendo gerada! Vai aparecer em breve.', 'success', 6000);
+      await loadReviewData();
+      // Poll for the new version
+      pollForNewVersion(contentId);
+    } else {
+      showToast(data.error || 'Erro ao regenerar', 'error');
+      await loadReviewData();
+    }
   } catch (error) {
-    alert('Erro ao enviar feedback');
+    loadingToast.remove();
+    showToast('Erro ao enviar feedback', 'error');
   }
 }
 
 async function regenerateContent(id) {
-  if (!confirm('Regenerar este conteudo com base no feedback?')) return;
+  const loadingToast = showToast('Regenerando conteudo...', 'loading');
 
   try {
     const res = await fetch(`/api/content/${id}/regenerate`, { method: 'POST' });
     const data = await res.json();
 
+    loadingToast.remove();
+
     if (data.success) {
-      alert('Regeneracao iniciada! Uma nova versao aparecera em breve.');
-      // Reload after a short delay
-      setTimeout(() => loadReviewData(), 5000);
+      showToast('Nova versao sendo gerada! Vai aparecer em breve.', 'success', 6000);
+      pollForNewVersion(id);
     } else {
-      alert(data.error || 'Erro ao regenerar');
+      showToast(data.error || 'Erro ao regenerar', 'error');
     }
   } catch (error) {
-    alert('Erro ao regenerar conteudo');
+    loadingToast.remove();
+    showToast('Erro ao regenerar conteudo', 'error');
   }
+}
+
+// Poll for new version appearing in content list
+function pollForNewVersion(parentId) {
+  let attempts = 0;
+  const previousCount = allContent.length;
+  const interval = setInterval(async () => {
+    attempts++;
+    try {
+      const res = await fetch('/api/content');
+      const content = await res.json();
+      if (content.length > previousCount) {
+        clearInterval(interval);
+        showToast('Nova versao pronta! Atualizando...', 'success');
+        await loadReviewData();
+      }
+    } catch (e) {}
+    if (attempts >= 30) { // Stop after ~60 seconds
+      clearInterval(interval);
+      loadReviewData();
+    }
+  }, 2000);
 }
 
 /**
@@ -1589,22 +1681,23 @@ async function saveBrandConfig() {
       body: JSON.stringify(config)
     });
     if (res.ok) {
-      alert('Marca salva com sucesso!');
+      showToast('Marca salva com sucesso!', 'success');
     } else {
-      alert('Erro ao salvar configuracao da marca');
+      showToast('Erro ao salvar configuracao da marca', 'error');
     }
   } catch (e) {
-    alert('Erro ao salvar configuracao da marca');
+    showToast('Erro ao salvar configuracao da marca', 'error');
   }
 }
 
 async function resetBrandConfig() {
-  if (!confirm('Restaurar configuracoes padrao da marca?')) return;
+  const ok = await showConfirm('Restaurar configuracoes padrao da marca?', { okText: 'Restaurar', cancelText: 'Cancelar' });
+  if (!ok) return;
   try {
     await fetch('/api/brand/reset', { method: 'POST' });
     await loadBrandConfig();
-    alert('Marca restaurada para o padrao');
+    showToast('Marca restaurada para o padrao', 'success');
   } catch (e) {
-    alert('Erro ao restaurar');
+    showToast('Erro ao restaurar', 'error');
   }
 }
