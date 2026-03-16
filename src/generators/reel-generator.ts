@@ -248,7 +248,7 @@ export class ReelGenerator {
         if (this.hasDrawtext && i === 0 && script.scenes[0].narration) {
           const hookText = this.escapeFFmpegText(script.scenes[0].narration);
           // Animated text: fade in at 0.2s, stay for 2.5s, fade out at 2.7s
-          videoFilter += `,drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial Bold.ttf:text='${hookText}':fontcolor=white:fontsize=64:` +
+          videoFilter += `,drawtext=fontfile=${process.env.FFMPEG_FONT_BOLD || '/System/Library/Fonts/Supplemental/Arial Bold.ttf'}:text='${hookText}':fontcolor=white:fontsize=64:` +
             `box=1:boxcolor=black@0.6:boxborderw=20:x=(w-text_w)/2:y=(h-text_h)/2-200:` +
             `enable='between(t,0.2,2.9)':alpha='if(lt(t,0.4),(t-0.2)*5,if(gt(t,2.7),(2.9-t)*5,1))'`;
         }
@@ -256,7 +256,7 @@ export class ReelGenerator {
         // Add subtitle captions matching narration (all scenes, bottom of screen) - if drawtext available
         if (this.hasDrawtext && script.scenes[i].narration) {
           const captionText = this.escapeFFmpegText(script.scenes[i].narration);
-          videoFilter += `,drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial.ttf:text='${captionText}':fontcolor=white:fontsize=48:` +
+          videoFilter += `,drawtext=fontfile=${process.env.FFMPEG_FONT || '/System/Library/Fonts/Supplemental/Arial.ttf'}:text='${captionText}':fontcolor=white:fontsize=48:` +
             `box=1:boxcolor=black@0.7:boxborderw=15:x=(w-text_w)/2:y=h-150`;
         }
 
@@ -492,7 +492,7 @@ export class ReelGenerator {
     const brandHandle = this.brand.handle || '@surestepautomation';
     const escapedHandle = this.escapeFFmpegText(brandHandle);
 
-    return `drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial.ttf:text='${escapedHandle}':` +
+    return `drawtext=fontfile=${process.env.FFMPEG_FONT || '/System/Library/Fonts/Supplemental/Arial.ttf'}:text='${escapedHandle}':` +
       `fontcolor=white@0.6:fontsize=24:x=W-tw-20:y=H-th-20`;
   }
 

@@ -21,6 +21,40 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Simple password auth for production deployment
+const AUTH_PASSWORD = process.env.AUTH_PASSWORD;
+if (AUTH_PASSWORD) {
+  app.use((req, res, next) => {
+    // Allow static assets without auth
+    if (req.path.startsWith('/i18n/') || req.path === '/login') {
+      return next();
+    }
+
+    // Check for auth cookie or basic auth
+    const authHeader = req.headers.authorization;
+    const authCookie = req.headers.cookie?.split(';').find(c => c.trim().startsWith('auth='));
+
+    if (authCookie?.includes(AUTH_PASSWORD) || (authHeader && Buffer.from(authHeader.split(' ')[1] || '', 'base64').toString().endsWith(`:${AUTH_PASSWORD}`))) {
+      return next();
+    }
+
+    // Show login page for browser requests
+    if (req.accepts('html') && !req.path.startsWith('/api/')) {
+      return res.send(`<!DOCTYPE html><html lang="pt-BR"><head><title>Login - Pet Content Studio</title>
+        <style>body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(135deg,#667eea,#764ba2);font-family:sans-serif;margin:0}
+        .box{background:white;padding:2rem;border-radius:15px;box-shadow:0 10px 30px rgba(0,0,0,.2);text-align:center;max-width:350px;width:90%}
+        input{width:100%;padding:.75rem;border:2px solid #e0e0e0;border-radius:8px;font-size:1rem;margin:.75rem 0;box-sizing:border-box}
+        button{width:100%;padding:.75rem;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer}</style></head>
+        <body><div class="box"><h2>🐾 Pet Content Studio</h2><form onsubmit="document.cookie='auth='+document.getElementById('p').value+';path=/;max-age=2592000';location.reload();return false">
+        <input id="p" type="password" placeholder="Senha" autofocus><button type="submit">Entrar</button></form></div></body></html>`);
+    }
+
+    res.status(401).json({ error: 'Authentication required' });
+  });
+  console.log('[Auth] Password protection enabled');
+}
+
 app.use(express.static('public'));
 
 // Serve generated images
@@ -703,6 +737,52 @@ app.post('/api/generate', async (req, res) => {
       }
     })();
 
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Generate LinkedIn post
+app.post('/api/generate-linkedin', async (req, res) => {
+  try {
+    const signalId = req.body.signalId ? parseInt(req.body.signalId) : null;
+
+    if (!signalId) {
+      return res.status(400).json({ error: 'signalId is required' });
+    }
+
+    const signal = intelConnector.getSignal(signalId);
+    if (!signal) {
+      return res.status(404).json({ error: `Signal #${signalId} not found` });
+    }
+
+    // Start generation
+    res.json({ success: true, message: 'Generating LinkedIn post...' });
+
+    (async () => {
+      try {
+        const { LinkedInWriter } = await import('./generators/linkedin-writer');
+        const { getBrandConfig } = await import('./config/brand-config');
+
+        const brand = getBrandConfig();
+        const writer = new LinkedInWriter();
+        const linkedinContent = await writer.generatePost(signal, brand);
+
+        const content = {
+          signal_id: signal.id,
+          content_type: 'linkedin' as const,
+          status: 'pending' as const,
+          linkedin_content: linkedinContent,
+          source_url: signal.url,
+          generated_at: new Date().toISOString()
+        };
+
+        contentStorage.save(content);
+        console.log(`[Server] LinkedIn post saved for signal #${signal.id}`);
+      } catch (error: any) {
+        console.error('[Server] LinkedIn generation failed:', error.message);
+      }
+    })();
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

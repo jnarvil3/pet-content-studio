@@ -183,7 +183,7 @@ async function loadSignalsList() {
     const signalsList = document.getElementById('signals-list');
 
     if (allSignals.length === 0) {
-      signalsList.innerHTML = '<p style="color: #999;">No signals available. Run the intelligence collector.</p>';
+      signalsList.innerHTML = '<p style="color: #999;">Nenhum sinal disponivel. Execute o coletor de inteligencia.</p>';
       return;
     }
 
@@ -198,9 +198,12 @@ async function loadSignalsList() {
             <div style="font-weight: 600; margin-bottom: 0.5rem; color: #333;">${signal.title}</div>
             <div style="font-size: 0.875rem; color: #666; line-height: 1.4; margin-bottom: 1rem;">${(signal.description || '').substring(0, 150)}...</div>
             <div style="margin-bottom: 1rem; padding-top: 1rem; border-top: 1px solid #e0e0e0; font-size: 0.875rem; color: #999;">
-              📰 ${signal.source} • ${new Date(signal.collected_at).toLocaleDateString()}
+              📰 ${signal.source} • ${new Date(signal.collected_at).toLocaleDateString('pt-BR')}
             </div>
-            <button class="btn btn-primary" style="width: 100%; padding: 0.75rem;" onclick="createFromSignal(${signal.id})">✨ Create from this signal</button>
+            <div style="display: flex; gap: 0.5rem;">
+              ${signal.url ? `<a href="${signal.url}" target="_blank" class="btn btn-secondary" style="flex: 1; padding: 0.75rem; text-align: center; text-decoration: none;">🔗 Ler Artigo</a>` : ''}
+              <button class="btn btn-primary" style="flex: 1; padding: 0.75rem;" onclick="createFromSignal(${signal.id})">✨ Criar a partir deste</button>
+            </div>
           </div>
         `).join('')}
       </div>
@@ -506,11 +509,13 @@ async function loadCreateData() {
     select.addEventListener('change', () => {
       const carouselBtn = document.getElementById('create-carousel-btn');
       const reelBtn = document.getElementById('create-reel-btn');
+      const linkedinBtn = document.getElementById('create-linkedin-btn');
       const signalId = parseInt(select.value);
 
       if (signalId) {
         carouselBtn.disabled = false;
         reelBtn.disabled = false;
+        linkedinBtn.disabled = false;
 
         // Show signal details
         const signal = signals.find(s => s.id === signalId);
@@ -535,6 +540,7 @@ async function loadCreateData() {
       } else {
         carouselBtn.disabled = true;
         reelBtn.disabled = true;
+        linkedinBtn.disabled = true;
         document.getElementById('viral-context-panel').style.display = 'none';
         const detailsDiv = document.getElementById('signal-details');
         if (detailsDiv) detailsDiv.style.display = 'none';
@@ -544,6 +550,7 @@ async function loadCreateData() {
     // Setup generation buttons
     document.getElementById('create-carousel-btn').addEventListener('click', () => generateContent('carousel'));
     document.getElementById('create-reel-btn').addEventListener('click', () => generateContent('reel'));
+    document.getElementById('create-linkedin-btn').addEventListener('click', () => generateContent('linkedin'));
 
   } catch (error) {
     console.error('Error loading create data:', error);
@@ -583,31 +590,32 @@ async function loadViralContext() {
 async function generateContent(type) {
   const signalId = document.getElementById('create-signal-select').value;
   if (!signalId) {
-    alert('Please select a topic first');
+    alert('Selecione um topico primeiro');
     return;
   }
 
   // Get buttons and disable them immediately
   const carouselBtn = document.getElementById('create-carousel-btn');
   const reelBtn = document.getElementById('create-reel-btn');
+  const linkedinBtn = document.getElementById('create-linkedin-btn');
 
-  carouselBtn.disabled = true;
-  reelBtn.disabled = true;
-  carouselBtn.style.opacity = '0.5';
-  carouselBtn.style.cursor = 'not-allowed';
-  reelBtn.style.opacity = '0.5';
-  reelBtn.style.cursor = 'not-allowed';
+  [carouselBtn, reelBtn, linkedinBtn].forEach(btn => {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+  });
 
   // Show confirmation
   const statusDiv = document.getElementById('generation-status');
   statusDiv.style.display = 'block';
-  const contentType = type === 'carousel' ? '📱 Carousel' : '🎥 Reel';
-  const aiQuality = selectedAIModel === 'claude-sonnet-4' ? 'Premium (Claude)' : 'Fast (GPT)';
+  const contentTypeLabels = { carousel: '📱 Carrossel', reel: '🎥 Reel', linkedin: '💼 LinkedIn' };
+  const contentType = contentTypeLabels[type] || type;
+  const aiQuality = selectedAIModel === 'claude-sonnet-4' ? 'Premium (Claude)' : 'Rapido (GPT)';
 
   statusDiv.innerHTML = `
     <div style="text-align: center; padding: 1.5rem; background: rgba(102,126,234,0.1); border-radius: 12px; border: 2px solid #667eea;">
-      <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">✓ Confirmed: Generating ${contentType}</p>
-      <p style="color: #666; font-size: 0.875rem;">AI Quality: ${aiQuality}</p>
+      <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">Gerando ${contentType}...</p>
+      <p style="color: #666; font-size: 0.875rem;">Qualidade IA: ${aiQuality}</p>
     </div>
   `;
 
@@ -615,7 +623,8 @@ async function generateContent(type) {
   await new Promise(resolve => setTimeout(resolve, 800));
 
   try {
-    const endpoint = type === 'carousel' ? '/api/generate' : '/api/generate-reel';
+    const endpoints = { carousel: '/api/generate', reel: '/api/generate-reel', linkedin: '/api/generate-linkedin' };
+    const endpoint = endpoints[type] || '/api/generate';
 
     // Build request body
     const requestBody = {
@@ -857,6 +866,16 @@ function displayReviewContent(filter) {
             <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
               <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;"><strong>Legenda:</strong> ${item.reel_script.caption}</div>
               <div style="font-size: 0.875rem; color: #667eea;"><strong>Hashtags:</strong> ${item.reel_script.hashtags.join(' ')}</div>
+            </div>
+          ` : ''}
+
+          ${item.linkedin_content ? `
+            <div style="background: #f0f4ff; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; border-left: 4px solid #0077b5;">
+              <div style="font-weight: 700; color: #0077b5; margin-bottom: 0.5rem;">${item.linkedin_content.headline}</div>
+              <div style="font-size: 0.875rem; color: #333; white-space: pre-line; line-height: 1.6; margin-bottom: 0.75rem;">${(item.linkedin_content.body || '').substring(0, 300)}${item.linkedin_content.body?.length > 300 ? '...' : ''}</div>
+              <div style="font-size: 0.8rem; color: #0077b5;">${(item.linkedin_content.hashtags || []).map(h => '#' + h).join(' ')}</div>
+              <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #666; font-style: italic;">${item.linkedin_content.ctaText || ''}</div>
+              <button class="btn btn-secondary" style="margin-top: 0.75rem; font-size: 0.8rem; padding: 0.4rem 0.8rem;" onclick="navigator.clipboard.writeText(\`${(item.linkedin_content.headline || '').replace(/`/g, '')}\n\n${(item.linkedin_content.body || '').replace(/`/g, '').replace(/\\/g, '\\\\')}\n\n${(item.linkedin_content.hashtags || []).map(h => '#' + h).join(' ')}\`); this.textContent='Copiado!'">📋 Copiar Texto</button>
             </div>
           ` : ''}
 
