@@ -14,6 +14,29 @@ let videoTimePeriod = 'today';
 let hookPetFilter = 'pet';
 let hookTimePeriod = 'today';
 
+// Hook formula display labels (PT-BR, descriptive)
+const HOOK_LABELS = {
+  curiosity_gap: '🤔 Fato curioso que prende atencao',
+  contrarian: '🚫 Opiniao contraria ao senso comum',
+  emotional: '❤️ Conexao emocional com o pet',
+  humor: '😂 Humor e entretenimento',
+  shocking_fact: '😲 Dado surpreendente',
+  tutorial: '📚 Tutorial passo a passo',
+  question_hook: '❓ Pergunta que gera curiosidade',
+  mistake_hook: '⚠️ Erro comum que donos cometem',
+  personal: '🗣️ Historia pessoal com o pet',
+  number_outcome: '🔢 Lista com resultado especifico',
+  curiosity: '🤔 Fato curioso que prende atencao',
+  transformation: '✨ Antes e depois / transformacao',
+  challenge: '🏆 Desafio ou teste',
+  listicle: '📋 Lista de dicas',
+  story: '📖 Narrativa envolvente'
+};
+
+function hookLabel(formula) {
+  return HOOK_LABELS[formula] || formula;
+}
+
 // Status labels (PT-BR)
 const STATUS_LABELS = {
   pending: 'Pendente',
@@ -313,8 +336,8 @@ async function loadTop10Lists() {
                 <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: 8px; background: ${i === 0 ? 'rgba(245,87,108,0.1)' : '#f9fafb'};">
                   <div style="font-size: 1.25rem; font-weight: 700; color: ${i === 0 ? '#f5576c' : '#999'}; min-width: 30px;">#${i + 1}</div>
                   <div style="flex: 1;">
-                    <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">${hook.hook_formula}</div>
-                    <div style="font-size: 0.875rem; color: #666;">${hook.engagement_rate.toFixed(1)}% avg engagement • ${hook.video_count} videos</div>
+                    <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">${hookLabel(hook.hook_formula)}</div>
+                    <div style="font-size: 0.875rem; color: #666;">${hook.engagement_rate.toFixed(1)}% engajamento medio • ${hook.video_count} videos</div>
                   </div>
                 </div>
               `).join('')}
@@ -450,7 +473,7 @@ function renderVideoGrid() {
             ${video.channel_name ? `<div style="font-size: 0.8rem; color: #999; margin-bottom: 0.5rem;">${video.channel_name}</div>` : ''}
             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
               <span style="background: rgba(245,87,108,0.1); color: #f5576c; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${(video.engagement_rate || 0).toFixed(1)}% engagement</span>
-              ${video.hook_formula ? `<span style="background: rgba(102,126,234,0.1); color: #667eea; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${video.hook_formula}</span>` : ''}
+              ${video.hook_formula ? `<span style="background: rgba(102,126,234,0.1); color: #667eea; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${hookLabel(video.hook_formula)}</span>` : ''}
               ${video.emotional_trigger ? `<span style="background: rgba(251,146,60,0.1); color: #fb923c; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${video.emotional_trigger}</span>` : ''}
             </div>
             <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">${(video.view_count || 0).toLocaleString()} views</div>
@@ -1215,21 +1238,21 @@ function renderHooksGrid(hooks) {
   const grid = document.getElementById('hooks-grid');
 
   grid.innerHTML = `
-    <div style="margin-bottom: 1rem; color: #666; font-size: 0.875rem;">Showing ${hooks.length} hook strategies</div>
+    <div style="margin-bottom: 1rem; color: #666; font-size: 0.875rem;">${hooks.length} estrategias de gancho encontradas</div>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1rem;">
       ${hooks.map((hook, i) => `
         <div style="border: 2px solid ${i === 0 ? '#f5576c' : '#e0e0e0'}; border-radius: 12px; padding: 1.5rem; transition: all 0.2s; ${i === 0 ? 'background: rgba(245,87,108,0.03);' : ''}" onmouseover="this.style.borderColor='#667eea'" onmouseout="this.style.borderColor='${i === 0 ? '#f5576c' : '#e0e0e0'}'">
           <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
               <div style="font-size: 1.5rem; font-weight: 700; color: ${i === 0 ? '#f5576c' : i < 3 ? '#667eea' : '#999'};">#${i + 1}</div>
-              <div style="font-weight: 700; font-size: 1.1rem; color: #333;">${hook.hook_formula}</div>
+              <div style="font-weight: 700; font-size: 1.1rem; color: #333;">${hookLabel(hook.hook_formula)}</div>
             </div>
             ${i === 0 ? '<span style="background: rgba(245,87,108,0.1); color: #f5576c; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">TOP HOOK</span>' : ''}
           </div>
           <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
             <div style="background: rgba(102,126,234,0.1); padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.875rem;">
               <span style="color: #667eea; font-weight: 700;">${(hook.avg_engagement_rate || hook.engagement_rate || 0).toFixed(1)}%</span>
-              <span style="color: #666;"> avg engagement</span>
+              <span style="color: #666;"> engajamento medio</span>
             </div>
             <div style="background: rgba(139,92,246,0.1); padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.875rem;">
               <span style="color: #8b5cf6; font-weight: 700;">${hook.count || 0}</span>
@@ -1247,7 +1270,7 @@ function renderHooksGrid(hooks) {
               `).join('')}
             </div>
           ` : ''}
-          <button class="btn btn-primary" style="width: 100%; margin-top: 1rem; padding: 0.625rem;" onclick="selectHook('${(hook.hook_formula || '').replace(/'/g, "\\'")}')">✨ Use This Hook</button>
+          <button class="btn btn-primary" style="width: 100%; margin-top: 1rem; padding: 0.625rem;" onclick="selectHook('${(hook.hook_formula || '').replace(/'/g, "\\'")}')">✨ Usar este Gancho</button>
         </div>
       `).join('')}
     </div>
