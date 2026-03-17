@@ -497,40 +497,18 @@
         <!-- Videos Tab -->
         <div class="tab-content" id="videos-tab">
           <div class="card">
-            <h2 class="card-title" data-i18n="discover.videos_tab">Vídeos em Alta</h2>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
-              <div style="display: flex; gap: 0.5rem;">
-                <button class="btn toggle-btn active" id="video-filter-pet" onclick="setVideoFilter('pet')">🐾 Vídeos Pet</button>
-                <button class="btn toggle-btn" id="video-filter-all" onclick="setVideoFilter('all')">🌐 Todos os Vídeos</button>
-              </div>
-              <select id="video-time-period" onchange="setVideoTimePeriod(this.value)" style="padding: 0.5rem 1rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.875rem; background: white; cursor: pointer;">
-                <option value="today" selected>Hoje</option>
-                <option value="7days">Últimos 7 Dias</option>
-                <option value="30days">Últimos 30 Dias</option>
-                <option value="90days">Últimos 90 Dias</option>
-              </select>
-            </div>
-            <div id="videos-list">Loading...</div>
+            <h2 class="card-title">🔥 Vídeos Mais Virais</h2>
+            <p style="color: #666; margin-bottom: 1.5rem;">Vídeos com maior engajamento do YouTube e TikTok Brasil — ordenados por viralidade</p>
+            <div id="videos-list">Carregando...</div>
           </div>
         </div>
 
         <!-- Hooks Tab -->
         <div class="tab-content" id="hooks-tab">
           <div class="card">
-            <h2 class="card-title" data-i18n="discover.hooks_tab">Ganchos Virais</h2>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
-              <div style="display: flex; gap: 0.5rem;">
-                <button class="btn toggle-btn active" id="hook-filter-pet" onclick="setHookFilter('pet')">🐾 Ganchos Pet</button>
-                <button class="btn toggle-btn" id="hook-filter-all" onclick="setHookFilter('all')">🌐 Todos os Ganchos</button>
-              </div>
-              <select id="hook-time-period" onchange="setHookTimePeriod(this.value)" style="padding: 0.5rem 1rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.875rem; background: white; cursor: pointer;">
-                <option value="today" selected>Hoje</option>
-                <option value="7days">Últimos 7 Dias</option>
-                <option value="30days">Últimos 30 Dias</option>
-                <option value="90days">Últimos 90 Dias</option>
-              </select>
-            </div>
-            <div id="hooks-grid">Loading...</div>
+            <h2 class="card-title">🎣 Padrões Virais</h2>
+            <p style="color: #666; margin-bottom: 1.5rem;">Estratégias de gancho que geram mais engajamento — baseado em análise de vídeos reais</p>
+            <div id="hooks-grid">Carregando...</div>
           </div>
         </div>
       </div>

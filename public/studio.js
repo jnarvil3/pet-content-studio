@@ -312,25 +312,54 @@ async function loadVideosList() {
     const videosList = document.getElementById('videos-list');
     videosList.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #667eea;"></div><p style="color: #666;">Carregando vídeos...</p></div>';
 
-    // Try new trending API first
-    const trendingResponse = await fetch(`/api/trending/videos?period=${videoTimePeriod}&petOnly=${videoPetFilter === 'pet'}`);
-    const trendingData = await trendingResponse.json();
+    const response = await fetch('/api/trending/videos?period=today&petOnly=false');
+    const data = await response.json();
 
-    if (trendingData.success && trendingData.data) {
-      allVideos = trendingData.data.videos || trendingData.data.items || [];
+    if (data.success && data.data) {
+      allVideos = (data.data.videos || []).sort((a, b) => (b.engagement_rate || 0) - (a.engagement_rate || 0));
     }
 
     if (allVideos.length === 0) {
-      videosList.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">Nenhum vídeo encontrado. Tente outro filtro ou período de tempo.</p>';
+      videosList.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">Nenhum vídeo encontrado. Execute a coleta de dados primeiro.</p>';
       return;
     }
 
-    // Load Top 10 lists (non-blocking — don't let it kill video rendering)
-    loadTop10Lists().catch(e => console.warn('Top 10 lists failed:', e));
+    // Render video grid directly — sorted by engagement
+    videosList.innerHTML = `
+      <div style="margin-bottom: 1rem; color: #666; font-size: 0.875rem;">${allVideos.length} vídeos ordenados por engajamento</div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
+        ${allVideos.map((video, i) => {
+          const isTikTok = (video.platform || '').toLowerCase() === 'tiktok';
+          const videoUrl = video.url || (isTikTok ? '#' : `https://www.youtube.com/watch?v=${video.video_id}`);
+          const thumbnailUrl = video.thumbnail_url || (isTikTok ? '' : `https://img.youtube.com/vi/${video.video_id}/hqdefault.jpg`);
+          const title = (video.title || '').substring(0, 80);
+          const engagement = (video.engagement_rate || 0).toFixed(1);
+          const views = (video.view_count || 0).toLocaleString('pt-BR');
+          const hook = video.hook_formula ? hookLabel(video.hook_formula) : '';
 
-    // Render filters and videos
-    renderVideoFilters();
-    renderVideoGrid();
+          return `
+          <div style="border: 2px solid ${i < 3 ? '#f5576c' : '#e0e0e0'}; border-radius: 12px; overflow: hidden; cursor: pointer; transition: all 0.2s; ${i < 3 ? 'box-shadow: 0 4px 12px rgba(245,87,108,0.2);' : ''}" onclick="window.open('${videoUrl}', '_blank')">
+            <div style="aspect-ratio: 16/9; background: #000; position: relative; overflow: hidden;">
+              ${thumbnailUrl
+                ? `<img src="${thumbnailUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'">`
+                : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea,#764ba2);color:white;font-size:3rem;">${isTikTok ? '🎵' : '▶️'}</div>`
+              }
+              <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.7);color:white;padding:2px 8px;border-radius:6px;font-size:0.7rem;font-weight:700;">#${i + 1}</div>
+              <div style="position:absolute;top:8px;right:8px;background:${isTikTok ? '#00f2ea' : '#ff0000'};color:${isTikTok ? '#000' : '#fff'};padding:2px 8px;border-radius:6px;font-size:0.7rem;font-weight:700;">${isTikTok ? 'TikTok' : 'YouTube'}</div>
+              <div style="position:absolute;bottom:8px;left:8px;background:rgba(245,87,108,0.9);color:white;padding:4px 10px;border-radius:6px;font-size:0.8rem;font-weight:700;">${engagement}% engajamento</div>
+            </div>
+            <div style="padding: 1rem;">
+              <div style="font-weight: 600; color: #333; margin-bottom: 0.5rem; font-size: 0.9rem; line-height: 1.3;">${title}</div>
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+                ${hook ? `<span style="background:rgba(102,126,234,0.1);color:#667eea;padding:2px 8px;border-radius:6px;font-size:0.7rem;font-weight:600;">${hook}</span>` : ''}
+                ${views !== '0' ? `<span style="color:#999;font-size:0.75rem;">${views} views</span>` : ''}
+              </div>
+              <button class="btn btn-primary" style="width:100%;padding:0.5rem;font-size:0.85rem;" onclick="event.stopPropagation(); createFromVideo(${video.id || 0}, '${(video.hook_formula || '').replace(/'/g, "\\'")}', '${(video.title || '').replace(/'/g, "\\'").substring(0, 60)}', '')">✨ Criar a partir deste</button>
+            </div>
+          </div>
+        `}).join('')}
+      </div>
+    `;
   } catch (error) {
     console.error('Error loading videos:', error);
     document.getElementById('videos-list').innerHTML = '<p style="color: #999;">Não foi possível carregar vídeos virais.</p>';
@@ -1242,28 +1271,28 @@ async function loadHooksList() {
   const grid = document.getElementById('hooks-grid');
   if (!grid) return;
 
-  grid.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #667eea;"></div><p style="color: #666;">Loading hooks...</p></div>';
+  grid.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #667eea;"></div><p style="color: #666;">Carregando padrões virais...</p></div>';
 
   try {
-    const response = await fetch(`/api/trending/hooks?period=${hookTimePeriod}&petOnly=${hookPetFilter === 'pet'}`);
+    const response = await fetch('/api/trending/hooks?period=today&petOnly=false');
     const data = await response.json();
 
     if (!data.success) {
-      grid.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">Could not load hooks data.</p>';
+      grid.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">Não foi possível carregar dados.</p>';
       return;
     }
 
-    const hooks = data.data.hooks || data.data.items || [];
+    const hooks = (data.data.hooks || []).sort((a, b) => (b.avg_engagement_rate || 0) - (a.avg_engagement_rate || 0));
 
     if (hooks.length === 0) {
-      grid.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">No hooks found for this filter. Try "All Hooks" or a different time period.</p>';
+      grid.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">Nenhum padrão encontrado. Execute a coleta de dados primeiro.</p>';
       return;
     }
 
     renderHooksGrid(hooks);
   } catch (error) {
     console.error('Error loading hooks:', error);
-    grid.innerHTML = '<p style="color: #999;">Could not load hooks. Make sure the server is running.</p>';
+    grid.innerHTML = '<p style="color: #999;">Não foi possível carregar padrões virais.</p>';
   }
 }
 
@@ -1280,12 +1309,12 @@ function renderHooksGrid(hooks) {
               <div style="font-size: 1.5rem; font-weight: 700; color: ${i === 0 ? '#f5576c' : i < 3 ? '#667eea' : '#999'};">#${i + 1}</div>
               <div style="font-weight: 700; font-size: 1.1rem; color: #333;">${hookLabel(hook.hook_formula)}</div>
             </div>
-            ${i === 0 ? '<span style="background: rgba(245,87,108,0.1); color: #f5576c; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">TOP HOOK</span>' : ''}
+            ${i === 0 ? '<span style="background: rgba(245,87,108,0.1); color: #f5576c; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">MAIS VIRAL</span>' : ''}
           </div>
           <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
             <div style="background: rgba(102,126,234,0.1); padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.875rem;">
               <span style="color: #667eea; font-weight: 700;">${(hook.avg_engagement_rate || hook.engagement_rate || 0).toFixed(1)}%</span>
-              <span style="color: #666;"> engajamento medio</span>
+              <span style="color: #666;"> engajamento médio</span>
             </div>
             <div style="background: rgba(139,92,246,0.1); padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.875rem;">
               <span style="color: #8b5cf6; font-weight: 700;">${hook.count || 0}</span>
@@ -1294,7 +1323,7 @@ function renderHooksGrid(hooks) {
           </div>
           ${hook.examples && hook.examples.length > 0 ? `
             <div style="border-top: 1px solid #e0e0e0; padding-top: 1rem; margin-top: 0.5rem;">
-              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Examples</div>
+              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Exemplos reais</div>
               ${hook.examples.slice(0, 2).map(ex => `
                 <div style="font-size: 0.875rem; color: #555; margin-bottom: 0.25rem; line-height: 1.3;">
                   "${(ex.title || '').substring(0, 80)}${(ex.title || '').length > 80 ? '...' : ''}"
