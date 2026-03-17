@@ -24,6 +24,12 @@ export interface ViralTheme {
   engagement_rate: number;
   title: string;
   url: string;
+  thumbnail_url?: string;
+  video_id?: string;
+  platform?: string;
+  channel_name?: string;
+  view_count?: number;
+  hook_formula?: string;
 }
 
 export interface ViralPattern {
@@ -149,7 +155,13 @@ export class ViralSignalsConnector {
         content_themes,
         engagement_rate,
         title,
-        url
+        url,
+        thumbnail_url,
+        video_id,
+        platform,
+        channel_name,
+        view_count,
+        hook_formula
       FROM viral_signals
       WHERE content_themes IS NOT NULL
         AND text_analyzed_at IS NOT NULL
