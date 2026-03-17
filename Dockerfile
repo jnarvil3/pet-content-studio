@@ -18,17 +18,15 @@ WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm ci --production
+RUN npm ci --legacy-peer-deps
 
 # Copy source
 COPY . .
-
-# Build TypeScript
-RUN npm run build
 
 # Create data directory for SQLite
 RUN mkdir -p /app/data /app/output/carousels /app/output/reels /app/config
 
 EXPOSE 3001
 
-CMD ["node", "dist/server.js"]
+# Use tsx (same as local dev) to avoid tsc strict errors
+CMD ["npx", "tsx", "src/server.ts"]

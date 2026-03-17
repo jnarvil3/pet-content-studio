@@ -2,7 +2,7 @@ services:
   pet-content-studio:
     build: .
     ports:
-      - "3001:3001"
+      - "3003:3001"
     volumes:
       - ./data:/app/data
       - ./output:/app/output
