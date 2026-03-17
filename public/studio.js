@@ -339,7 +339,12 @@ async function loadVideosList() {
 
 // Client-side pet classification (mirrors server-side)
 function isPetRelatedClient(text) {
-  const petKeywords = ['pet', 'dog', 'cat', 'puppy', 'kitten', 'animal', 'pup', 'kitty', 'canine', 'feline', 'doggo', 'pupper', 'fur baby', 'vet', 'breed'];
+  const petKeywords = [
+    // English
+    'pet', 'dog', 'cat', 'puppy', 'kitten', 'animal', 'pup', 'kitty', 'canine', 'feline', 'doggo', 'pupper', 'fur baby', 'vet', 'breed',
+    // Portuguese
+    'cachorro', 'cachorra', 'gato', 'gata', 'filhote', 'cão', 'cadela', 'gatinho', 'gatinha', 'animal de estimação', 'animais', 'veterinário', 'veterinaria', 'raça', 'pets', 'canil', 'felino', 'canino', 'bichinho', 'peludo', 'patinha', 'banho e tosa', 'ração', 'petshop', 'pet shop', 'cãozinho', 'doguinho', 'miau', 'latido', 'pata', 'focinho'
+  ];
   const lower = (text || '').toLowerCase();
   return petKeywords.some(kw => lower.includes(kw));
 }

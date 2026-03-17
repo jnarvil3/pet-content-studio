@@ -790,7 +790,10 @@ app.post('/api/generate-linkedin', async (req, res) => {
 
 // Pet classification helper
 function isPetRelated(themes: string): boolean {
-  const petKeywords = ['pet', 'dog', 'cat', 'puppy', 'kitten', 'animal', 'pup', 'kitty', 'canine', 'feline', 'doggo', 'pupper', 'fur baby', 'vet', 'breed'];
+  const petKeywords = [
+    'pet', 'dog', 'cat', 'puppy', 'kitten', 'animal', 'pup', 'kitty', 'canine', 'feline', 'doggo', 'pupper', 'fur baby', 'vet', 'breed',
+    'cachorro', 'cachorra', 'gato', 'gata', 'filhote', 'cão', 'cadela', 'gatinho', 'gatinha', 'animais', 'veterinário', 'veterinaria', 'pets', 'felino', 'canino', 'miau', 'pata', 'focinho', 'cãozinho', 'doguinho'
+  ];
   const lower = (themes || '').toLowerCase();
   return petKeywords.some(kw => lower.includes(kw));
 }
