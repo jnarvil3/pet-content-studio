@@ -1586,6 +1586,19 @@ async function openFeedbackModal(contentId) {
   }
 }
 
+function addFeedbackChip(text) {
+  const textarea = document.getElementById('feedback-text');
+  const current = textarea.value.trim();
+  if (current) {
+    textarea.value = current + '\n' + text;
+  } else {
+    textarea.value = text;
+  }
+  // Toggle chip visual state
+  event.target.classList.toggle('selected');
+  textarea.focus();
+}
+
 function closeFeedbackModal() {
   document.getElementById('feedback-modal').style.display = 'none';
 }

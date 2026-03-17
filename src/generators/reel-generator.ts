@@ -89,7 +89,8 @@ export class ReelGenerator {
       viralTitle?: string;
       viralContentAngle?: string;
     },
-    editFeedback?: string
+    editFeedback?: string,
+    previousScript?: ReelScript
   ): Promise<ReelGenerationResult> {
     console.log(`\n[ReelGenerator] Starting generation for signal #${signal.id}`);
     console.log(`[ReelGenerator] Topic: "${signal.title}"`);
@@ -104,7 +105,7 @@ export class ReelGenerator {
       // Step 1: Generate script with LLM
       onProgress?.(1, 5, 'Writing script...', 50);
       console.log('[ReelGenerator] Step 1/5: Generating script with AI...');
-      const script = await this.scriptWriter.generateScript(signal, this.brand, options, editFeedback);
+      const script = await this.scriptWriter.generateScript(signal, this.brand, options, editFeedback, previousScript);
 
       // Step 2: Create output directories
       const reelDir = path.join(this.outputDir, `signal-${signal.id}`);

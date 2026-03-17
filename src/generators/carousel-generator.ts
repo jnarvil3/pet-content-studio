@@ -47,7 +47,7 @@ export class CarouselGenerator {
    * @param signal - The topic signal to convert to carousel
    * @returns Generated content and image paths
    */
-  async generate(signal: Signal, useViralData: boolean = true, editFeedback?: string): Promise<CarouselGenerationResult> {
+  async generate(signal: Signal, useViralData: boolean = true, editFeedback?: string, previousContent?: CarouselContent): Promise<CarouselGenerationResult> {
     console.log(`\n[CarouselGenerator] Starting generation for signal #${signal.id}`);
     console.log(`[CarouselGenerator] Topic: "${signal.title}"`);
 
@@ -91,7 +91,7 @@ export class CarouselGenerator {
 
       // Step 2: Generate carousel content with Claude AI (with viral enhancement)
       console.log(`[CarouselGenerator] Step 2/4: Generating content with AI${viralInsights ? ' (viral-enhanced)' : ''}...`);
-      const carouselContent = await this.writer.generateCarousel(signal, this.brand, viralInsights, editFeedback);
+      const carouselContent = await this.writer.generateCarousel(signal, this.brand, viralInsights, editFeedback, previousContent);
 
       // Step 3: Fetch background photos using LLM-generated search queries
       console.log('[CarouselGenerator] Step 3/5: Fetching background images...');

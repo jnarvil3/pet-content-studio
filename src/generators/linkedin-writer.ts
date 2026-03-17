@@ -25,9 +25,10 @@ export class LinkedInWriter {
   async generatePost(
     signal: Signal,
     brand: BrandConfig,
-    editFeedback?: string
+    editFeedback?: string,
+    previousPost?: LinkedInPost
   ): Promise<LinkedInPost> {
-    const prompt = this.buildPrompt(signal, brand, editFeedback);
+    const prompt = this.buildPrompt(signal, brand, editFeedback, previousPost);
 
     console.log(`[LinkedInWriter] Generating post for signal #${signal.id}: "${signal.title}"`);
 
@@ -48,16 +49,33 @@ export class LinkedInWriter {
     }
   }
 
-  private buildPrompt(signal: Signal, brand: BrandConfig, editFeedback?: string): string {
+  private buildPrompt(signal: Signal, brand: BrandConfig, editFeedback?: string, previousPost?: LinkedInPost): string {
     const services = brand.services.join(', ');
 
     let feedbackContext = '';
-    if (editFeedback) {
+    if (editFeedback && previousPost) {
       feedbackContext = `
 ---
-REVISION REQUEST:
+⚠️ ISTO É UMA REVISÃO — NÃO GERE DO ZERO.
+
+POST ANTERIOR (que o cliente revisou):
+Título: "${previousPost.headline}"
+Corpo: "${previousPost.body}"
+Hashtags: ${previousPost.hashtags.join(', ')}
+CTA: "${previousPost.ctaText}"
+
+ALTERAÇÕES SOLICITADAS:
 ${editFeedback}
-Generate a REVISED version addressing ALL feedback.
+
+MANTENHA tudo que não foi mencionado. ALTERE APENAS o que foi solicitado.
+---
+`;
+    } else if (editFeedback) {
+      feedbackContext = `
+---
+ALTERAÇÕES SOLICITADAS:
+${editFeedback}
+Gere uma versão REVISADA incorporando as alterações.
 ---
 `;
     }

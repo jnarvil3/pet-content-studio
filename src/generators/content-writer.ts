@@ -41,9 +41,10 @@ export class ContentWriter {
     signal: Signal,
     brand: BrandConfig,
     viralInsights?: ViralInsights,
-    editFeedback?: string
+    editFeedback?: string,
+    previousContent?: CarouselContent
   ): Promise<CarouselContent> {
-    const prompt = this.buildCarouselPrompt(signal, brand, viralInsights, editFeedback);
+    const prompt = this.buildCarouselPrompt(signal, brand, viralInsights, editFeedback, previousContent);
 
     const mode = viralInsights ? 'viral-enhanced' : 'standard';
     console.log(`[ContentWriter] Generating ${mode} carousel for signal #${signal.id}: "${signal.title}"`);
@@ -83,7 +84,7 @@ export class ContentWriter {
    * Build the improved system prompt for carousel generation
    * Optionally enhanced with viral insights
    */
-  private buildCarouselPrompt(signal: Signal, brand: BrandConfig, viralInsights?: ViralInsights, editFeedback?: string): string {
+  private buildCarouselPrompt(signal: Signal, brand: BrandConfig, viralInsights?: ViralInsights, editFeedback?: string, previousContent?: CarouselContent): string {
     const services = brand.services.join(', ');
     const brandHandle = brand.handle;
 
@@ -135,15 +136,42 @@ ${viralInsights.trendingThemes.length > 0 ? `TRENDING THEMES IN VIRAL PET CONTEN
 
     // Build feedback context if regenerating
     let feedbackContext = '';
-    if (editFeedback) {
+    if (editFeedback && previousContent) {
+      const prevSlides = previousContent.slides.map(s =>
+        `Slide ${s.slideNumber} (${s.layoutHint}): título="${s.title}" corpo="${s.body || 'nenhum'}" stat="${s.stat ? s.stat.number + ' - ' + s.stat.context : 'nenhum'}"`
+      ).join('\n');
+
       feedbackContext = `
 ---
 
-REVISION REQUEST:
-The client reviewed the previous version and requests these changes:
+⚠️ ISTO É UMA REVISÃO — NÃO GERE DO ZERO.
+
+VERSÃO ANTERIOR (que o cliente revisou):
+${prevSlides}
+
+Legenda anterior: "${previousContent.caption}"
+Hashtags anteriores: ${previousContent.hashtags.join(', ')}
+Gancho usado: ${previousContent.hookFormula}
+
+ALTERAÇÕES SOLICITADAS PELO CLIENTE:
 ${editFeedback}
 
-Generate a REVISED version that addresses ALL of the feedback above while maintaining quality. The revision should be noticeably different from the original.
+INSTRUÇÕES DE REVISÃO:
+1. MANTENHA tudo que o cliente NÃO mencionou — não mude o que já está bom
+2. ALTERE APENAS o que foi especificamente solicitado acima
+3. A nova versão deve ser claramente diferente nos pontos solicitados
+4. Preserve o mesmo tom e estilo geral, exceto onde o cliente pediu mudança
+
+---
+`;
+    } else if (editFeedback) {
+      feedbackContext = `
+---
+
+ALTERAÇÕES SOLICITADAS PELO CLIENTE:
+${editFeedback}
+
+Gere uma versão REVISADA que incorpore todas as alterações acima.
 
 ---
 `;

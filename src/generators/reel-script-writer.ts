@@ -53,9 +53,10 @@ export class ReelScriptWriter {
       viralTitle?: string;
       viralContentAngle?: string;
     },
-    editFeedback?: string
+    editFeedback?: string,
+    previousScript?: ReelScript
   ): Promise<ReelScript> {
-    const prompt = this.buildScriptPrompt(signal, brand, viralPattern, editFeedback);
+    const prompt = this.buildScriptPrompt(signal, brand, viralPattern, editFeedback, previousScript);
 
     console.log(`[ReelScriptWriter] Generating script for signal #${signal.id}: "${signal.title}"`);
     if (viralPattern?.viralTitle) {
@@ -127,7 +128,8 @@ export class ReelScriptWriter {
       viralTitle?: string;
       viralContentAngle?: string;
     },
-    editFeedback?: string
+    editFeedback?: string,
+    previousScript?: ReelScript
   ): string {
     const brandHandle = brand.handle;
 
@@ -151,15 +153,41 @@ export class ReelScriptWriter {
 
     // Build feedback context if regenerating
     let feedbackContext = '';
-    if (editFeedback) {
+    if (editFeedback && previousScript) {
+      const prevScenes = previousScript.scenes.map(s =>
+        `Cena ${s.sceneNumber} (${s.sceneType}): narração="${s.narration}" legenda="${s.captionText}"`
+      ).join('\n');
+
       feedbackContext = `
 ---
 
-REVISION REQUEST:
-The client reviewed the previous version and requests these changes:
+⚠️ ISTO É UMA REVISÃO — NÃO GERE DO ZERO.
+
+ROTEIRO ANTERIOR (que o cliente revisou):
+${prevScenes}
+
+Legenda anterior: "${previousScript.caption}"
+Gancho usado: ${previousScript.hookFormula}
+
+ALTERAÇÕES SOLICITADAS PELO CLIENTE:
 ${editFeedback}
 
-Generate a REVISED version that addresses ALL of the feedback above while maintaining quality.
+INSTRUÇÕES DE REVISÃO:
+1. MANTENHA tudo que o cliente NÃO mencionou
+2. ALTERE APENAS o que foi especificamente solicitado
+3. Preserve o mesmo tom e estilo, exceto onde pedido
+4. A narração revisada deve ter duração similar (~${previousScript.totalDurationTarget}s)
+
+---
+`;
+    } else if (editFeedback) {
+      feedbackContext = `
+---
+
+ALTERAÇÕES SOLICITADAS PELO CLIENTE:
+${editFeedback}
+
+Gere uma versão REVISADA que incorpore todas as alterações acima.
 
 ---
 `;

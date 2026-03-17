@@ -335,6 +335,27 @@
       border-color: transparent;
     }
 
+    /* Feedback chips */
+    .feedback-chip {
+      padding: 0.4rem 0.75rem;
+      border: 2px solid #e0e0e0;
+      background: white;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .feedback-chip:hover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.05);
+    }
+    .feedback-chip.selected {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .sidebar {
@@ -700,10 +721,23 @@
   <!-- Feedback Modal -->
   <div id="feedback-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
     <div style="background:white; border-radius:15px; padding:2rem; max-width:600px; width:90%; max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-      <h2 style="margin-bottom:1rem; color:#333;" data-i18n="feedback.title">Solicitar Alteracoes</h2>
+      <h2 style="margin-bottom:1rem; color:#333;" data-i18n="feedback.title">Solicitar Alterações</h2>
       <input type="hidden" id="feedback-content-id">
+      <div style="margin-bottom:1rem;">
+        <div style="font-size:0.85rem; color:#666; margin-bottom:0.5rem;">Sugestões rápidas (clique para adicionar):</div>
+        <div style="display:flex; flex-wrap:wrap; gap:0.5rem;" id="feedback-chips">
+          <button type="button" class="feedback-chip" onclick="addFeedbackChip('Gancho mais forte e chamativo')">🎣 Gancho mais forte</button>
+          <button type="button" class="feedback-chip" onclick="addFeedbackChip('Tom mais informal e conversacional')">💬 Tom mais informal</button>
+          <button type="button" class="feedback-chip" onclick="addFeedbackChip('Reduzir a quantidade de texto')">📝 Menos texto</button>
+          <button type="button" class="feedback-chip" onclick="addFeedbackChip('Trocar as imagens de fundo')">🖼️ Trocar imagens</button>
+          <button type="button" class="feedback-chip" onclick="addFeedbackChip('Incluir mais dados e estatísticas')">📊 Mais dados</button>
+          <button type="button" class="feedback-chip" onclick="addFeedbackChip('Mais foco no produto/serviço da marca')">🎯 Foco no produto</button>
+          <button type="button" class="feedback-chip" onclick="addFeedbackChip('Tornar mais emocional e envolvente')">❤️ Mais emocional</button>
+          <button type="button" class="feedback-chip" onclick="addFeedbackChip('Abordagem completamente diferente')">🔄 Totalmente diferente</button>
+        </div>
+      </div>
       <div style="margin-bottom:1.5rem;">
-        <textarea id="feedback-text" rows="5" style="width:100%; padding:0.75rem; border:2px solid #e0e0e0; border-radius:8px; font-size:1rem; resize:vertical; font-family:inherit;" data-i18n-placeholder="feedback.placeholder" placeholder="Descreva as alteracoes que voce deseja..."></textarea>
+        <textarea id="feedback-text" rows="4" style="width:100%; padding:0.75rem; border:2px solid #e0e0e0; border-radius:8px; font-size:1rem; resize:vertical; font-family:inherit;" placeholder="Descreva as alterações que você deseja..."></textarea>
       </div>
       <div id="feedback-history" style="margin-bottom:1.5rem;"></div>
       <div style="display:flex; gap:1rem; justify-content:flex-end;">

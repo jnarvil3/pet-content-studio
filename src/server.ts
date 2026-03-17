@@ -313,7 +313,7 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
     // Get pending feedback for this content
     const feedback = contentStorage.getFeedback(id);
     const pendingFeedback = feedback.filter(f => f.status === 'pending');
-    const feedbackText = pendingFeedback.map(f => f.feedback_text).join('\n');
+    const feedbackText = pendingFeedback.map((f, i) => `Alteração #${i + 1}: ${f.feedback_text}`).join('\n');
 
     if (!feedbackText) {
       return res.status(400).json({ error: 'No pending feedback to address' });
@@ -345,7 +345,7 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
 
           try {
             progressMap.set(progressKey, { step: 2, totalSteps: 5, message: 'Gerando texto com IA (incorporando feedback)...' });
-            const result = await generator.generate(signal, true, feedbackText);
+            const result = await generator.generate(signal, true, feedbackText, original.carousel_content);
             progressMap.set(progressKey, { step: 4, totalSteps: 5, message: 'Salvando nova versão...' });
             result.content.version = (original.version || 1) + 1;
             result.content.parent_id = original.id;
@@ -370,7 +370,7 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
             progressMap.set(progressKey, { step, totalSteps, message: msgMap[message] || message });
           };
 
-          const result = await generator.generate(signal, onProgress, undefined, feedbackText);
+          const result = await generator.generate(signal, onProgress, undefined, feedbackText, original.reel_script);
           result.content.version = (original.version || 1) + 1;
           result.content.parent_id = original.id;
           const newId = contentStorage.save(result.content);
@@ -380,7 +380,7 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
           const { LinkedInWriter } = await import('./generators/linkedin-writer');
           progressMap.set(progressKey, { step: 2, totalSteps: 3, message: 'Gerando post LinkedIn com IA...' });
           const writer = new LinkedInWriter();
-          const linkedinContent = await writer.generatePost(signal, brand, feedbackText);
+          const linkedinContent = await writer.generatePost(signal, brand, feedbackText, original.linkedin_content);
           const content = {
             signal_id: signal.id,
             content_type: 'linkedin' as const,
@@ -395,15 +395,17 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
           progressMap.set(progressKey, { step: 3, totalSteps: 3, message: 'Post LinkedIn pronto!' });
         }
 
-        // Mark feedback as addressed
+        // Mark feedback as addressed ONLY after successful regeneration
         for (const fb of pendingFeedback) {
           if (fb.id) contentStorage.addressFeedback(fb.id);
         }
+        console.log(`[Server] Marked ${pendingFeedback.length} feedback items as addressed`);
 
         // Keep progress visible for 10s then clear
         setTimeout(() => progressMap.delete(progressKey), 10000);
       } catch (error: any) {
         console.error('[Server] Regeneration failed:', error.message);
+        // DON'T mark feedback as addressed — it stays pending for retry
         progressMap.set(progressKey, { step: 0, totalSteps: 1, message: `Erro: ${error.message}` });
         setTimeout(() => progressMap.delete(progressKey), 15000);
       }
