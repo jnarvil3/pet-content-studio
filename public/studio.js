@@ -349,22 +349,21 @@ async function loadTop10Lists() {
     const response = await fetch('/api/trending/hooks');
     const data = await response.json();
 
-    if (data.success) {
+    if (data.success && data.data) {
       const top10Section = document.getElementById('top10-section');
       if (!top10Section) {
-        // Create top 10 section if it doesn't exist
         const videosList = document.getElementById('videos-list');
         videosList.insertAdjacentHTML('afterbegin', '<div id="top10-section"></div>');
       }
 
       const section = document.getElementById('top10-section');
-      const topHooks = data.data.top_hooks.slice(0, 10);
-      const topIdeas = data.data.top_content_ideas.slice(0, 10);
+      const topHooks = (data.data.hooks || []).slice(0, 10);
+      const topIdeas = (data.data.hooks || []).filter(h => h.examples?.length > 0).slice(0, 10);
 
       section.innerHTML = `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
           <div style="background: white; border-radius: 12px; padding: 1.5rem; border: 2px solid #e0e0e0;">
-            <h3 style="color: #667eea; margin-bottom: 1rem; font-size: 1.25rem;">🔥 Top 10 Hook Strategies</h3>
+            <h3 style="color: #667eea; margin-bottom: 1rem; font-size: 1.25rem;">🔥 Top 10 Estratégias de Gancho</h3>
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
               ${topHooks.map((hook, i) => `
                 <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: 8px; background: ${i === 0 ? 'rgba(245,87,108,0.1)' : '#f9fafb'};">
@@ -379,14 +378,14 @@ async function loadTop10Lists() {
           </div>
 
           <div style="background: white; border-radius: 12px; padding: 1.5rem; border: 2px solid #e0e0e0;">
-            <h3 style="color: #667eea; margin-bottom: 1rem; font-size: 1.25rem;">💡 Top 10 Content Ideas</h3>
+            <h3 style="color: #667eea; margin-bottom: 1rem; font-size: 1.25rem;">💡 Exemplos de Conteúdo Viral</h3>
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
               ${topIdeas.map((idea, i) => `
                 <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: 8px; background: ${i === 0 ? 'rgba(102,126,234,0.1)' : '#f9fafb'};">
                   <div style="font-size: 1.25rem; font-weight: 700; color: ${i === 0 ? '#667eea' : '#999'}; min-width: 30px;">#${i + 1}</div>
                   <div style="flex: 1;">
-                    <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">${idea.content_angle}</div>
-                    <div style="font-size: 0.875rem; color: #666;">${idea.avg_engagement_rate.toFixed(1)}% engagement • ${idea.video_count} ${idea.video_count === 1 ? 'vídeo' : 'vídeos'}</div>
+                    <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">${idea.examples?.[0]?.title || hookLabel(idea.hook_formula)}</div>
+                    <div style="font-size: 0.875rem; color: #666;">${(idea.avg_engagement_rate || 0).toFixed(1)}% engajamento • ${idea.count || 0} ${(idea.count || 0) === 1 ? 'vídeo' : 'vídeos'}</div>
                   </div>
                 </div>
               `).join('')}
