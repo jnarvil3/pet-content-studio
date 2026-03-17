@@ -312,7 +312,7 @@ async function loadVideosList() {
     const videosList = document.getElementById('videos-list');
     videosList.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #667eea;"></div><p style="color: #666;">Carregando vídeos...</p></div>';
 
-    const response = await fetch('/api/trending/videos?period=today&petOnly=false');
+    const response = await fetch(`/api/trending/videos?period=today&petOnly=${videoPetFilter === 'pet'}`);
     const data = await response.json();
 
     if (data.success && data.data) {
@@ -1274,7 +1274,7 @@ async function loadHooksList() {
   grid.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #667eea;"></div><p style="color: #666;">Carregando padrões virais...</p></div>';
 
   try {
-    const response = await fetch('/api/trending/hooks?period=today&petOnly=false');
+    const response = await fetch(`/api/trending/hooks?period=today&petOnly=${hookPetFilter === 'pet'}`);
     const data = await response.json();
 
     if (!data.success) {

@@ -497,8 +497,19 @@
         <!-- Videos Tab -->
         <div class="tab-content" id="videos-tab">
           <div class="card">
-            <h2 class="card-title">🔥 Vídeos Mais Virais</h2>
-            <p style="color: #666; margin-bottom: 1.5rem;">Vídeos com maior engajamento do YouTube e TikTok Brasil — ordenados por viralidade</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
+              <div>
+                <h2 class="card-title" style="margin-bottom: 0.25rem;">🔥 Vídeos Mais Virais</h2>
+                <p style="color: #666;">Ordenados por engajamento — YouTube e TikTok Brasil</p>
+              </div>
+              <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <div style="display: flex; gap: 0.5rem;">
+                  <button class="btn toggle-btn active" id="video-filter-pet" onclick="setVideoFilter('pet')">🐾 Pet</button>
+                  <button class="btn toggle-btn" id="video-filter-all" onclick="setVideoFilter('all')">🌐 Geral</button>
+                </div>
+                <button class="btn btn-primary" style="padding: 0.5rem 1rem;" onclick="loadVideosList()">🔄</button>
+              </div>
+            </div>
             <div id="videos-list">Carregando...</div>
           </div>
         </div>
@@ -506,8 +517,19 @@
         <!-- Hooks Tab -->
         <div class="tab-content" id="hooks-tab">
           <div class="card">
-            <h2 class="card-title">🎣 Padrões Virais</h2>
-            <p style="color: #666; margin-bottom: 1.5rem;">Estratégias de gancho que geram mais engajamento — baseado em análise de vídeos reais</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
+              <div>
+                <h2 class="card-title" style="margin-bottom: 0.25rem;">🎣 Padrões Virais</h2>
+                <p style="color: #666;">Estratégias de gancho com maior engajamento</p>
+              </div>
+              <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <div style="display: flex; gap: 0.5rem;">
+                  <button class="btn toggle-btn active" id="hook-filter-pet" onclick="setHookFilter('pet')">🐾 Pet</button>
+                  <button class="btn toggle-btn" id="hook-filter-all" onclick="setHookFilter('all')">🌐 Geral</button>
+                </div>
+                <button class="btn btn-primary" style="padding: 0.5rem 1rem;" onclick="loadHooksList()">🔄</button>
+              </div>
+            </div>
             <div id="hooks-grid">Carregando...</div>
           </div>
         </div>
