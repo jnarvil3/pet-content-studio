@@ -325,15 +325,15 @@ async function loadVideosList() {
       return;
     }
 
-    // Load Top 10 lists
-    await loadTop10Lists();
+    // Load Top 10 lists (non-blocking — don't let it kill video rendering)
+    loadTop10Lists().catch(e => console.warn('Top 10 lists failed:', e));
 
     // Render filters and videos
     renderVideoFilters();
     renderVideoGrid();
   } catch (error) {
     console.error('Error loading videos:', error);
-    document.getElementById('videos-list').innerHTML = '<p style="color: #999;">Could not load viral videos. Make sure the server is running.</p>';
+    document.getElementById('videos-list').innerHTML = '<p style="color: #999;">Não foi possível carregar vídeos virais.</p>';
   }
 }
 
@@ -370,7 +370,7 @@ async function loadTop10Lists() {
                   <div style="font-size: 1.25rem; font-weight: 700; color: ${i === 0 ? '#f5576c' : '#999'}; min-width: 30px;">#${i + 1}</div>
                   <div style="flex: 1;">
                     <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">${hookLabel(hook.hook_formula)}</div>
-                    <div style="font-size: 0.875rem; color: #666;">${hook.engagement_rate.toFixed(1)}% engajamento medio • ${hook.video_count} ${hook.video_count === 1 ? 'vídeo' : 'vídeos'}</div>
+                    <div style="font-size: 0.875rem; color: #666;">${(hook.avg_engagement_rate || 0).toFixed(1)}% engajamento médio • ${hook.count || 0} ${(hook.count || 0) === 1 ? 'vídeo' : 'vídeos'}</div>
                   </div>
                 </div>
               `).join('')}
