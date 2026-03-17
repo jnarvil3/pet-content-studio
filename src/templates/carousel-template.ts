@@ -510,6 +510,7 @@ export class CarouselTemplate {
    * Escape HTML to prevent injection
    */
   private escapeHTML(text: string): string {
+    if (!text) return '';
     return text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
