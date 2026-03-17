@@ -224,17 +224,17 @@ async function loadRecentActivity() {
     const activityDiv = document.getElementById('recent-activity');
 
     if (content.length === 0) {
-      activityDiv.innerHTML = '<p style="color: #999;">No recent activity</p>';
+      activityDiv.innerHTML = '<p style="color: #999;">Nenhuma atividade recente</p>';
       return;
     }
 
     activityDiv.innerHTML = content.slice(0, 5).map(item => `
-      <div style="padding: 1rem; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
+      <div style="padding: 1rem; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''" onclick="navigateTo('review')">
         <div>
-          <div style="font-weight: 600; margin-bottom: 0.25rem;">${item.signal?.title || 'Untitled'}</div>
+          <div style="font-weight: 600; margin-bottom: 0.25rem;">${item.signal?.title || 'Sem título'}</div>
           <div style="font-size: 0.875rem; color: #666;">${item.content_type === 'carousel' ? '📱 Carrossel' : item.content_type === 'reel' ? '🎥 Reel' : '💼 LinkedIn'} • ${statusLabel(item.status)}</div>
         </div>
-        <div style="color: #999; font-size: 0.875rem;">${new Date(item.generated_at).toLocaleDateString()}</div>
+        <div style="color: #999; font-size: 0.875rem;">${new Date(item.generated_at).toLocaleDateString('pt-BR')}</div>
       </div>
     `).join('');
   } catch (error) {
@@ -890,6 +890,16 @@ async function loadReviewData() {
     const response = await fetch('/api/content');
     allContent = await response.json();
 
+    // Update filter button counts
+    const counts = { all: allContent.length };
+    allContent.forEach(item => { counts[item.status] = (counts[item.status] || 0) + 1; });
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      const filter = btn.getAttribute('data-filter');
+      const count = counts[filter] || 0;
+      const label = btn.textContent.replace(/\s*\(\d+\)/, '');
+      btn.textContent = count > 0 ? `${label} (${count})` : label;
+    });
+
     displayReviewContent(currentFilter);
 
     // Setup filter buttons
@@ -1452,24 +1462,40 @@ async function loadHelpData() {
     const data = await response.json();
 
     if (!data.success) {
-      helpDiv.innerHTML = '<p style="color: #999;">Could not load help info.</p>';
+      helpDiv.innerHTML = '<p style="color: #999;">Não foi possível carregar informações.</p>';
       return;
     }
 
     const info = data.data;
 
+    // Translate workflow/pages to PT-BR
+    const workflowPtBr = [
+      { step: 1, title: 'Coletar Inteligência', description: 'Feeds RSS e tendências do YouTube são coletados e pontuados por relevância para conteúdo pet.' },
+      { step: 2, title: 'Analisar Padrões Virais', description: 'Vídeos com melhor desempenho são analisados para ganchos, gatilhos emocionais e padrões de engajamento.' },
+      { step: 3, title: 'Descobrir Sinais', description: 'Navegue pelos sinais de conteúdo classificados na aba Descobrir.' },
+      { step: 4, title: 'Gerar Conteúdo', description: 'Selecione um sinal, escolha a qualidade da IA e gere um carrossel, reel ou post LinkedIn.' },
+      { step: 5, title: 'Revisar e Publicar', description: 'Revise o conteúdo gerado, aprove ou solicite alterações, e marque como publicado.' }
+    ];
+
+    const pagesPtBr = [
+      { icon: '📊', name: 'Painel', description: 'Visão geral do pipeline de conteúdo, estatísticas e ações rápidas.' },
+      { icon: '🔍', name: 'Descobrir', description: 'Explore sinais de conteúdo (RSS), vídeos em alta e padrões de ganchos virais.' },
+      { icon: '✏️', name: 'Criar', description: 'Gere carrosseis (5 slides), reels (30-45s com narração) ou posts LinkedIn a partir de um sinal.' },
+      { icon: '✅', name: 'Revisar', description: 'Revise conteúdo gerado. Aprove, solicite alterações ou rejeite. Filtre por status.' },
+      { icon: '⚙️', name: 'Configurações', description: 'Configure a marca (cores, tom, serviços), orçamento e pipeline de coleta.' },
+      { icon: '❓', name: 'Ajuda', description: 'Guia da plataforma, fluxo de trabalho e informações de APIs.' }
+    ];
+
     helpDiv.innerHTML = `
-      <!-- Platform Overview -->
       <div class="card">
         <h2 class="card-title">🐾 ${info.platform.name}</h2>
-        <p style="color: #555; line-height: 1.6; font-size: 1rem;">${info.platform.description}</p>
+        <p style="color: #555; line-height: 1.6; font-size: 1rem;">Plataforma de geração de conteúdo com IA para redes sociais focada no mercado pet. Combina análise de tendências virais com sinais de conteúdo inteligente para criar carrosseis e reels de alto engajamento para Instagram e posts para LinkedIn.</p>
       </div>
 
-      <!-- How It Works -->
       <div class="card">
-        <h2 class="card-title">How It Works</h2>
+        <h2 class="card-title">Como Funciona</h2>
         <div style="display: flex; flex-direction: column; gap: 1rem;">
-          ${info.workflow.map(step => `
+          ${workflowPtBr.map(step => `
             <div style="display: flex; gap: 1rem; align-items: start; padding: 1rem; background: #f9fafb; border-radius: 8px;">
               <div style="min-width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem;">${step.step}</div>
               <div>
@@ -1481,11 +1507,10 @@ async function loadHelpData() {
         </div>
       </div>
 
-      <!-- Pages Guide -->
       <div class="card">
-        <h2 class="card-title">Pages Guide</h2>
+        <h2 class="card-title">Guia de Páginas</h2>
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
-          ${info.pages.map(page => `
+          ${pagesPtBr.map(page => `
             <div style="border: 2px solid #e0e0e0; border-radius: 12px; padding: 1.25rem;">
               <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">${page.icon}</div>
               <div style="font-weight: 600; color: #333; margin-bottom: 0.5rem;">${page.name}</div>
@@ -1495,25 +1520,24 @@ async function loadHelpData() {
         </div>
       </div>
 
-      <!-- External APIs -->
       <div class="card">
-        <h2 class="card-title">External APIs & Credits</h2>
-        <p style="color: #666; margin-bottom: 1.5rem;">These are the APIs powering the platform. API keys are configured via environment variables.</p>
+        <h2 class="card-title">APIs Externas e Créditos</h2>
+        <p style="color: #666; margin-bottom: 1.5rem;">APIs que alimentam a plataforma. Chaves configuradas via variáveis de ambiente.</p>
         <div style="display: flex; flex-direction: column; gap: 1rem;">
           ${info.apis.map(api => `
             <div style="border: 2px solid ${api.keyConfigured ? '#e0e0e0' : 'rgba(239,68,68,0.3)'}; border-radius: 12px; padding: 1.25rem; ${!api.keyConfigured ? 'background: rgba(239,68,68,0.03);' : ''}">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                 <div style="font-weight: 700; font-size: 1.1rem; color: #333;">${api.name}</div>
-                <span style="padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; ${api.keyConfigured ? 'background: rgba(34,197,94,0.1); color: #22c55e;' : 'background: rgba(239,68,68,0.1); color: #ef4444;'}">${api.keyConfigured ? '✓ Configured' : '✗ Not Configured'}</span>
+                <span style="padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; ${api.keyConfigured ? 'background: rgba(34,197,94,0.1); color: #22c55e;' : 'background: rgba(239,68,68,0.1); color: #ef4444;'}">${api.keyConfigured ? '✓ Configurada' : '✗ Não Configurada'}</span>
               </div>
               <div style="color: #555; font-size: 0.875rem; line-height: 1.4; margin-bottom: 0.75rem;">${api.usage}</div>
               <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
                 <div style="font-size: 0.875rem;">
-                  <span style="color: #999;">Cost:</span>
+                  <span style="color: #999;">Custo:</span>
                   <span style="color: #333; font-weight: 600;">${api.costPer}</span>
                 </div>
                 <div style="font-size: 0.875rem;">
-                  <span style="color: #999;">Budget:</span>
+                  <span style="color: #999;">Orçamento:</span>
                   <span style="color: #667eea; font-weight: 600;">${api.monthlyBudget}</span>
                 </div>
               </div>
@@ -1524,7 +1548,7 @@ async function loadHelpData() {
     `;
   } catch (error) {
     console.error('Error loading help data:', error);
-    helpDiv.innerHTML = '<div class="card"><p style="color: #999;">Could not load help information. Make sure the server is running.</p></div>';
+    helpDiv.innerHTML = '<div class="card"><p style="color: #999;">Não foi possível carregar informações de ajuda.</p></div>';
   }
 }
 
@@ -1724,6 +1748,15 @@ async function loadBrandConfig() {
 }
 
 async function saveBrandConfig() {
+  const brandName = document.getElementById('brand-name').value.trim();
+  if (!brandName) {
+    showToast('Nome da marca é obrigatório', 'warning');
+    document.getElementById('brand-name').style.borderColor = '#ef4444';
+    document.getElementById('brand-name').focus();
+    return;
+  }
+  document.getElementById('brand-name').style.borderColor = '#e0e0e0';
+
   const config = {
     name: document.getElementById('brand-name').value,
     handle: document.getElementById('brand-handle').value,
