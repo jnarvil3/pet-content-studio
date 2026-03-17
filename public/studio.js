@@ -1571,81 +1571,132 @@ async function submitFeedback() {
   const feedbackText = document.getElementById('feedback-text').value.trim();
 
   if (!feedbackText) {
-    showToast('Por favor, descreva as alteracoes desejadas.', 'warning');
+    showToast('Por favor, descreva as alterações desejadas.', 'warning');
     return;
   }
 
   closeFeedbackModal();
 
-  // Submit feedback and request revision
-  const loadingToast = showToast('Enviando feedback e gerando nova versao...', 'loading');
-
   try {
+    // Submit feedback
     await fetch(`/api/content/${contentId}/request-revision`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ feedback_text: feedbackText })
     });
 
-    // Auto-trigger regeneration immediately
+    // Auto-trigger regeneration
     const res = await fetch(`/api/content/${contentId}/regenerate`, { method: 'POST' });
     const data = await res.json();
 
-    loadingToast.remove();
-
     if (data.success) {
-      showToast('Nova versao sendo gerada! Vai aparecer em breve.', 'success', 6000);
       await loadReviewData();
-      // Poll for the new version
-      pollForNewVersion(contentId);
+      // Start tracking progress inline
+      trackRegenProgress(contentId);
     } else {
       showToast(data.error || 'Erro ao regenerar', 'error');
       await loadReviewData();
     }
   } catch (error) {
-    loadingToast.remove();
     showToast('Erro ao enviar feedback', 'error');
   }
 }
 
 async function regenerateContent(id) {
-  const loadingToast = showToast('Regenerando conteudo...', 'loading');
-
   try {
     const res = await fetch(`/api/content/${id}/regenerate`, { method: 'POST' });
     const data = await res.json();
 
-    loadingToast.remove();
-
     if (data.success) {
-      showToast('Nova versao sendo gerada! Vai aparecer em breve.', 'success', 6000);
-      pollForNewVersion(id);
+      trackRegenProgress(id);
     } else {
       showToast(data.error || 'Erro ao regenerar', 'error');
     }
   } catch (error) {
-    loadingToast.remove();
-    showToast('Erro ao regenerar conteudo', 'error');
+    showToast('Erro ao regenerar conteúdo', 'error');
   }
 }
 
-// Poll for new version appearing in content list
-function pollForNewVersion(parentId) {
+/**
+ * Track regeneration progress inline in the review card
+ */
+function trackRegenProgress(contentId) {
+  const progressKey = `regen-${contentId}`;
+
+  // Insert progress bar into the page
+  const progressEl = document.createElement('div');
+  progressEl.id = `progress-${contentId}`;
+  progressEl.style.cssText = 'position:fixed;bottom:2rem;right:2rem;background:white;border:2px solid #667eea;border-radius:12px;padding:1.25rem;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:1000;min-width:320px;max-width:400px;';
+  progressEl.innerHTML = `
+    <div style="font-weight:600;color:#333;margin-bottom:0.75rem;">🔄 Gerando nova versão...</div>
+    <div style="margin-bottom:0.5rem;">
+      <div style="width:100%;height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden;">
+        <div id="regen-bar-${contentId}" style="width:10%;height:100%;background:linear-gradient(90deg,#667eea,#764ba2);transition:width 0.5s;border-radius:4px;"></div>
+      </div>
+    </div>
+    <div id="regen-msg-${contentId}" style="font-size:0.85rem;color:#666;">Iniciando...</div>
+    <div id="regen-step-${contentId}" style="font-size:0.75rem;color:#999;margin-top:0.25rem;">Passo 1/5</div>
+  `;
+  document.body.appendChild(progressEl);
+
   let attempts = 0;
   const previousCount = allContent.length;
+
   const interval = setInterval(async () => {
     attempts++;
     try {
-      const res = await fetch('/api/content');
-      const content = await res.json();
+      // Poll progress
+      const progRes = await fetch(`/api/progress/${progressKey}`);
+      const prog = await progRes.json();
+
+      if (prog.inProgress || prog.step) {
+        const step = prog.step || 0;
+        const total = prog.totalSteps || 5;
+        const pct = Math.round((step / total) * 100);
+        const bar = document.getElementById(`regen-bar-${contentId}`);
+        const msg = document.getElementById(`regen-msg-${contentId}`);
+        const stepEl = document.getElementById(`regen-step-${contentId}`);
+        if (bar) bar.style.width = `${pct}%`;
+        if (msg) msg.textContent = prog.message || 'Processando...';
+        if (stepEl) stepEl.textContent = `Passo ${step}/${total}`;
+
+        // Check if done
+        if (step >= total) {
+          bar.style.background = 'linear-gradient(90deg, #22c55e, #16a34a)';
+          if (msg) msg.style.color = '#16a34a';
+          setTimeout(async () => {
+            progressEl.remove();
+            await loadReviewData();
+            showToast('Nova versão pronta!', 'success');
+          }, 2000);
+          clearInterval(interval);
+          return;
+        }
+      }
+
+      // Also check if new content appeared
+      const contentRes = await fetch('/api/content');
+      const content = await contentRes.json();
       if (content.length > previousCount) {
+        const bar = document.getElementById(`regen-bar-${contentId}`);
+        const msg = document.getElementById(`regen-msg-${contentId}`);
+        if (bar) { bar.style.width = '100%'; bar.style.background = 'linear-gradient(90deg, #22c55e, #16a34a)'; }
+        if (msg) { msg.textContent = 'Nova versão criada!'; msg.style.color = '#16a34a'; }
+        setTimeout(async () => {
+          progressEl.remove();
+          await loadReviewData();
+          showToast('Nova versão pronta!', 'success');
+        }, 1500);
         clearInterval(interval);
-        showToast('Nova versao pronta! Atualizando...', 'success');
-        await loadReviewData();
+        return;
       }
     } catch (e) {}
-    if (attempts >= 30) { // Stop after ~60 seconds
+
+    // Timeout after 2 minutes
+    if (attempts >= 60) {
+      progressEl.remove();
       clearInterval(interval);
+      showToast('Regeneração está demorando. Recarregue a página em breve.', 'warning');
       loadReviewData();
     }
   }, 2000);

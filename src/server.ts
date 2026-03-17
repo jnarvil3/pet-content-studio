@@ -325,7 +325,11 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
     }
 
     // Start regeneration in background
-    res.json({ success: true, message: 'Regeneration started' });
+    res.json({ success: true, message: 'Regeneration started', signalId: signal.id, contentType: original.content_type });
+
+    // Track progress for this regeneration
+    const progressKey = `regen-${id}`;
+    progressMap.set(progressKey, { step: 1, totalSteps: 5, message: 'Iniciando regeneração...' });
 
     (async () => {
       try {
@@ -334,14 +338,19 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
 
         if (original.content_type === 'carousel') {
           const { CarouselGenerator } = await import('./generators/carousel-generator');
+
+          progressMap.set(progressKey, { step: 1, totalSteps: 5, message: 'Preparando gerador de carrossel...' });
           const generator = new CarouselGenerator(brand, './output/carousels');
           await generator.initialize();
 
           try {
+            progressMap.set(progressKey, { step: 2, totalSteps: 5, message: 'Gerando texto com IA (incorporando feedback)...' });
             const result = await generator.generate(signal, true, feedbackText);
+            progressMap.set(progressKey, { step: 4, totalSteps: 5, message: 'Salvando nova versão...' });
             result.content.version = (original.version || 1) + 1;
             result.content.parent_id = original.id;
             const newId = contentStorage.save(result.content);
+            progressMap.set(progressKey, { step: 5, totalSteps: 5, message: 'Carrossel v' + result.content.version + ' pronto!' });
             console.log(`[Server] Regenerated carousel as v${result.content.version}, id #${newId}`);
           } finally {
             await generator.close();
@@ -351,23 +360,52 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
           const generator = new ReelGenerator(brand, './output/reels');
 
           const onProgress = (step: number, totalSteps: number, message: string) => {
-            progressMap.set(signal.id.toString(), { step, totalSteps, message });
+            const msgMap: Record<string, string> = {
+              'Writing script...': 'Escrevendo roteiro com IA (incorporando feedback)...',
+              'Generating audio...': 'Gerando áudio com narração...',
+              'Fetching video clips...': 'Buscando clipes de vídeo...',
+              'Compositing video...': 'Montando vídeo final...',
+              'Finalizing...': 'Finalizando...',
+            };
+            progressMap.set(progressKey, { step, totalSteps, message: msgMap[message] || message });
           };
 
           const result = await generator.generate(signal, onProgress, undefined, feedbackText);
           result.content.version = (original.version || 1) + 1;
           result.content.parent_id = original.id;
           const newId = contentStorage.save(result.content);
-          progressMap.delete(signal.id.toString());
+          progressMap.set(progressKey, { step: 5, totalSteps: 5, message: 'Reel v' + result.content.version + ' pronto!' });
           console.log(`[Server] Regenerated reel as v${result.content.version}, id #${newId}`);
+        } else if (original.content_type === 'linkedin') {
+          const { LinkedInWriter } = await import('./generators/linkedin-writer');
+          progressMap.set(progressKey, { step: 2, totalSteps: 3, message: 'Gerando post LinkedIn com IA...' });
+          const writer = new LinkedInWriter();
+          const linkedinContent = await writer.generatePost(signal, brand, feedbackText);
+          const content = {
+            signal_id: signal.id,
+            content_type: 'linkedin' as const,
+            status: 'pending' as const,
+            linkedin_content: linkedinContent,
+            version: (original.version || 1) + 1,
+            parent_id: original.id,
+            source_url: signal.url,
+            generated_at: new Date().toISOString()
+          };
+          contentStorage.save(content);
+          progressMap.set(progressKey, { step: 3, totalSteps: 3, message: 'Post LinkedIn pronto!' });
         }
 
         // Mark feedback as addressed
         for (const fb of pendingFeedback) {
           if (fb.id) contentStorage.addressFeedback(fb.id);
         }
+
+        // Keep progress visible for 10s then clear
+        setTimeout(() => progressMap.delete(progressKey), 10000);
       } catch (error: any) {
         console.error('[Server] Regeneration failed:', error.message);
+        progressMap.set(progressKey, { step: 0, totalSteps: 1, message: `Erro: ${error.message}` });
+        setTimeout(() => progressMap.delete(progressKey), 15000);
       }
     })();
   } catch (error: any) {
