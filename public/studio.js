@@ -1075,7 +1075,8 @@ async function displayReviewContent(filter) {
           ${item.linkedin_content ? `
             <div style="background: #f0f4ff; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; border-left: 4px solid #0077b5;">
               <div style="font-weight: 700; color: #0077b5; margin-bottom: 0.5rem;">${item.linkedin_content.headline}</div>
-              <div style="font-size: 0.875rem; color: #333; white-space: pre-line; line-height: 1.6; margin-bottom: 0.75rem;">${((item.linkedin_content.body || '').substring(0, 300).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'))}${item.linkedin_content.body?.length > 300 ? '...' : ''}</div>
+              <div id="linkedin-body-${item.id}" style="font-size: 0.875rem; color: #333; white-space: pre-line; line-height: 1.6; margin-bottom: 0.75rem;">${((item.linkedin_content.body || '').substring(0, 300).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'))}${item.linkedin_content.body?.length > 300 ? '...' : ''}</div>
+              ${item.linkedin_content.body?.length > 300 ? `<button style="background:none; border:none; color:#0077b5; cursor:pointer; font-size:0.85rem; font-weight:600; padding:0; margin-bottom:0.75rem;" onclick="toggleLinkedInBody(${item.id}, this)">Ver mais ▾</button>` : ''}
               <div style="font-size: 0.8rem; color: #0077b5;">${(item.linkedin_content.hashtags || []).map(h => '#' + h).join(' ')}</div>
               ${item.linkedin_content.ctaText ? `<div style="margin-top: 0.5rem; font-size: 0.8rem; color: #666; font-style: italic;">${item.linkedin_content.ctaText}</div>` : ''}
               <button class="btn btn-secondary" style="margin-top: 0.75rem; font-size: 0.8rem; padding: 0.4rem 0.8rem;" onclick="copyLinkedIn(${item.id})">📋 Copiar Texto</button>
@@ -1143,6 +1144,21 @@ async function downloadAllSlides(contentId) {
     await new Promise(r => setTimeout(r, 300));
   }
   showToast(`${images.length} slides baixados`, 'success');
+}
+
+function toggleLinkedInBody(id, btn) {
+  const el = document.getElementById(`linkedin-body-${id}`);
+  const item = allContent.find(c => c.id === id);
+  if (!el || !item?.linkedin_content?.body) return;
+
+  const isExpanded = btn.textContent.includes('menos');
+  if (isExpanded) {
+    el.innerHTML = (item.linkedin_content.body.substring(0, 300).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')) + '...';
+    btn.textContent = 'Ver mais ▾';
+  } else {
+    el.innerHTML = item.linkedin_content.body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    btn.textContent = 'Ver menos ▴';
+  }
 }
 
 function copyLinkedIn(id) {
