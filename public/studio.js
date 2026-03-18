@@ -998,14 +998,18 @@ async function displayReviewContent(filter) {
 
           <!-- Content preview -->
           ${item.content_type === 'carousel' && item.carousel_images ? `
-            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; overflow-x: auto; padding-bottom: 0.5rem;">
-              ${(Array.isArray(item.carousel_images) ? item.carousel_images : JSON.parse(item.carousel_images)).slice(0, 5).map((img, idx) => `
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem;">
+              ${(Array.isArray(item.carousel_images) ? item.carousel_images : JSON.parse(item.carousel_images)).slice(0, 5).map((img, idx) => {
+                const imgUrl = img.replace('./output', '/output').replace('output/', '/output/');
+                return `
                 <div style="position: relative; flex-shrink: 0;">
-                  <img src="${img.replace('./output', '/output').replace('output/', '/output/')}" style="height: 140px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                  <img src="${imgUrl}" style="height: 140px; border-radius: 8px; border: 2px solid #e0e0e0;">
                   <div style="position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px;">${idx+1}/5</div>
+                  <a href="${imgUrl}" download style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 0.7rem; padding: 3px 6px; border-radius: 4px; text-decoration: none; cursor: pointer;" title="Baixar slide ${idx+1}">⬇</a>
                 </div>
-              `).join('')}
+              `}).join('')}
             </div>
+            <button class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; margin-bottom: 1rem;" onclick="downloadAllSlides(${item.id})">⬇️ Baixar todos os slides</button>
           ` : ''}
 
           ${item.content_type === 'reel' && item.reel_video_path ? `
@@ -1013,9 +1017,12 @@ async function displayReviewContent(filter) {
               <video controls style="width: 100%; max-width: 300px; border-radius: 8px;">
                 <source src="${item.reel_video_path.replace('./output', '/output').replace('output/', '/output/')}" type="video/mp4">
               </video>
-              ${item.reel_script ? `<div style="margin-top: 0.5rem; font-size: 0.8rem; color: #666;">
-                Duracao: ~${item.reel_script.totalDurationTarget}s • ${item.reel_script.scenes?.length || 0} cenas • Gancho: ${item.reel_script.hookFormula || '-'}
-              </div>` : ''}
+              <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                ${item.reel_script ? `<span style="font-size: 0.8rem; color: #666;">
+                  Duração: ~${item.reel_script.totalDurationTarget}s • ${item.reel_script.scenes?.length || 0} cenas
+                </span>` : ''}
+                <a href="${item.reel_video_path.replace('./output', '/output').replace('output/', '/output/')}" download class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; text-decoration: none;">⬇️ Baixar vídeo</a>
+              </div>
             </div>
           ` : ''}
 
@@ -1088,6 +1095,24 @@ async function displayReviewContent(filter) {
       `}).join('')}
     </div>
   `;
+}
+
+async function downloadAllSlides(contentId) {
+  const item = allContent.find(c => c.id === contentId);
+  if (!item?.carousel_images) return;
+  const images = Array.isArray(item.carousel_images) ? item.carousel_images : JSON.parse(item.carousel_images);
+  for (let i = 0; i < images.length; i++) {
+    const url = images[i].replace('./output', '/output').replace('output/', '/output/');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `slide-${i + 1}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Small delay between downloads so browser doesn't block them
+    await new Promise(r => setTimeout(r, 300));
+  }
+  showToast(`${images.length} slides baixados`, 'success');
 }
 
 function copyLinkedIn(id) {
