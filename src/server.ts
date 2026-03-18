@@ -829,12 +829,15 @@ app.post('/api/generate-linkedin', async (req, res) => {
 });
 
 // Pet classification helper
-function isPetRelated(themes: string): boolean {
+// Strict pet check — uses title only (not AI-generated themes which tag everything as pet)
+function isPetRelated(text: string): boolean {
   const petKeywords = [
-    'pet', 'dog', 'cat', 'puppy', 'kitten', 'animal', 'pup', 'kitty', 'canine', 'feline', 'doggo', 'pupper', 'fur baby', 'vet', 'breed',
-    'cachorro', 'cachorra', 'gato', 'gata', 'filhote', 'cão', 'cadela', 'gatinho', 'gatinha', 'animais', 'veterinário', 'veterinaria', 'pets', 'felino', 'canino', 'miau', 'pata', 'focinho', 'cãozinho', 'doguinho'
+    'pet', 'dog', 'cat', 'puppy', 'kitten', 'pup', 'kitty', 'doggo', 'pupper', 'vet', 'breed',
+    'cachorro', 'cachorra', 'gato', 'gata', 'filhote', 'cão', 'cadela', 'gatinho', 'gatinha',
+    'veterinário', 'veterinaria', 'pets', 'felino', 'canino', 'miau', 'focinho', 'cãozinho',
+    'doguinho', 'pata', 'ração', 'petshop', 'banho e tosa'
   ];
-  const lower = (themes || '').toLowerCase();
+  const lower = (text || '').toLowerCase();
   return petKeywords.some(kw => lower.includes(kw));
 }
 
@@ -891,10 +894,10 @@ app.get('/api/trending/videos', async (req, res) => {
       const themes = viralConnector.getTrendingThemes(7, 50);
       const stats = viralConnector.getViralStats(7);
 
-      // Filter by pet if needed
+      // Filter by pet if needed — check title (not AI themes which over-tag)
       let filteredThemes = themes;
       if (petOnly) {
-        filteredThemes = themes.filter(t => isPetRelated(t.content_themes));
+        filteredThemes = themes.filter(t => isPetRelated(t.title || ''));
       }
 
       return res.json({
@@ -1056,7 +1059,7 @@ app.post('/api/trending/snapshot', async (req, res) => {
     const hooks = viralConnector.getTopViralHooks(7, 20, true);
     const stats = viralConnector.getViralStats(7);
 
-    const petThemes = themes.filter(t => isPetRelated(t.content_themes));
+    const petThemes = themes.filter(t => isPetRelated(t.title || ''));
     const petHooks = hooks.map(h => ({
       ...h,
       examples: (h.examples || []).filter(ex => isPetRelated(ex.title) || isPetRelated(ex.content_angle || ''))
