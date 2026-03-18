@@ -60,18 +60,20 @@ function showConfirm(message, { showInput = false, inputPlaceholder = '', okText
 
 // Hook formula display labels (PT-BR, descriptive)
 const HOOK_LABELS = {
-  curiosity_gap: '🤔 Fato curioso que prende atencao',
-  contrarian: '🚫 Opiniao contraria ao senso comum',
-  emotional: '❤️ Conexao emocional com o pet',
+  curiosity_gap: '🤔 Fato curioso que prende atenção',
+  contrarian: '🚫 Opinião contrária ao senso comum',
+  emotional: '❤️ Conexão emocional com o pet',
   humor: '😂 Humor e entretenimento',
   shocking_fact: '😲 Dado surpreendente',
   tutorial: '📚 Tutorial passo a passo',
   question_hook: '❓ Pergunta que gera curiosidade',
+  question: '❓ Pergunta que gera curiosidade',
   mistake_hook: '⚠️ Erro comum que donos cometem',
-  personal: '🗣️ Historia pessoal com o pet',
-  number_outcome: '🔢 Lista com resultado especifico',
-  curiosity: '🤔 Fato curioso que prende atencao',
-  transformation: '✨ Antes e depois / transformacao',
+  personal: '🗣️ História pessoal com o pet',
+  number_outcome: '🔢 Lista com resultado específico',
+  curiosity: '🤔 Fato curioso que prende atenção',
+  transformation: '✨ Antes e depois / transformação',
+  before_after: '✨ Antes e depois / transformação',
   challenge: '🏆 Desafio ou teste',
   listicle: '📋 Lista de dicas',
   story: '📖 Narrativa envolvente'
@@ -131,10 +133,21 @@ function navigateTo(pageName) {
 
   currentPage = pageName;
 
+  // Always refresh dashboard stats when navigating back
+  if (pageName === 'dashboard') {
+    loadDashboardStats();
+    loadRecentActivity();
+  }
+
   // Load page-specific data
   if (pageName === 'discover') {
     loadDiscoverData();
   } else if (pageName === 'create') {
+    // Clear stale signal preview
+    const detailsDiv = document.getElementById('signal-details');
+    if (detailsDiv) detailsDiv.style.display = 'none';
+    const viralPanel = document.getElementById('viral-context-panel');
+    if (viralPanel) viralPanel.style.display = 'none';
     loadCreateData();
   } else if (pageName === 'review') {
     currentFilter = 'all';
@@ -571,7 +584,7 @@ async function loadCreateData() {
       fastBtn.style = 'flex: 1; padding: 0.5rem; font-size: 0.875rem;';
       premiumBtn.className = 'btn';
       premiumBtn.style = 'flex: 1; padding: 0.5rem; background: white; color: #666; border: 2px solid #e0e0e0; font-size: 0.875rem;';
-      modelDesc.textContent = 'Fast: GPT-4o-mini for quick iterations';
+      modelDesc.textContent = 'Rápido: GPT-4o-mini para iterações rápidas';
     } else {
       fastBtn.className = 'btn';
       fastBtn.style = 'flex: 1; padding: 0.5rem; background: white; color: #666; border: 2px solid #e0e0e0; font-size: 0.875rem;';
@@ -591,7 +604,7 @@ async function loadCreateData() {
     const signals = data.signals || [];
 
     const select = document.getElementById('create-signal-select');
-    select.innerHTML = '<option value="">-- Select a topic --</option>' +
+    select.innerHTML = '<option value="">-- Selecione um tópico --</option>' +
       signals.map(signal => `
         <option value="${signal.id}">${signal.title} (Score: ${signal.relevance_score})</option>
       `).join('');
@@ -671,7 +684,7 @@ async function loadViralContext() {
           <strong>Melhor gancho:</strong> ${hookLabel(topHook.hook_formula)} (${(topHook.avg_engagement_rate || 0).toFixed(1)}% engajamento)
         </div>
         ${themes.length > 0 ? `<div style="margin-bottom: 1rem;">
-          <strong>Temas em alta:</strong> ${themes.map(t => t.content_themes || '').filter(Boolean).slice(0, 3).join(', ') || 'N/A'}
+          <strong>Temas em alta:</strong> ${themes.map(t => { try { const parsed = JSON.parse(t.content_themes); return Array.isArray(parsed) ? parsed.join(', ') : t.content_themes; } catch { return t.content_themes || ''; } }).filter(Boolean).slice(0, 3).join(' • ') || 'N/A'}
         </div>` : ''}
         <div style="font-size: 0.875rem; color: #666;">
           Baseado na análise de ${stats.total_analyzed || 0} vídeos virais de pet
@@ -697,28 +710,28 @@ async function generateContent(type) {
   const reelBtn = document.getElementById('create-reel-btn');
   const linkedinBtn = document.getElementById('create-linkedin-btn');
 
+  // Confirmation before generation
+  const contentTypeLabels = { carousel: '📱 Carrossel', reel: '🎥 Reel', linkedin: '💼 LinkedIn' };
+  const contentType = contentTypeLabels[type] || type;
+  const aiQuality = selectedAIModel === 'claude-sonnet-4' ? 'Premium (~$0.20)' : 'Rápido (~$0.01)';
+
+  const confirmed = await showConfirm(`Gerar ${contentType}?\n\nQualidade: ${aiQuality}\nIsso vai consumir créditos da API.`, { okText: 'Gerar', cancelText: 'Cancelar' });
+  if (!confirmed) return;
+
   [carouselBtn, reelBtn, linkedinBtn].forEach(btn => {
     btn.disabled = true;
     btn.style.opacity = '0.5';
     btn.style.cursor = 'not-allowed';
   });
 
-  // Show confirmation
   const statusDiv = document.getElementById('generation-status');
   statusDiv.style.display = 'block';
-  const contentTypeLabels = { carousel: '📱 Carrossel', reel: '🎥 Reel', linkedin: '💼 LinkedIn' };
-  const contentType = contentTypeLabels[type] || type;
-  const aiQuality = selectedAIModel === 'claude-sonnet-4' ? 'Premium (Claude)' : 'Rapido (GPT)';
-
   statusDiv.innerHTML = `
     <div style="text-align: center; padding: 1.5rem; background: rgba(102,126,234,0.1); border-radius: 12px; border: 2px solid #667eea;">
       <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">Gerando ${contentType}...</p>
       <p style="color: #666; font-size: 0.875rem;">Qualidade IA: ${aiQuality}</p>
     </div>
   `;
-
-  // Small delay to show confirmation
-  await new Promise(resolve => setTimeout(resolve, 800));
 
   try {
     const endpoints = { carousel: '/api/generate', reel: '/api/generate-reel', linkedin: '/api/generate-linkedin' };
@@ -769,9 +782,9 @@ async function generateContent(type) {
       statusDiv.innerHTML = `
         <div style="text-align: center; padding: 2rem; background: rgba(34,197,94,0.1); border-radius: 12px; color: #22c55e;">
           <div style="font-size: 3rem; margin-bottom: 0.5rem;">✅</div>
-          <p style="font-weight: 600; margin-bottom: 1rem;">Generation started!</p>
-          <p style="color: #666;">Check the Review queue in a moment.</p>
-          <button class="btn btn-primary" style="margin-top: 1rem;" onclick="navigateTo('review')">Go to Review Queue</button>
+          <p style="font-weight: 600; margin-bottom: 1rem;">Geração iniciada!</p>
+          <p style="color: #666;">Confira na fila de revisão em breve.</p>
+          <button class="btn btn-primary" style="margin-top: 1rem;" onclick="loadDashboardStats(); navigateTo('review')">Ir para Revisão</button>
         </div>
       `;
     }
@@ -859,8 +872,8 @@ async function pollProgress(signalId, statusDiv, carouselBtn, reelBtn) {
       <div style="text-align: center; padding: 2rem; background: rgba(251,191,36,0.1); border-radius: 12px; color: #f59e0b;">
         <div style="font-size: 3rem; margin-bottom: 0.5rem;">⏱️</div>
         <p style="font-weight: 600; margin-bottom: 0.5rem;">Generation taking longer than expected</p>
-        <p style="color: #666; font-size: 0.875rem;">The reel is still being generated. Check the Review queue in a few moments.</p>
-        <button class="btn btn-primary" style="margin-top: 1rem;" onclick="navigateTo('review')">Go to Review Queue</button>
+        <p style="color: #666; font-size: 0.875rem;">The reel is still being generated. Confira na fila de revisão em alguns instantes.</p>
+        <button class="btn btn-primary" style="margin-top: 1rem;" onclick="navigateTo('review')">Ir para Revisão</button>
       </div>
     `;
   }, 120000);
@@ -897,7 +910,7 @@ async function loadReviewData() {
       const filter = btn.getAttribute('data-filter');
       const count = counts[filter] || 0;
       const label = btn.textContent.replace(/\s*\(\d+\)/, '');
-      btn.textContent = count > 0 ? `${label} (${count})` : label;
+      btn.textContent = `${label} (${count})`;
     });
 
     displayReviewContent(currentFilter);
@@ -1045,7 +1058,7 @@ async function displayReviewContent(filter) {
           ${item.linkedin_content ? `
             <div style="background: #f0f4ff; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; border-left: 4px solid #0077b5;">
               <div style="font-weight: 700; color: #0077b5; margin-bottom: 0.5rem;">${item.linkedin_content.headline}</div>
-              <div style="font-size: 0.875rem; color: #333; white-space: pre-line; line-height: 1.6; margin-bottom: 0.75rem;">${(item.linkedin_content.body || '').substring(0, 300)}${item.linkedin_content.body?.length > 300 ? '...' : ''}</div>
+              <div style="font-size: 0.875rem; color: #333; white-space: pre-line; line-height: 1.6; margin-bottom: 0.75rem;">${((item.linkedin_content.body || '').substring(0, 300).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'))}${item.linkedin_content.body?.length > 300 ? '...' : ''}</div>
               <div style="font-size: 0.8rem; color: #0077b5;">${(item.linkedin_content.hashtags || []).map(h => '#' + h).join(' ')}</div>
               ${item.linkedin_content.ctaText ? `<div style="margin-top: 0.5rem; font-size: 0.8rem; color: #666; font-style: italic;">${item.linkedin_content.ctaText}</div>` : ''}
               <button class="btn btn-secondary" style="margin-top: 0.75rem; font-size: 0.8rem; padding: 0.4rem 0.8rem;" onclick="copyLinkedIn(${item.id})">📋 Copiar Texto</button>
@@ -1266,7 +1279,7 @@ async function createFromVideo(videoId, hookFormula, viralTitle, contentAngle) {
       <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">💡 Viral Pattern Selected</p>
       <p style="color: #333; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Example:</strong> "${viralTitle}"</p>
       ${contentAngle ? `<p style="color: #666; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Angle:</strong> ${contentAngle}</p>` : ''}
-      <p style="color: #666; font-size: 0.875rem;">Select a topic below. Your reel will emulate this viral pattern for maximum engagement!</p>
+      <p style="color: #666; font-size: 0.875rem;">Selecione um tópico abaixo. Seu reel vai usar este padrão viral para máximo engajamento!</p>
     </div>
   `;
 
@@ -1391,8 +1404,8 @@ function selectHook(hookFormula) {
     statusDiv.innerHTML = `
       <div style="padding: 1.5rem; background: rgba(102,126,234,0.1); border-radius: 12px; border-left: 4px solid #667eea;">
         <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">✨ Hook Selected</p>
-        <p style="color: #333; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Hook Formula:</strong> ${hookFormula}</p>
-        <p style="color: #666; font-size: 0.875rem;">Select a topic below. Your content will use this hook formula for maximum engagement!</p>
+        <p style="color: #333; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Gancho:</strong> ${hookLabel(hookFormula)}</p>
+        <p style="color: #666; font-size: 0.875rem;">Selecione um tópico abaixo. Seu conteúdo vai usar este gancho para máximo engajamento!</p>
       </div>
     `;
 
@@ -1608,6 +1621,15 @@ async function openFeedbackModal(contentId) {
     }
   } catch (e) {
     console.error('Error loading feedback:', e);
+  }
+}
+
+function resetDiscoverTab() {
+  // Reset to Sinais de Conteúdo tab
+  const discoverPage = document.getElementById('discover-page');
+  if (discoverPage) {
+    discoverPage.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === 0));
+    discoverPage.querySelectorAll('.tab-content').forEach((c, i) => c.classList.toggle('active', i === 0));
   }
 }
 
