@@ -698,12 +698,21 @@ async function loadViralContext() {
   }
 }
 
+let isGenerating = false;
+
 async function generateContent(type) {
+  if (isGenerating) {
+    showToast('Geração já em andamento...', 'warning');
+    return;
+  }
+
   const signalId = document.getElementById('create-signal-select').value;
   if (!signalId) {
     showToast('Selecione um topico primeiro', 'warning');
     return;
   }
+
+  isGenerating = true;
 
   // Get buttons and disable them immediately
   const carouselBtn = document.getElementById('create-carousel-btn');
@@ -792,10 +801,14 @@ async function generateContent(type) {
     // Re-enable buttons on error
     carouselBtn.disabled = false;
     reelBtn.disabled = false;
+    linkedinBtn.disabled = false;
     carouselBtn.style.opacity = '1';
     carouselBtn.style.cursor = 'pointer';
     reelBtn.style.opacity = '1';
     reelBtn.style.cursor = 'pointer';
+    linkedinBtn.style.opacity = '1';
+    linkedinBtn.style.cursor = 'pointer';
+    isGenerating = false;
 
     statusDiv.innerHTML = `
       <div style="text-align: center; padding: 2rem; background: rgba(239,68,68,0.1); border-radius: 12px; color: #ef4444;">
@@ -862,10 +875,14 @@ async function pollProgress(signalId, statusDiv, carouselBtn, reelBtn) {
     // Re-enable buttons on timeout
     carouselBtn.disabled = false;
     reelBtn.disabled = false;
+    linkedinBtn.disabled = false;
     carouselBtn.style.opacity = '1';
     carouselBtn.style.cursor = 'pointer';
     reelBtn.style.opacity = '1';
     reelBtn.style.cursor = 'pointer';
+    linkedinBtn.style.opacity = '1';
+    linkedinBtn.style.cursor = 'pointer';
+    isGenerating = false;
 
     // Show timeout message
     statusDiv.innerHTML = `

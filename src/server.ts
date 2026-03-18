@@ -482,6 +482,12 @@ app.post('/api/brand/upload', brandUpload.single('file'), async (req, res) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const tier = (req.body.tier as string) || 'padrao';
 
+    const genKey = `upload-${file.originalname}`;
+    if (activeGenerations.has(genKey)) {
+      return res.status(409).json({ error: 'Este arquivo já está sendo processado' });
+    }
+    activeGenerations.add(genKey);
+
     console.log(`[Brand Upload] ${file.originalname} (${(file.size / 1024).toFixed(0)}KB, tier: ${tier})`);
 
     // Rename to preserve extension
@@ -809,6 +815,16 @@ app.post('/api/generate', async (req, res) => {
     const minScore = parseInt(req.body.minScore) || 80;
     const signalId = req.body.signalId ? parseInt(req.body.signalId) : null;
 
+    // Prevent duplicate generation
+    if (signalId) {
+      const genKey = `carousel-${signalId}`;
+      if (activeGenerations.has(genKey)) {
+        return res.status(409).json({ error: 'Geração já em andamento para este sinal' });
+      }
+      activeGenerations.add(genKey);
+      setTimeout(() => activeGenerations.delete(genKey), 120000); // auto-clear after 2min
+    }
+
     // Import dependencies
     const { CarouselGenerator } = await import('./generators/carousel-generator');
     const { getBrandConfig } = await import('./config/brand-config');
@@ -877,6 +893,9 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
+// Active generation tracker (prevents duplicate requests)
+const activeGenerations = new Set<string>();
+
 // Generate LinkedIn post
 app.post('/api/generate-linkedin', async (req, res) => {
   try {
@@ -890,6 +909,13 @@ app.post('/api/generate-linkedin', async (req, res) => {
     if (!signal) {
       return res.status(404).json({ error: `Signal #${signalId} not found` });
     }
+
+    // Prevent duplicate generation
+    const genKey = `linkedin-${signalId}`;
+    if (activeGenerations.has(genKey)) {
+      return res.status(409).json({ error: 'Geração já em andamento para este sinal' });
+    }
+    activeGenerations.add(genKey);
 
     // Start generation
     res.json({ success: true, message: 'Generating LinkedIn post...' });
@@ -913,6 +939,7 @@ app.post('/api/generate-linkedin', async (req, res) => {
         };
 
         contentStorage.save(content);
+        activeGenerations.delete(genKey);
         console.log(`[Server] LinkedIn post saved for signal #${signal.id}`);
       } catch (error: any) {
         console.error('[Server] LinkedIn generation failed:', error.message);
