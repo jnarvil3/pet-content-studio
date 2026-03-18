@@ -11,6 +11,7 @@ import OpenAI from 'openai';
 import { Signal } from '../types/signal';
 import { LinkedInPost } from '../types/content';
 import { BrandConfig } from '../types/brand';
+import { buildBrandContext } from '../config/brand-context';
 
 export class LinkedInWriter {
   private client: OpenAI;
@@ -80,11 +81,15 @@ Gere uma versão REVISADA incorporando as alterações.
 `;
     }
 
-    return `You are a LinkedIn content strategist for ${brand.name} (${services}).
+    const brandContext = buildBrandContext(brand);
+
+    return `You are a LinkedIn content strategist.
 ${feedbackContext}
+${brandContext}
+
 Write a professional LinkedIn post about this topic for the Brazilian pet industry audience.
 
-IMPORTANT — LANGUAGE: Write EVERYTHING in Brazilian Portuguese (PT-BR). Use "voce" (informal).
+IMPORTANT — LANGUAGE: Write EVERYTHING in Brazilian Portuguese (PT-BR). Use "você" (informal).
 
 TOPIC:
 Title: ${signal.title}

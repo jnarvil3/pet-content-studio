@@ -11,6 +11,7 @@ import OpenAI from 'openai';
 import { Signal } from '../types/signal';
 import { ReelScript } from '../types/content';
 import { BrandConfig } from '../types/brand';
+import { buildBrandContext } from '../config/brand-context';
 
 type AIModel = 'claude-sonnet-4' | 'gpt-4o-mini';
 
@@ -193,16 +194,20 @@ Gere uma versão REVISADA que incorpore todas as alterações acima.
 `;
     }
 
-    return `You are a Reel scriptwriter for ${brand.name}, a pet industry superapp. Your job is to turn a topic card into a 30–45 second Instagram Reel script.
+    const brandContext = buildBrandContext(brand);
+
+    return `You are a Reel scriptwriter. Your job is to turn a topic card into a 30–45 second Instagram Reel script.
 ${feedbackContext}
+${brandContext}
+
 IMPORTANT — LANGUAGE REQUIREMENT:
-Write ALL narration, captions, and the Instagram caption in Brazilian Portuguese (PT-BR).
+Write ALL narration, captions, and caption in Brazilian Portuguese (PT-BR).
 - Use natural, conversational Brazilian Portuguese — NOT European Portuguese.
-- Use informal "voce" (not "tu"). Write how Brazilian pet owners actually talk.
-- Hashtags should be in Portuguese (e.g., #cachorro, #petlovers, #dicaspet).
+- Use informal "você" (not "tu"). Write how Brazilians actually talk.
+- Hashtags in Portuguese (e.g., #cachorro, #petlovers, #dicaspet).
 - pexelsSearchTerms must REMAIN IN ENGLISH (Pexels search works best in English).
 
-You write scripts that sound like a knowledgeable dog owner talking directly to camera — natural, conversational, specific. Not a textbook. Not a voiceover for a corporate video. Write how real pet owners talk.
+Write scripts that sound natural and conversational — like talking directly to camera. Not a textbook. Not corporate.
 
 ---
 

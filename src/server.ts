@@ -9,6 +9,7 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import multer from 'multer';
 import { ContentStorage } from './storage/content-storage';
 import { IntelConnector } from './storage/intel-connector';
 import { ViralSignalsConnector } from './storage/viral-signals-connector';
@@ -457,6 +458,100 @@ app.post('/api/brand/reset', async (req, res) => {
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Brand file upload
+const brandUpload = multer({
+  dest: 'assets/brand/',
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.pdf', '.png', '.jpg', '.jpeg', '.svg', '.webp'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, allowed.includes(ext));
+  }
+});
+
+app.post('/api/brand/upload', brandUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const file = req.file;
+    const ext = path.extname(file.originalname).toLowerCase();
+    const tier = (req.body.tier as string) || 'padrao';
+
+    console.log(`[Brand Upload] ${file.originalname} (${(file.size / 1024).toFixed(0)}KB, tier: ${tier})`);
+
+    // Rename to preserve extension
+    const newPath = file.path + ext;
+    const fs = await import('fs');
+    fs.renameSync(file.path, newPath);
+
+    res.json({
+      success: true,
+      file: { path: newPath, name: file.originalname, size: file.size, type: ext },
+      message: 'Arquivo enviado. Processando...'
+    });
+
+    // Process in background
+    (async () => {
+      try {
+        const { BrandExtractor } = await import('./services/brand-extractor');
+        const { clearBrandCache } = await import('./config/brand-config');
+        const extractor = new BrandExtractor();
+
+        if (ext === '.pdf') {
+          console.log(`[Brand Upload] Extracting brand knowledge from PDF...`);
+          const profile = await extractor.extractFromPDF(newPath, tier as any);
+          extractor.saveProfile(profile);
+
+          // Also update brand config colors if extracted
+          if (profile.visual?.primary_color) {
+            const { getBrandConfig, saveBrandConfig } = await import('./config/brand-config');
+            const brand = getBrandConfig();
+            brand.colors.primary = profile.visual.primary_color;
+            if (profile.visual.secondary_color) brand.colors.secondary = profile.visual.secondary_color;
+            brand.profile = profile;
+            saveBrandConfig(brand);
+          }
+
+          clearBrandCache();
+          console.log(`[Brand Upload] Brand profile extracted and saved`);
+
+        } else if (['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
+          console.log(`[Brand Upload] Extracting colors from image...`);
+          const colors = await extractor.extractColors(newPath);
+
+          const { getBrandConfig, saveBrandConfig } = await import('./config/brand-config');
+          const brand = getBrandConfig();
+          brand.colors.primary = colors.primary;
+          brand.colors.secondary = colors.secondary;
+          if (colors.accent) brand.colors.accent = colors.accent;
+          brand.logo = { path: newPath, position: 'bottom-right' };
+          saveBrandConfig(brand);
+          clearBrandCache();
+
+          console.log(`[Brand Upload] Colors extracted: ${colors.primary}, ${colors.secondary}`);
+        }
+      } catch (error: any) {
+        console.error('[Brand Upload] Processing failed:', error.message);
+      }
+    })();
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get brand profile (extracted knowledge)
+app.get('/api/brand/profile', (req, res) => {
+  try {
+    const { BrandExtractor } = require('./services/brand-extractor');
+    const profile = BrandExtractor.loadProfile();
+    res.json(profile || { extracted: false });
+  } catch (error: any) {
+    res.json({ extracted: false });
   }
 });
 

@@ -640,6 +640,23 @@
 
         <div class="card">
           <h2 class="card-title" data-i18n="settings.brand">Configuracao da Marca</h2>
+          <!-- Brand Document Upload -->
+          <div style="margin-bottom: 2rem; padding: 1.5rem; background: linear-gradient(135deg, rgba(102,126,234,0.05), rgba(118,75,162,0.05)); border: 2px dashed #667eea; border-radius: 12px;">
+            <h3 style="color: #667eea; margin-bottom: 0.75rem;">📄 Upload de Documentos da Marca</h3>
+            <p style="color: #666; font-size: 0.875rem; margin-bottom: 1rem;">Envie guidelines, logo ou exemplos de posts. A IA vai extrair a voz, tom e regras da marca automaticamente.</p>
+            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+              <input type="file" id="brand-file-input" accept=".pdf,.png,.jpg,.jpeg,.svg,.webp" style="display:none;">
+              <button class="btn btn-primary" onclick="document.getElementById('brand-file-input').click()">📎 Escolher Arquivo</button>
+              <select id="extraction-tier" style="padding: 0.5rem 1rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.875rem;">
+                <option value="basico">Básico (~$0.004)</option>
+                <option value="padrao" selected>Padrão (~$0.04)</option>
+                <option value="premium">Premium (~$0.15)</option>
+              </select>
+              <span id="upload-status" style="font-size: 0.875rem; color: #666;"></span>
+            </div>
+            <div id="brand-profile-status" style="margin-top: 1rem;"></div>
+          </div>
+
           <div id="brand-config-form">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
               <div>

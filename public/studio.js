@@ -1176,8 +1176,9 @@ async function publishContent(id) {
  * Settings Page
  */
 async function loadSettingsData() {
-  // Load brand config
+  // Load brand config and profile
   loadBrandConfig();
+  loadBrandProfile();
 
   try {
     const response = await fetch('/api/stats');
@@ -1845,6 +1846,86 @@ async function saveBrandConfig() {
   } catch (e) {
     showToast('Erro ao salvar configuracao da marca', 'error');
   }
+}
+
+// Brand file upload
+document.addEventListener('DOMContentLoaded', () => {
+  const fileInput = document.getElementById('brand-file-input');
+  if (fileInput) {
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const statusEl = document.getElementById('upload-status');
+      const tier = document.getElementById('extraction-tier').value;
+      statusEl.textContent = `Enviando ${file.name}...`;
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('tier', tier);
+
+      try {
+        const res = await fetch('/api/brand/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (data.success) {
+          statusEl.innerHTML = `<span style="color: #22c55e;">✅ ${file.name} enviado. Extraindo conhecimento da marca...</span>`;
+          showToast('Arquivo enviado! A IA está extraindo o perfil da marca...', 'loading');
+
+          // Poll for profile completion
+          let attempts = 0;
+          const poll = setInterval(async () => {
+            attempts++;
+            try {
+              const profileRes = await fetch('/api/brand/profile');
+              const profile = await profileRes.json();
+              if (profile.extracted_at) {
+                clearInterval(poll);
+                statusEl.innerHTML = `<span style="color: #22c55e;">✅ Perfil da marca extraído com sucesso!</span>`;
+                showToast('Perfil da marca extraído! Tom: ' + (profile.voice?.tone_adjectives?.join(', ') || 'extraído'), 'success', 6000);
+                loadBrandProfile();
+                loadBrandConfig();
+              }
+            } catch (e) {}
+            if (attempts >= 30) {
+              clearInterval(poll);
+              statusEl.innerHTML = `<span style="color: #666;">Processamento pode levar mais tempo. Recarregue a página em breve.</span>`;
+            }
+          }, 3000);
+        } else {
+          statusEl.textContent = data.error || 'Erro no upload';
+          showToast('Erro ao enviar arquivo', 'error');
+        }
+      } catch (error) {
+        statusEl.textContent = 'Erro ao enviar arquivo';
+        showToast('Erro no upload', 'error');
+      }
+
+      fileInput.value = '';
+    });
+  }
+});
+
+async function loadBrandProfile() {
+  try {
+    const res = await fetch('/api/brand/profile');
+    const profile = await res.json();
+    const statusDiv = document.getElementById('brand-profile-status');
+    if (!statusDiv) return;
+
+    if (profile.extracted_at) {
+      statusDiv.innerHTML = `
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem; font-size: 0.875rem;">
+          <div style="font-weight: 600; color: #16a34a; margin-bottom: 0.5rem;">✅ Perfil da Marca Ativo</div>
+          <div style="color: #333; margin-bottom: 0.25rem;"><strong>Tom:</strong> ${(profile.voice?.tone_adjectives || []).join(', ')}</div>
+          <div style="color: #333; margin-bottom: 0.25rem;"><strong>Público:</strong> ${profile.content_rules?.target_audience || '-'}</div>
+          <div style="color: #333; margin-bottom: 0.25rem;"><strong>Enfatizar:</strong> ${(profile.content_rules?.topics_to_emphasize || []).join(', ')}</div>
+          ${profile.voice?.forbidden_words?.length > 0 ? `<div style="color: #dc2626; margin-bottom: 0.25rem;"><strong>Proibido:</strong> ${profile.voice.forbidden_words.join(', ')}</div>` : ''}
+          <div style="color: #999; font-size: 0.75rem; margin-top: 0.5rem;">Extraído em ${new Date(profile.extracted_at).toLocaleDateString('pt-BR')} com ${profile.extraction_model}</div>
+        </div>
+      `;
+    }
+  } catch (e) {}
 }
 
 async function resetBrandConfig() {

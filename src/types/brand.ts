@@ -43,7 +43,38 @@ export interface BrandConfig {
   };
 
   // Services (for context)
-  services: string[]; // e.g., ['dog walking', 'vet care', 'doggie daycare', 'food delivery']
+  services: string[];
+
+  // Extracted brand profile (from uploaded documents)
+  profile?: BrandProfile;
+}
+
+/**
+ * Extracted brand knowledge from uploaded documents
+ */
+export interface BrandProfile {
+  voice: {
+    tone_adjectives: string[];
+    writing_style: string;
+    example_phrases: string[];
+    forbidden_words: string[];
+    forbidden_claims: string[];
+  };
+  visual: {
+    primary_color?: string;
+    secondary_color?: string;
+    font_style?: string;
+    logo_usage_rules?: string;
+  };
+  content_rules: {
+    topics_to_emphasize: string[];
+    topics_to_avoid: string[];
+    target_audience: string;
+    cta_style: string;
+  };
+  brand_story: string;
+  extracted_at: string;
+  extraction_model: string;
 }
 
 export const defaultBrandConfig: BrandConfig = {

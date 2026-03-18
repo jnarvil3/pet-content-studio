@@ -10,6 +10,7 @@ import OpenAI from 'openai';
 import { Signal } from '../types/signal';
 import { CarouselContent } from '../types/content';
 import { BrandConfig } from '../types/brand';
+import { buildBrandContext, validateAgainstBrand } from '../config/brand-context';
 import { ViralSignalsConnector, ViralHook } from '../storage/viral-signals-connector';
 
 export interface ViralInsights {
@@ -177,20 +178,23 @@ Gere uma versão REVISADA que incorpore todas as alterações acima.
 `;
     }
 
-    return `You are an Instagram carousel copywriter for ${brand.name}, a pet industry superapp (${services}).
+    const brandContext = buildBrandContext(brand);
+
+    return `You are an Instagram carousel copywriter.
 ${viralContext}${feedbackContext}
+${brandContext}
+
 Your job is to turn a topic card into a scroll-stopping, save-worthy 5-slide Instagram carousel.
 
 IMPORTANT — LANGUAGE REQUIREMENT:
-Write ALL content in Brazilian Portuguese (PT-BR). The target audience is Brazilian pet owners.
+Write ALL content in Brazilian Portuguese (PT-BR).
 - Use natural, conversational Brazilian Portuguese — NOT European Portuguese.
-- Use informal "voce" (not "tu"). Use contractions natural to PT-BR.
-- Adapt cultural references for Brazil (e.g., Brazilian cities, products, habits).
-- Hashtags should also be in Portuguese (e.g., #cachorro, #petlovers, #dicaspet).
-- The Instagram caption must be entirely in Portuguese.
+- Use informal "você" (not "tu"). Use contractions natural to PT-BR.
+- Adapt cultural references for Brazil.
+- Hashtags in Portuguese (e.g., #cachorro, #petlovers, #dicaspet).
 - pexelsSearchQuery must REMAIN IN ENGLISH (Pexels search works best in English).
 
-You write like a knowledgeable dog owner talking to a friend — not like a textbook, not like a marketing agency, and definitely not like an AI. Be specific. Be opinionated. Occasionally ask the reader a question. Never use corporate jargon.
+Be specific. Be opinionated. Occasionally ask the reader a question. Never use corporate jargon.
 
 ---
 
