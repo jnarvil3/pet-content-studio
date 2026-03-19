@@ -70,6 +70,7 @@ const HOOK_LABELS = {
   question: '❓ Pergunta que gera curiosidade',
   mistake_hook: '⚠️ Erro comum que donos cometem',
   personal: '🗣️ História pessoal com o pet',
+  personal_story: '🗣️ História pessoal com o pet',
   number_outcome: '🔢 Lista com resultado específico',
   curiosity: '🤔 Fato curioso que prende atenção',
   transformation: '✨ Antes e depois / transformação',
@@ -293,7 +294,7 @@ async function loadSignalsList() {
               📰 ${signal.source} • ${new Date(signal.collected_at).toLocaleDateString('pt-BR')}
             </div>
             <div style="display: flex; gap: 0.5rem;">
-              ${signal.url ? `<a href="${signal.url}" target="_blank" class="btn btn-secondary" style="flex: 1; padding: 0.75rem; text-align: center; text-decoration: none;">🔗 Ler Artigo</a>` : ''}
+              ${signal.url ? `<a href="${signal.url}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex: 1; padding: 0.75rem; text-align: center; text-decoration: none;">🔗 Ler Artigo</a>` : ''}
               <button class="btn btn-primary" style="flex: 1; padding: 0.75rem;" onclick="createFromSignal(${signal.id})">✨ Criar a partir deste</button>
             </div>
           </div>
@@ -354,7 +355,7 @@ async function loadVideosList() {
           <div style="border: 2px solid ${i < 3 ? '#f5576c' : '#e0e0e0'}; border-radius: 12px; overflow: hidden; cursor: pointer; transition: all 0.2s; ${i < 3 ? 'box-shadow: 0 4px 12px rgba(245,87,108,0.2);' : ''}" onclick="window.open('${videoUrl}', '_blank')">
             <div style="aspect-ratio: 16/9; background: #000; position: relative; overflow: hidden;">
               ${thumbnailUrl
-                ? `<img src="${thumbnailUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'">`
+                ? `<img src="${thumbnailUrl}" alt="${(title || 'Vídeo').replace(/"/g, '')}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'">`
                 : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea,#764ba2);color:white;font-size:3rem;">${isTikTok ? '🎵' : '▶️'}</div>`
               }
               <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.7);color:white;padding:2px 8px;border-radius:6px;font-size:0.7rem;font-weight:700;">#${i + 1}</div>
@@ -540,7 +541,7 @@ function renderVideoGrid() {
         <div style="border: 2px solid #e0e0e0; border-radius: 12px; overflow: hidden; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.borderColor='${isTikTok ? '#00f2ea' : '#f5576c'}'" onmouseout="this.style.borderColor='#e0e0e0'" onclick="window.open('${videoUrl}', '_blank')">
           <div style="aspect-ratio: ${isTikTok ? '9/16' : '16/9'}; max-height: 250px; background: #000; position: relative; overflow: hidden;">
             ${thumbnailUrl
-              ? `<img src="${thumbnailUrl}" style="width: 100%; height: 100%; object-fit: cover;" ${thumbnailFallback}>`
+              ? `<img src="${thumbnailUrl}" alt="${(video.title || 'Vídeo').replace(/"/g, '').substring(0, 80)}" style="width: 100%; height: 100%; object-fit: cover;" ${thumbnailFallback}>`
               : `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #00f2ea, #ff0050); color: white; font-size: 3rem;">🎵</div>`
             }
             ${platformBadge}
@@ -684,7 +685,7 @@ async function loadViralContext() {
           <strong>Melhor gancho:</strong> ${hookLabel(topHook.hook_formula)} (${(topHook.avg_engagement_rate || 0).toFixed(1)}% engajamento)
         </div>
         ${themes.length > 0 ? `<div style="margin-bottom: 1rem;">
-          <strong>Temas em alta:</strong> ${themes.map(t => { try { const parsed = JSON.parse(t.content_themes); return Array.isArray(parsed) ? parsed.join(', ') : t.content_themes; } catch { return t.content_themes || ''; } }).filter(Boolean).slice(0, 3).join(' • ') || 'N/A'}
+          <strong>Temas em alta:</strong> ${[...new Set(themes.flatMap(t => { try { const parsed = JSON.parse(t.content_themes); return Array.isArray(parsed) ? parsed : [t.content_themes]; } catch { return [t.content_themes || '']; } }).filter(Boolean))].slice(0, 8).join(', ') || 'N/A'}
         </div>` : ''}
         <div style="font-size: 0.875rem; color: #666;">
           Baseado na análise de ${stats.total_analyzed || 0} vídeos virais de pet
@@ -1008,14 +1009,14 @@ async function displayReviewContent(filter) {
           ${item.status === 'revision_requested' ? `
           <!-- Revision requested banner -->
           <div style="background: #fefce8; border: 1px solid #fde047; border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
-            <div style="font-weight: 600; color: #a16207; margin-bottom: 0.5rem;">⏳ Alteracoes solicitadas</div>
+            <div style="font-weight: 600; color: #a16207; margin-bottom: 0.5rem;">⏳ Alterações solicitadas</div>
             ${pendingFb.length > 0 ? pendingFb.map(f => `
               <div style="background: white; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; border-left: 3px solid #eab308;">
                 <div style="color: #333; font-size: 0.875rem;">${f.feedback_text}</div>
                 <div style="color: #a3a3a3; font-size: 0.7rem; margin-top: 0.25rem;">${new Date(f.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
               </div>
             `).join('') : '<div style="font-size: 0.875rem; color: #92400e;">Aguardando regeneracao...</div>'}
-            <div style="font-size: 0.8rem; color: #a16207; margin-top: 0.5rem;">Clique em <strong>Regenerar</strong> para criar uma nova versao com as alteracoes acima.</div>
+            <div style="font-size: 0.8rem; color: #a16207; margin-top: 0.5rem;">Clique em <strong>Regenerar com Alterações</strong> para criar uma nova versão.</div>
           </div>
           ` : ''}
 
@@ -1033,7 +1034,7 @@ async function displayReviewContent(filter) {
                 const imgUrl = img.replace('./output', '/output').replace('output/', '/output/');
                 return `
                 <div style="position: relative; flex-shrink: 0;">
-                  <img src="${imgUrl}" style="height: 140px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                  <img src="${imgUrl}" alt="Slide ${idx+1} do carrossel" style="height: 140px; border-radius: 8px; border: 2px solid #e0e0e0;">
                   <div style="position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px;">${idx+1}/5</div>
                   <a href="${imgUrl}" download style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 0.7rem; padding: 3px 6px; border-radius: 4px; text-decoration: none; cursor: pointer;" title="Baixar slide ${idx+1}">⬇</a>
                 </div>
@@ -1103,17 +1104,17 @@ async function displayReviewContent(filter) {
           <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; padding-top: 0.75rem; border-top: 1px solid #f0f0f0;">
             ${item.status === 'pending' ? `
               <button class="btn btn-primary" onclick="approveContent(${item.id})">✅ Aprovar</button>
-              <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">✏️ Solicitar Alteracoes</button>
+              <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">✏️ Solicitar Alterações</button>
               <button class="btn btn-secondary" style="color: #ef4444; border-color: #fecaca;" onclick="rejectContent(${item.id})">❌ Rejeitar</button>
             ` : ''}
             ${item.status === 'revision_requested' ? `
-              <button class="btn btn-primary" style="background: linear-gradient(135deg, #eab308, #ca8a04);" onclick="regenerateContent(${item.id})">🔄 Regenerar com Alteracoes</button>
+              <button class="btn btn-primary" style="background: linear-gradient(135deg, #eab308, #ca8a04);" onclick="regenerateContent(${item.id})">🔄 Regenerar com Alterações</button>
               <button class="btn btn-primary" onclick="approveContent(${item.id})">✅ Aprovar Assim Mesmo</button>
               <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">✏️ Mais Feedback</button>
             ` : ''}
             ${item.status === 'approved' ? `
               <button class="btn btn-primary" onclick="publishContent(${item.id})">🚀 Publicar</button>
-              <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">✏️ Solicitar Alteracoes</button>
+              <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">✏️ Solicitar Alterações</button>
             ` : ''}
             ${item.status === 'published' ? `
               <span style="font-size: 0.8rem; color: #8b5cf6; font-weight: 500;">Publicado em ${item.published_at ? new Date(item.published_at).toLocaleDateString('pt-BR') : '-'}</span>
