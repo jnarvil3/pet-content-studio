@@ -1,0 +1,24 @@
+{
+  "name": "TestBrand",
+  "handle": "@namuh",
+  "colors": {
+    "primary": "#f4364f",
+    "secondary": "#ff91c2",
+    "accent": "#4caf50"
+  },
+  "voice": {
+    "tone": [
+      "friendly",
+      "educational",
+      "trustworthy",
+      "caring"
+    ]
+  },
+  "services": [
+    "app para dog walking",
+    "veterinary care",
+    "doggie daycare",
+    "dog food delivery",
+    "pet grooming"
+  ]
+}

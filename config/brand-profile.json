@@ -1,0 +1,60 @@
+{
+  "voice": {
+    "tone_adjectives": [
+      "afetuoso",
+      "próximo",
+      "caloroso",
+      "acolhedor",
+      "humano"
+    ],
+    "writing_style": "Tom conversacional e direto, usando linguagem acessível e emotiva. Frases médias com foco na conexão emocional. Uso frequente da primeira pessoa do plural ('Nossa', 'Nosso') para criar proximidade e inclusão.",
+    "example_phrases": [
+      "Os pets transformam nossas vidas",
+      "A relação mais verdadeira que existe",
+      "Namuh transforma seu negócio",
+      "Cheio de personalidade",
+      "Vínculo humano-animal"
+    ],
+    "forbidden_words": [
+      "frio",
+      "distante",
+      "técnico",
+      "complicado",
+      "impessoal"
+    ],
+    "forbidden_claims": [
+      "somos os únicos",
+      "perfeitos",
+      "sem falhas",
+      "garantia absoluta",
+      "solução definitiva"
+    ]
+  },
+  "visual": {
+    "primary_color": "#F4364F",
+    "secondary_color": "#FF91C2",
+    "font_style": "Poppins Extra Bold para títulos e manchetes (impacto e volume), Inter Regular para corpo de texto (clareza e funcionalidade). Tipografia moderna que equilibra personalidade com legibilidade.",
+    "logo_usage_rules": "Área mínima de proteção obrigatória, símbolo sempre ancorado na base do layout, tamanho mínimo de 120px digital/25mm impresso, versão branca para fundos escuros, versão colorida prioritária para fundos claros, nunca distorcer proporções"
+  },
+  "content_rules": {
+    "topics_to_emphasize": [
+      "vínculo humano-animal",
+      "cuidado natural e cotidiano com pets",
+      "transformação através da tecnologia",
+      "conexão emocional",
+      "facilitar serviços pet"
+    ],
+    "topics_to_avoid": [
+      "frieza tecnológica",
+      "complexidade desnecessária",
+      "distanciamento",
+      "impessoalidade",
+      "promessas irreais"
+    ],
+    "target_audience": "Pessoas que têm pets e veem seus animais como parte da família, colaboradores de empresas que valorizam benefícios diferenciados, prestadores de serviços pet que buscam conexão com clientes",
+    "cta_style": "Abordagem suave e inclusiva, focando nos benefícios emocionais e práticos, usando linguagem acolhedora que convida à ação sem pressão excessiva"
+  },
+  "brand_story": "A Namuh nasceu para celebrar e facilitar a relação mais verdadeira que existe: a que une humanos e seus animais de estimação. A marca reconhece que os pets ocupam um lugar central na vida das pessoas, assim como o 'M' estilizado ocupa o centro de sua identidade visual, remetendo sutilmente à silhueta de um animal.\n\nComo plataforma digital, a Namuh conecta colaboradores de empresas a prestadores de serviços pet, tornando o cuidado com os animais algo natural, cotidiano e cheio de carinho. A marca se posiciona como uma ponte tecnológica que preserva e fortalece o vínculo humano-animal, oferecendo soluções que são ao mesmo tempo modernas e profundamente humanas.\n\nSua personalidade visual vibrante e acolhedora, com formas orgânicas e paleta de cores calorosa, reflete o propósito de transformar não apenas a vida dos pets, mas também dos negócios, criando um ecossistema onde tecnologia e afeto caminham juntos para facilitar o amor incondicional entre humanos e seus companheiros de quatro patas.",
+  "extracted_at": "2026-03-18T22:19:05.021Z",
+  "extraction_model": "claude-sonnet-4-20250514"
+}
