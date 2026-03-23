@@ -90,7 +90,7 @@ const STATUS_LABELS = {
   approved: 'Aprovado',
   rejected: 'Rejeitado',
   published: 'Publicado',
-  revision_requested: 'Revisao Solicitada'
+  revision_requested: 'Revisão Solicitada'
 };
 
 function statusLabel(status) {
@@ -517,7 +517,7 @@ function renderVideoGrid() {
   }
 
   grid.innerHTML = `
-    <div style="margin-bottom: 1rem; color: #666;">Showing ${filtered.length} of ${allVideos.length} videos</div>
+    <div style="margin-bottom: 1rem; color: #666;">Mostrando ${filtered.length} de ${allVideos.length} vídeos</div>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
       ${filtered.map(video => {
         const platform = video.platform || 'youtube';
@@ -529,7 +529,7 @@ function renderVideoGrid() {
           ? (video.thumbnail_url || video.thumbnails?.cover_url || '')
           : `https://img.youtube.com/vi/${video.video_id}/maxresdefault.jpg`;
         const thumbnailFallback = isTikTok
-          ? ''
+          ? `onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#00f2ea,#ff0050);color:white;font-size:3rem;\\'>🎵</div>'+ this.parentElement.innerHTML"`
           : `onerror="this.src='https://img.youtube.com/vi/${video.video_id}/hqdefault.jpg'"`;
         const platformBadge = isTikTok
           ? '<span style="position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.8); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">🎵 TikTok</span>'
@@ -558,7 +558,7 @@ function renderVideoGrid() {
               ${video.emotional_trigger ? `<span style="background: rgba(251,146,60,0.1); color: #fb923c; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${video.emotional_trigger}</span>` : ''}
             </div>
             <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">${(video.view_count || 0).toLocaleString()} views</div>
-            <button class="btn btn-primary" style="width: 100%; padding: 0.5rem;" onclick="event.stopPropagation(); createFromVideo(${video.id}, '${video.hook_formula || ''}', '${safeTitle}', '${safeAngle}')">✨ Create from this</button>
+            <button class="btn btn-primary" style="width: 100%; padding: 0.5rem;" onclick="event.stopPropagation(); createFromVideo(${video.id}, '${video.hook_formula || ''}', '${safeTitle}', '${safeAngle}')">✨ Criar a partir deste</button>
           </div>
         </div>
       `}).join('')}
@@ -956,7 +956,7 @@ async function displayReviewContent(filter) {
   }
 
   if (filtered.length === 0) {
-    grid.innerHTML = '<p style="text-align: center; color: #999; padding: 3rem;">Nenhum conteudo encontrado</p>';
+    grid.innerHTML = '<p style="text-align: center; color: #999; padding: 3rem;">Nenhum conteúdo encontrado</p>';
     return;
   }
 
@@ -1015,14 +1015,14 @@ async function displayReviewContent(filter) {
                 <div style="color: #333; font-size: 0.875rem;">${f.feedback_text}</div>
                 <div style="color: #a3a3a3; font-size: 0.7rem; margin-top: 0.25rem;">${new Date(f.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
               </div>
-            `).join('') : '<div style="font-size: 0.875rem; color: #92400e;">Aguardando regeneracao...</div>'}
+            `).join('') : '<div style="font-size: 0.875rem; color: #92400e;">Aguardando regeneração...</div>'}
             <div style="font-size: 0.8rem; color: #a16207; margin-top: 0.5rem;">Clique em <strong>Regenerar com Alterações</strong> para criar uma nova versão.</div>
           </div>
           ` : ''}
 
           ${item.status === 'rejected' && item.rejection_reason ? `
           <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem;">
-            <div style="font-size: 0.8rem; font-weight: 600; color: #dc2626; margin-bottom: 0.25rem;">Motivo da rejeicao:</div>
+            <div style="font-size: 0.8rem; font-weight: 600; color: #dc2626; margin-bottom: 0.25rem;">Motivo da rejeição:</div>
             <div style="font-size: 0.875rem; color: #7f1d1d;">${item.rejection_reason}</div>
           </div>
           ` : ''}
@@ -1087,7 +1087,7 @@ async function displayReviewContent(filter) {
           ${addressedFb.length > 0 ? `
           <details style="margin-bottom: 0.75rem;">
             <summary style="font-size: 0.8rem; color: #16a34a; cursor: pointer; padding: 0.25rem 0;">
-              ✅ ${addressedFb.length} alterac${addressedFb.length > 1 ? 'oes atendidas' : 'ao atendida'}
+              ✅ ${addressedFb.length} alteraç${addressedFb.length > 1 ? 'ões atendidas' : 'ão atendida'}
             </summary>
             <div style="padding-top: 0.5rem;">
               ${addressedFb.map(f => `
@@ -1120,7 +1120,7 @@ async function displayReviewContent(filter) {
               <span style="font-size: 0.8rem; color: #8b5cf6; font-weight: 500;">Publicado em ${item.published_at ? new Date(item.published_at).toLocaleDateString('pt-BR') : '-'}</span>
             ` : ''}
             ${item.status === 'rejected' ? `
-              <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">✏️ Solicitar Nova Versao</button>
+              <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">✏️ Solicitar Nova Versão</button>
             ` : ''}
           </div>
         </div>
@@ -1172,15 +1172,15 @@ function copyLinkedIn(id) {
 async function approveContent(id) {
   try {
     await fetch(`/api/content/${id}/approve`, { method: 'POST' });
-    showToast('Conteudo aprovado!', 'success');
+    showToast('Conteúdo aprovado!', 'success');
     await loadReviewData();
   } catch (error) {
-    showToast('Erro ao aprovar conteudo', 'error');
+    showToast('Erro ao aprovar conteúdo', 'error');
   }
 }
 
 async function rejectContent(id) {
-  const reason = await showConfirm('Motivo da rejeicao:', { showInput: true, inputPlaceholder: 'Opcional: descreva por que esta rejeitando...', okText: 'Rejeitar', cancelText: 'Cancelar' });
+  const reason = await showConfirm('Motivo da rejeição:', { showInput: true, inputPlaceholder: 'Opcional: descreva por que está rejeitando...', okText: 'Rejeitar', cancelText: 'Cancelar' });
   if (reason === false) return;
   try {
     await fetch(`/api/content/${id}/reject`, {
@@ -1188,21 +1188,21 @@ async function rejectContent(id) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason: (typeof reason === 'string' ? reason : '') || 'Sem motivo informado' })
     });
-    showToast('Conteudo rejeitado', 'info');
+    showToast('Conteúdo rejeitado', 'info');
     await loadReviewData();
   } catch (error) {
-    showToast('Erro ao rejeitar conteudo', 'error');
+    showToast('Erro ao rejeitar conteúdo', 'error');
   }
 }
 
 async function publishContent(id) {
   try {
     await fetch(`/api/content/${id}/publish`, { method: 'POST' });
-    showToast('Conteudo marcado como publicado!', 'success');
+    showToast('Conteúdo marcado como publicado!', 'success');
     await loadReviewData();
     await loadDashboardStats();
   } catch (error) {
-    showToast('Erro ao publicar conteudo', 'error');
+    showToast('Erro ao publicar conteúdo', 'error');
   }
 }
 
@@ -1225,11 +1225,11 @@ async function loadSettingsData() {
       budgetDiv.innerHTML = `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
           <div>
-            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Orcamento Mensal</div>
+            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Orçamento Mensal</div>
             <div style="font-size: 2rem; font-weight: 700; color: #667eea;">$${costs.budget}</div>
           </div>
           <div>
-            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Gasto este Mes</div>
+            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Gasto este Mês</div>
             <div style="font-size: 2rem; font-weight: 700; color: #f5576c;">$${costs.thisMonth.toFixed(2)}</div>
           </div>
           <div>
@@ -1237,14 +1237,14 @@ async function loadSettingsData() {
             <div style="font-size: 2rem; font-weight: 700; color: #22c55e;">$${costs.remaining.toFixed(2)}</div>
           </div>
           <div>
-            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Orcamento Usado</div>
+            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Orçamento Usado</div>
             <div style="font-size: 2rem; font-weight: 700; color: #8b5cf6;">${costs.percentUsed.toFixed(1)}%</div>
           </div>
         </div>
       `;
     } else {
       // Simple stats display
-      budgetDiv.innerHTML = `<p style="color: #666;">Dados de orcamento nao disponiveis</p>`;
+      budgetDiv.innerHTML = `<p style="color: #666;">Dados de orçamento não disponíveis</p>`;
     }
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -1252,7 +1252,7 @@ async function loadSettingsData() {
 }
 
 async function runCollectionPipeline() {
-  const ok = await showConfirm('Isso vai coletar e analisar novos videos virais. Pode custar $0.03-$0.05 por video. Continuar?', { okText: 'Iniciar', cancelText: 'Cancelar' });
+  const ok = await showConfirm('Isso vai coletar e analisar novos vídeos virais. Pode custar $0.03-$0.05 por vídeo. Continuar?', { okText: 'Iniciar', cancelText: 'Cancelar' });
   if (!ok) {
     return;
   }
@@ -1383,7 +1383,7 @@ function renderHooksGrid(hooks) {
   const grid = document.getElementById('hooks-grid');
 
   grid.innerHTML = `
-    <div style="margin-bottom: 1rem; color: #666; font-size: 0.875rem;">${hooks.length} estrategias de gancho encontradas</div>
+    <div style="margin-bottom: 1rem; color: #666; font-size: 0.875rem;">${hooks.length} estratégias de gancho encontradas</div>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1rem;">
       ${hooks.map((hook, i) => `
         <div style="border: 2px solid ${i === 0 ? '#f5576c' : '#e0e0e0'}; border-radius: 12px; padding: 1.5rem; transition: all 0.2s; ${i === 0 ? 'background: rgba(245,87,108,0.03);' : ''}" onmouseover="this.style.borderColor='#667eea'" onmouseout="this.style.borderColor='${i === 0 ? '#f5576c' : '#e0e0e0'}'">
@@ -1438,7 +1438,7 @@ function selectHook(hookFormula) {
     statusDiv.style.display = 'block';
     statusDiv.innerHTML = `
       <div style="padding: 1.5rem; background: rgba(102,126,234,0.1); border-radius: 12px; border-left: 4px solid #667eea;">
-        <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">✨ Hook Selected</p>
+        <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">✨ Gancho Selecionado</p>
         <p style="color: #333; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Gancho:</strong> ${hookLabel(hookFormula)}</p>
         <p style="color: #666; font-size: 0.875rem;">Selecione um tópico abaixo. Seu conteúdo vai usar este gancho para máximo engajamento!</p>
       </div>
@@ -1641,7 +1641,7 @@ async function openFeedbackModal(contentId) {
 
     if (feedback.length > 0) {
       historyDiv.innerHTML = `
-        <h3 style="font-size: 1rem; color: #333; margin-bottom: 0.75rem;">Historico de Feedback</h3>
+        <h3 style="font-size: 1rem; color: #333; margin-bottom: 0.75rem;">Histórico de Feedback</h3>
         ${feedback.map(f => `
           <div style="padding: 0.75rem; background: ${f.status === 'addressed' ? '#f0fdf4' : '#fefce8'}; border-radius: 8px; margin-bottom: 0.5rem; font-size: 0.875rem;">
             <div style="color: #333;">${f.feedback_text}</div>
@@ -1670,14 +1670,19 @@ function resetDiscoverTab() {
 
 function addFeedbackChip(text) {
   const textarea = document.getElementById('feedback-text');
-  const current = textarea.value.trim();
-  if (current) {
-    textarea.value = current + '\n' + text;
+  const chip = event.target;
+  const isSelected = chip.classList.contains('selected');
+
+  if (isSelected) {
+    // Remove the text line from textarea
+    const lines = textarea.value.split('\n').filter(line => line.trim() !== text.trim());
+    textarea.value = lines.join('\n');
+    chip.classList.remove('selected');
   } else {
-    textarea.value = text;
+    const current = textarea.value.trim();
+    textarea.value = current ? current + '\n' + text : text;
+    chip.classList.add('selected');
   }
-  // Toggle chip visual state
-  event.target.classList.toggle('selected');
   textarea.focus();
 }
 
@@ -1963,12 +1968,12 @@ async function loadBrandProfile() {
 }
 
 async function resetBrandConfig() {
-  const ok = await showConfirm('Restaurar configuracoes padrao da marca?', { okText: 'Restaurar', cancelText: 'Cancelar' });
+  const ok = await showConfirm('Restaurar configurações padrão da marca?', { okText: 'Restaurar', cancelText: 'Cancelar' });
   if (!ok) return;
   try {
     await fetch('/api/brand/reset', { method: 'POST' });
     await loadBrandConfig();
-    showToast('Marca restaurada para o padrao', 'success');
+    showToast('Marca restaurada para o padrão', 'success');
   } catch (e) {
     showToast('Erro ao restaurar', 'error');
   }

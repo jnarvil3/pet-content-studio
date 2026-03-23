@@ -312,10 +312,10 @@
       <a href="http://localhost:3001" style="padding: 0.5rem 1rem; border-radius: 8px; color: white; text-decoration: none; transition: background 0.2s; display: inline-block;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='transparent'">
         🔥 Viral Analyzer
       </a>
-      <a href="http://localhost:3003" style="padding: 0.5rem 1rem; border-radius: 8px; color: white; text-decoration: none; transition: background 0.2s; display: inline-block;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='transparent'">
+      <a href="http://localhost:3001" style="padding: 0.5rem 1rem; border-radius: 8px; color: white; text-decoration: none; transition: background 0.2s; display: inline-block;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='transparent'">
         🎨 Content Generator
       </a>
-      <a href="http://localhost:3003/demo.html" style="padding: 0.5rem 1rem; border-radius: 8px; background: rgba(255,255,255,0.2); color: white; text-decoration: none; font-weight: 600; border: 1px solid rgba(255,255,255,0.3); display: inline-block;">
+      <a href="http://localhost:3001/demo.html" style="padding: 0.5rem 1rem; border-radius: 8px; background: rgba(255,255,255,0.2); color: white; text-decoration: none; font-weight: 600; border: 1px solid rgba(255,255,255,0.3); display: inline-block;">
         🚀 Viral Demo
       </a>
     </div>
@@ -418,7 +418,7 @@
     // Load signals on page load
     window.addEventListener('DOMContentLoaded', async () => {
       try {
-        const response = await fetch('http://localhost:3003/api/signals?limit=20&minScore=70');
+        const response = await fetch('http://localhost:3001/api/signals?limit=20&minScore=70');
         const data = await response.json();
 
         const select = document.getElementById('signalSelect');
@@ -454,7 +454,7 @@
       results.classList.remove('show');
 
       try {
-        const response = await fetch('http://localhost:3003/api/demo/viral-comparison', {
+        const response = await fetch('http://localhost:3001/api/demo/viral-comparison', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

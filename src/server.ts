@@ -47,7 +47,7 @@ if (AUTH_PASSWORD) {
         .box{background:white;padding:2rem;border-radius:15px;box-shadow:0 10px 30px rgba(0,0,0,.2);text-align:center;max-width:350px;width:90%}
         input{width:100%;padding:.75rem;border:2px solid #e0e0e0;border-radius:8px;font-size:1rem;margin:.75rem 0;box-sizing:border-box}
         button{width:100%;padding:.75rem;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer}</style></head>
-        <body><div class="box"><h2>🐾 Pet Content Studio</h2><form onsubmit="document.cookie='auth='+document.getElementById('p').value+';path=/;max-age=2592000';location.reload();return false">
+        <body><div class="box"><h2>🐾 Pet Content Studio</h2><div id="err" style="display:none;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;padding:0.5rem;border-radius:8px;margin-bottom:0.5rem;font-size:0.9rem;">Senha incorreta</div><form onsubmit="document.cookie='auth='+document.getElementById('p').value+';path=/;max-age=2592000';fetch('/api/stats').then(r=>{if(r.ok)location.reload();else{document.getElementById('err').style.display='block';document.getElementById('p').value=''}}).catch(()=>location.reload());return false">
         <input id="p" type="password" placeholder="Senha" autofocus><button type="submit">Entrar</button></form></div></body></html>`);
     }
 
