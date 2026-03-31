@@ -11,7 +11,10 @@ import * as path from 'path';
  * Priority: brand.json (UI-saved) > env vars > defaults
  */
 export function loadBrandConfig(): BrandConfig {
-  const configPath = path.join(__dirname, '../../config/brand.json');
+  // Persistent path (Railway volume at /app/data) takes priority, then fallback to repo config
+  const persistentPath = path.join(process.cwd(), 'data', 'brand.json');
+  const repoPath = path.join(__dirname, '../../config/brand.json');
+  const configPath = fs.existsSync(persistentPath) ? persistentPath : repoPath;
 
   let config = { ...defaultBrandConfig };
   let customConfig: any = {};
@@ -56,7 +59,8 @@ export function loadBrandConfig(): BrandConfig {
  * Save brand configuration to file
  */
 export function saveBrandConfig(config: BrandConfig): void {
-  const configPath = path.join(__dirname, '../../config/brand.json');
+  // Save to persistent volume path so it survives Railway redeploys
+  const configPath = path.join(process.cwd(), 'data', 'brand.json');
   const configDir = path.dirname(configPath);
 
   if (!fs.existsSync(configDir)) {
