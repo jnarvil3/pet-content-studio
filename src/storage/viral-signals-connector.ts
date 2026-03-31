@@ -160,6 +160,7 @@ export class ViralSignalsConnector {
   private _queryThemes(days: number, limit: number): ViralTheme[] {
     if (!this.db) return [];
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    // Show all videos (not just LLM-analyzed ones) so real YouTube data appears
     return this.db.prepare(`
       SELECT
         content_themes,
@@ -173,9 +174,7 @@ export class ViralSignalsConnector {
         view_count,
         hook_formula
       FROM viral_signals
-      WHERE content_themes IS NOT NULL
-        AND text_analyzed_at IS NOT NULL
-        AND collected_at >= ?
+      WHERE collected_at >= ?
       ORDER BY engagement_rate DESC
       LIMIT ?
     `).all(cutoffDate, limit) as ViralTheme[];
