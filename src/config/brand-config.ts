@@ -8,17 +8,18 @@ import * as path from 'path';
 
 /**
  * Load brand configuration
- * First tries to load from config/brand.json, falls back to defaults
+ * Priority: brand.json (UI-saved) > env vars > defaults
  */
 export function loadBrandConfig(): BrandConfig {
   const configPath = path.join(__dirname, '../../config/brand.json');
 
   let config = { ...defaultBrandConfig };
+  let customConfig: any = {};
 
   if (fs.existsSync(configPath)) {
     try {
       const configFile = fs.readFileSync(configPath, 'utf-8');
-      const customConfig = JSON.parse(configFile);
+      customConfig = JSON.parse(configFile);
 
       console.log('[BrandConfig] Loaded custom brand configuration');
 
@@ -39,11 +40,12 @@ export function loadBrandConfig(): BrandConfig {
     console.log('[BrandConfig] Create config/brand.json to customize');
   }
 
-  // Environment variables override file config for name and handle
-  if (process.env.BRAND_NAME) {
+  // Env vars are fallback only — they fill in when brand.json doesn't have the field
+  // Once the user saves via UI, brand.json has the field and env vars are ignored
+  if (process.env.BRAND_NAME && !('name' in customConfig)) {
     config.name = process.env.BRAND_NAME;
   }
-  if (process.env.BRAND_HANDLE) {
+  if (process.env.BRAND_HANDLE && !('handle' in customConfig)) {
     config.handle = process.env.BRAND_HANDLE;
   }
 
