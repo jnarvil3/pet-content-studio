@@ -23,6 +23,8 @@ interface YouTubeVideo {
   views_per_day: number;
   is_viral: boolean;
   tags: string[];
+  hook_formula: string;
+  emotional_trigger: string;
 }
 
 export class YouTubeCollector {
@@ -170,9 +172,12 @@ export class YouTubeCollector {
       const daysSince = Math.max(1, (Date.now() - publishedAt.getTime()) / (1000 * 60 * 60 * 24));
       const viewsPerDay = viewCount / daysSince;
 
+      const title = snippet.title || '';
+      const { hook, emotion } = YouTubeCollector.detectHookAndEmotion(title);
+
       return {
         video_id: video.id,
-        title: snippet.title || '',
+        title,
         description: (snippet.description || '').substring(0, 500),
         channel_name: snippet.channelTitle || '',
         channel_id: snippet.channelId || '',
@@ -184,7 +189,9 @@ export class YouTubeCollector {
         engagement_rate: parseFloat(engagementRate.toFixed(2)),
         views_per_day: Math.round(viewsPerDay),
         is_viral: engagementRate > 5 || viewsPerDay > 100000,
-        tags: snippet.tags || []
+        tags: snippet.tags || [],
+        hook_formula: hook,
+        emotional_trigger: emotion
       };
     });
   }
@@ -224,9 +231,12 @@ export class YouTubeCollector {
       const daysSince = Math.max(1, (Date.now() - publishedAt.getTime()) / (1000 * 60 * 60 * 24));
       const viewsPerDay = viewCount / daysSince;
 
+      const title = snippet.title || '';
+      const { hook, emotion } = YouTubeCollector.detectHookAndEmotion(title);
+
       return {
         video_id: video.id,
-        title: snippet.title || '',
+        title,
         description: (snippet.description || '').substring(0, 500),
         channel_name: snippet.channelTitle || '',
         channel_id: snippet.channelId || '',
@@ -238,8 +248,42 @@ export class YouTubeCollector {
         engagement_rate: parseFloat(engagementRate.toFixed(2)),
         views_per_day: Math.round(viewsPerDay),
         is_viral: engagementRate > 5 || viewsPerDay > 100000,
-        tags: snippet.tags || []
+        tags: snippet.tags || [],
+        hook_formula: hook,
+        emotional_trigger: emotion
       };
     });
+  }
+
+  /**
+   * Detect hook formula and emotional trigger from video title (pattern matching, no LLM)
+   */
+  static detectHookAndEmotion(title: string): { hook: string; emotion: string } {
+    const t = title.toLowerCase();
+
+    // Hook formula detection
+    let hook = 'curiosity_gap'; // default
+    if (/^\d+\s/.test(t) || /top \d+/i.test(t)) hook = 'number_outcome';
+    else if (/\?/.test(t)) hook = 'question_hook';
+    else if (/stop|don'?t|never|wrong|mistake|worst/i.test(t)) hook = 'contrarian';
+    else if (/how (i|to|we)/i.test(t)) hook = 'personal_specific';
+    else if (/hack|trick|secret|tip/i.test(t)) hook = 'quick_hack';
+    else if (/transform|before.?after|glow.?up/i.test(t)) hook = 'transformation';
+    else if (/pov|when you|that moment/i.test(t)) hook = 'pov_scenario';
+    else if (/doctor|vet|expert|pro |chef/i.test(t)) hook = 'authority_reveal';
+    else if (/😱|😭|🤯|shock|unbelievable|insane|crazy/i.test(t)) hook = 'novelty_shock';
+
+    // Emotional trigger detection
+    let emotion = 'curiosity'; // default
+    if (/funny|😂|🤣|hilarious|lol|comedy/i.test(t)) emotion = 'joy';
+    else if (/scary|danger|warning|⚠|😱/i.test(t)) emotion = 'fear';
+    else if (/sad|😭|cry|rescue|save|emotional/i.test(t)) emotion = 'empathy';
+    else if (/satisfying|asmr|relaxing|calm/i.test(t)) emotion = 'satisfaction';
+    else if (/shock|unbelievable|insane|🤯/i.test(t)) emotion = 'surprise';
+    else if (/hack|trick|easy|simple|quick/i.test(t)) emotion = 'curiosity';
+    else if (/trust|honest|real|truth/i.test(t)) emotion = 'trust';
+    else if (/wrong|stop|worst|angry/i.test(t)) emotion = 'anger';
+
+    return { hook, emotion };
   }
 }

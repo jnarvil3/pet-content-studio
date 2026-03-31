@@ -274,8 +274,9 @@ export class ViralSignalsConnector {
         view_count, like_count, comment_count,
         engagement_rate, views_per_day, is_viral,
         thumbnail_url, tags,
+        hook_formula, emotional_trigger,
         text_analyzed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     `);
 
     let inserted = 0;
@@ -286,7 +287,8 @@ export class ViralSignalsConnector {
         v.channel_id, v.channel_name, v.published_at, new Date().toISOString(),
         v.view_count, v.like_count, v.comment_count,
         v.engagement_rate, v.views_per_day, v.is_viral ? 1 : 0,
-        v.thumbnail_url, JSON.stringify(v.tags || [])
+        v.thumbnail_url, JSON.stringify(v.tags || []),
+        v.hook_formula || null, v.emotional_trigger || null
       );
       if (result.changes > 0) inserted++;
     }
