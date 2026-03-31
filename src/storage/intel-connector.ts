@@ -6,22 +6,28 @@
 import Database from 'better-sqlite3';
 import { Signal } from '../types/signal';
 import * as path from 'path';
+import * as fs from 'fs';
 
 export class IntelConnector {
-  private db: Database.Database;
+  private db: Database.Database | null = null;
 
   constructor(dbPath?: string) {
     const defaultPath = path.join(__dirname, '../../../pet-intel-collector/data/signals.db');
     const finalPath = dbPath || process.env.INTEL_DATABASE_PATH || defaultPath;
 
-    this.db = new Database(finalPath, { readonly: true });
-    console.log(`[IntelConnector] Connected to intelligence database at ${finalPath}`);
+    if (fs.existsSync(finalPath)) {
+      this.db = new Database(finalPath, { readonly: true });
+      console.log(`[IntelConnector] Connected to intelligence database at ${finalPath}`);
+    } else {
+      console.warn(`[IntelConnector] Database not found at ${finalPath} — running without intel signals`);
+    }
   }
 
   /**
    * Get all relevant signals (score >= 70) that haven't been used yet
    */
   getRelevantSignals(limit: number = 50): Signal[] {
+    if (!this.db) return [];
     const rows = this.db.prepare(`
       SELECT * FROM signals
       WHERE is_relevant = 1
@@ -37,6 +43,7 @@ export class IntelConnector {
    * Get a specific signal by ID
    */
   getSignal(id: number): Signal | null {
+    if (!this.db) return null;
     const row = this.db.prepare(`
       SELECT * FROM signals
       WHERE id = ?
@@ -49,6 +56,7 @@ export class IntelConnector {
    * Get top signals above a certain score
    */
   getTopSignals(minScore: number = 80, limit: number = 20): Signal[] {
+    if (!this.db) return [];
     const rows = this.db.prepare(`
       SELECT * FROM signals
       WHERE relevance_score >= ?
@@ -64,6 +72,7 @@ export class IntelConnector {
    * Get signals by source
    */
   getSignalsBySource(source: string, limit: number = 20): Signal[] {
+    if (!this.db) return [];
     const rows = this.db.prepare(`
       SELECT * FROM signals
       WHERE source = ?
@@ -98,6 +107,6 @@ export class IntelConnector {
    * Close database connection
    */
   close(): void {
-    this.db.close();
+    this.db?.close();
   }
 }

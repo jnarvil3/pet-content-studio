@@ -5,6 +5,7 @@
 
 import Database from 'better-sqlite3';
 import * as path from 'path';
+import * as fs from 'fs';
 
 export interface ViralHook {
   hook_formula: string;
@@ -49,20 +50,24 @@ export interface ViralStats {
 }
 
 export class ViralSignalsConnector {
-  private db: Database.Database;
+  private db: Database.Database | null = null;
 
   constructor(dbPath?: string) {
     const defaultPath = path.join(__dirname, '../../../../viral-social-media-analyzer/data/viral-signals.db');
     const finalPath = dbPath || process.env.VIRAL_DATABASE_PATH || defaultPath;
 
-    this.db = new Database(finalPath);
-    // Flush WAL data so we can read recently written rows
-    try {
-      this.db.pragma('wal_checkpoint(PASSIVE)');
-    } catch (e) {
-      // Ignore if WAL mode not active
+    if (fs.existsSync(finalPath)) {
+      this.db = new Database(finalPath);
+      // Flush WAL data so we can read recently written rows
+      try {
+        this.db.pragma('wal_checkpoint(PASSIVE)');
+      } catch (e) {
+        // Ignore if WAL mode not active
+      }
+      console.log(`[ViralSignalsConnector] Connected to viral signals database at ${finalPath}`);
+    } else {
+      console.warn(`[ViralSignalsConnector] Database not found at ${finalPath} — running without viral signals`);
     }
-    console.log(`[ViralSignalsConnector] Connected to viral signals database at ${finalPath}`);
   }
 
   /**
@@ -70,6 +75,7 @@ export class ViralSignalsConnector {
    * Now includes actual video examples for each hook type
    */
   getTopViralHooks(days: number = 7, limit: number = 10, includeExamples: boolean = true): ViralHook[] {
+    if (!this.db) return [];
     let effectiveDays = days;
     let rows = this._queryHooks(effectiveDays, limit);
 
@@ -92,6 +98,7 @@ export class ViralSignalsConnector {
   }
 
   private _queryHooks(days: number, limit: number): ViralHook[] {
+    if (!this.db) return [];
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
     return this.db.prepare(`
       SELECT
@@ -112,6 +119,7 @@ export class ViralSignalsConnector {
    * Get specific video examples for a hook formula
    */
   private getHookExamples(hookFormula: string, days: number = 7, limit: number = 3): ViralVideoExample[] {
+    if (!this.db) return [];
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
     const examples = this.db.prepare(`
@@ -135,6 +143,7 @@ export class ViralSignalsConnector {
    * Get trending content themes from viral videos
    */
   getTrendingThemes(days: number = 7, limit: number = 20): ViralTheme[] {
+    if (!this.db) return [];
     let rows = this._queryThemes(days, limit);
 
     if (rows.length === 0 && days < 90) {
@@ -149,6 +158,7 @@ export class ViralSignalsConnector {
   }
 
   private _queryThemes(days: number, limit: number): ViralTheme[] {
+    if (!this.db) return [];
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
     return this.db.prepare(`
       SELECT
@@ -175,6 +185,7 @@ export class ViralSignalsConnector {
    * Get viral patterns with emotional triggers
    */
   getViralPatterns(days: number = 7, limit: number = 10): ViralPattern[] {
+    if (!this.db) return [];
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
     const rows = this.db.prepare(`
@@ -201,6 +212,7 @@ export class ViralSignalsConnector {
    * Get overall viral statistics
    */
   getViralStats(days: number = 7): ViralStats {
+    if (!this.db) return { total_analyzed: 0, avg_engagement: 0, top_platform: 'unknown', date_range_days: days };
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
     const stats = this.db.prepare(`
@@ -229,6 +241,7 @@ export class ViralSignalsConnector {
    * Get best performing emotional triggers
    */
   getTopEmotionalTriggers(days: number = 7, limit: number = 5): Array<{trigger: string, avg_engagement: number, count: number}> {
+    if (!this.db) return [];
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
     const rows = this.db.prepare(`
@@ -252,6 +265,6 @@ export class ViralSignalsConnector {
    * Close database connection
    */
   close(): void {
-    this.db.close();
+    this.db?.close();
   }
 }
