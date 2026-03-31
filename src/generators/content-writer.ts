@@ -155,7 +155,7 @@ ${viralInsights.trendingThemes.length > 0 ? `TRENDING THEMES IN VIRAL PET CONTEN
     let feedbackContext = '';
     if (editFeedback && previousContent) {
       const prevSlides = previousContent.slides.map(s =>
-        `Slide ${s.slideNumber} (${s.layoutHint}): título="${s.title}" corpo="${s.body || 'nenhum'}" stat="${s.stat ? s.stat.number + ' - ' + s.stat.context : 'nenhum'}"`
+        `Slide ${s.slideNumber} (${s.layoutHint}): título="${s.title}" corpo="${s.body || 'nenhum'}" stat="${s.stat ? s.stat.number + ' - ' + s.stat.context : 'nenhum'}" imagem="${s.pexelsSearchQuery || 'nenhuma'}"`
       ).join('\n');
 
       feedbackContext = `
@@ -178,6 +178,10 @@ INSTRUÇÕES DE REVISÃO:
 2. ALTERE APENAS o que foi especificamente solicitado acima
 3. A nova versão deve ser claramente diferente nos pontos solicitados
 4. Preserve o mesmo tom e estilo geral, exceto onde o cliente pediu mudança
+5. IMAGENS: Cada slide tem um campo "pexelsSearchQuery" que controla a foto de fundo (buscada no Pexels).
+   - Se o cliente pedir uma imagem diferente para um slide específico (ex: "foto de agility no slide 3", "use imagem de cachorro na praia"), ALTERE o pexelsSearchQuery desse slide para refletir o pedido (ex: "dog agility course", "dog running beach")
+   - O pexelsSearchQuery deve ser em INGLÊS, 2-5 palavras, específico ao que o cliente pediu
+   - Se o cliente NÃO mencionou imagens, mantenha os pexelsSearchQuery anteriores IGUAIS
 ${preciseMode ? `
 🎯 MODO PRECISO ATIVADO — REGRAS OBRIGATÓRIAS:
 - Quando o cliente fornecer texto exato entre aspas, use esse texto LITERALMENTE — não reformule, não expanda, não adicione nada
