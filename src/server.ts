@@ -56,6 +56,7 @@ if (AUTH_PASSWORD) {
   console.log('[Auth] Password protection enabled');
 }
 
+app.get('/', (_req, res) => res.redirect('/studio.html'));
 app.use(express.static('public'));
 
 // Serve generated images
