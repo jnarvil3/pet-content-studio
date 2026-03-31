@@ -1481,6 +1481,14 @@ function setHookTimePeriod(period) {
   loadHooksList();
 }
 
+async function refreshTrending() {
+  try {
+    await fetch('/api/trending/collect', { method: 'POST' });
+  } catch (e) {
+    // ignore — GET will still work if data already exists
+  }
+}
+
 async function loadHooksList() {
   const grid = document.getElementById('hooks-grid');
   if (!grid) return;

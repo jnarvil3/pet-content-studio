@@ -588,7 +588,7 @@
                   <button class="btn toggle-btn active" id="video-filter-pet" onclick="setVideoFilter('pet')">🐾 Pet</button>
                   <button class="btn toggle-btn" id="video-filter-all" onclick="setVideoFilter('all')">🌐 Geral</button>
                 </div>
-                <button class="btn btn-primary" style="padding: 0.5rem 1rem;" onclick="loadVideosList()">🔄</button>
+                <button class="btn btn-primary" style="padding: 0.5rem 1rem;" onclick="refreshTrending().then(loadVideosList)">🔄</button>
               </div>
             </div>
             <div id="videos-list">Carregando...</div>
@@ -608,7 +608,7 @@
                   <button class="btn toggle-btn active" id="hook-filter-pet" onclick="setHookFilter('pet')">🐾 Pet</button>
                   <button class="btn toggle-btn" id="hook-filter-all" onclick="setHookFilter('all')">🌐 Geral</button>
                 </div>
-                <button class="btn btn-primary" style="padding: 0.5rem 1rem;" onclick="loadHooksList()">🔄</button>
+                <button class="btn btn-primary" style="padding: 0.5rem 1rem;" onclick="refreshTrending().then(loadHooksList)">🔄</button>
               </div>
             </div>
             <div id="hooks-grid">Carregando...</div>
