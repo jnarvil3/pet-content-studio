@@ -27,15 +27,17 @@ export class LinkedInWriter {
     signal: Signal,
     brand: BrandConfig,
     editFeedback?: string,
-    previousPost?: LinkedInPost
+    previousPost?: LinkedInPost,
+    preciseMode: boolean = false
   ): Promise<LinkedInPost> {
-    const prompt = this.buildPrompt(signal, brand, editFeedback, previousPost);
+    const prompt = this.buildPrompt(signal, brand, editFeedback, previousPost, preciseMode);
 
-    console.log(`[LinkedInWriter] Generating post for signal #${signal.id}: "${signal.title}"`);
+    const model = preciseMode ? 'gpt-4o' : 'gpt-4o-mini';
+    console.log(`[LinkedInWriter] Generating post for signal #${signal.id}: "${signal.title}" (model: ${model})`);
 
     try {
       const response = await this.client.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model,
         max_tokens: 2000,
         response_format: { type: 'json_object' },
         messages: [{ role: 'user', content: prompt }]
@@ -50,7 +52,7 @@ export class LinkedInWriter {
     }
   }
 
-  private buildPrompt(signal: Signal, brand: BrandConfig, editFeedback?: string, previousPost?: LinkedInPost): string {
+  private buildPrompt(signal: Signal, brand: BrandConfig, editFeedback?: string, previousPost?: LinkedInPost, preciseMode: boolean = false): string {
     const services = brand.services.join(', ');
 
     let feedbackContext = '';
@@ -69,6 +71,12 @@ ALTERAÇÕES SOLICITADAS:
 ${editFeedback}
 
 MANTENHA tudo que não foi mencionado. ALTERE APENAS o que foi solicitado.
+${preciseMode ? `
+🎯 MODO PRECISO ATIVADO:
+- Texto exato entre aspas deve ser usado LITERALMENTE — não reformule, não expanda
+- Hashtags especificadas devem ser as ÚNICAS usadas — não adicione extras
+- Trate instruções como comandos literais, NÃO sugestões criativas
+- NÃO adicione conteúdo extra além do solicitado` : ''}
 ---
 `;
     } else if (editFeedback) {
@@ -76,7 +84,7 @@ MANTENHA tudo que não foi mencionado. ALTERE APENAS o que foi solicitado.
 ---
 ALTERAÇÕES SOLICITADAS:
 ${editFeedback}
-Gere uma versão REVISADA incorporando as alterações.
+${preciseMode ? '🎯 MODO PRECISO: Siga instruções LITERALMENTE. Texto entre aspas = VERBATIM. Hashtags especificadas = ÚNICAS. Sem conteúdo extra.\n' : ''}Gere uma versão REVISADA incorporando as alterações.
 ---
 `;
     }

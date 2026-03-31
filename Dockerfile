@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
 # Tell Puppeteer to use installed Chromium
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV NODE_ENV=production
 
 WORKDIR /app
 
@@ -26,7 +27,8 @@ COPY . .
 # Create data directory for SQLite
 RUN mkdir -p /app/data /app/output/carousels /app/output/reels /app/config
 
-EXPOSE 3001
+# Railway sets PORT dynamically
+EXPOSE ${PORT:-3001}
 
 # Use tsx (same as local dev) to avoid tsc strict errors
 CMD ["npx", "tsx", "src/server.ts"]

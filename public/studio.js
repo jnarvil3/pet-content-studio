@@ -53,7 +53,7 @@ function showConfirm(message, { showInput = false, inputPlaceholder = '', okText
     modal.style.display = 'flex';
 
     const cleanup = (result) => { modal.style.display = 'none'; resolve(result); };
-    document.getElementById('confirm-ok').onclick = () => cleanup(showInput ? (input.value || true) : true);
+    document.getElementById('confirm-ok').onclick = () => cleanup(showInput ? input.value : true);
     document.getElementById('confirm-cancel').onclick = () => cleanup(false);
   });
 }
@@ -260,7 +260,7 @@ async function loadRecentActivity() {
  * Discover Page
  */
 async function loadDiscoverData() {
-  await Promise.all([
+  await Promise.allSettled([
     loadSignalsList(),
     loadVideosList(),
     loadHooksList()
@@ -303,6 +303,8 @@ async function loadSignalsList() {
     `;
   } catch (error) {
     console.error('Error loading signals:', error);
+    const signalsList = document.getElementById('signals-list');
+    if (signalsList) signalsList.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">Erro ao carregar sinais. Verifique se o coletor de inteligência está configurado.</p>';
   }
 }
 
@@ -960,14 +962,22 @@ async function displayReviewContent(filter) {
     return;
   }
 
-  // Load feedback for all visible items in parallel
+  // Load feedback for all visible items in batches of 3 to avoid overwhelming server
   const feedbackMap = {};
-  await Promise.all(filtered.map(async item => {
-    try {
-      const res = await fetch(`/api/content/${item.id}/feedback`);
-      feedbackMap[item.id] = await res.json();
-    } catch (e) { feedbackMap[item.id] = []; }
-  }));
+  const batchSize = 3;
+  for (let i = 0; i < filtered.length; i += batchSize) {
+    const batch = filtered.slice(i, i + batchSize);
+    await Promise.all(batch.map(async item => {
+      try {
+        const res = await fetch(`/api/content/${item.id}/feedback`);
+        if (res.ok) {
+          feedbackMap[item.id] = await res.json();
+        } else {
+          feedbackMap[item.id] = [];
+        }
+      } catch (e) { feedbackMap[item.id] = []; }
+    }));
+  }
 
   const contentTypeLabel = (t) => t === 'carousel' ? '📱 Carrossel' : t === 'reel' ? '🎥 Reel' : '💼 LinkedIn';
 
@@ -997,7 +1007,7 @@ async function displayReviewContent(filter) {
                 <span>${contentTypeLabel(item.content_type)}</span>
                 <span>•</span>
                 <span>Criado em ${new Date(item.generated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                ${item.version > 1 ? `<span style="background: #ede9fe; color: #7c3aed; padding: 1px 8px; border-radius: 10px; font-weight: 600;">v${item.version}</span>` : ''}
+                <span style="background: ${item.version > 1 ? '#ede9fe' : '#f3f4f6'}; color: ${item.version > 1 ? '#7c3aed' : '#6b7280'}; padding: 1px 8px; border-radius: 10px; font-weight: 600;">v${item.version || 1}</span>
                 ${feedback.length > 0 ? `<span style="color: #667eea;">📝 ${feedback.length} feedback${feedback.length > 1 ? 's' : ''}</span>` : ''}
               </div>
             </div>
@@ -1020,7 +1030,7 @@ async function displayReviewContent(filter) {
           </div>
           ` : ''}
 
-          ${item.status === 'rejected' && item.rejection_reason ? `
+          ${item.status === 'rejected' && item.rejection_reason && item.rejection_reason !== 'Sem motivo informado' ? `
           <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem;">
             <div style="font-size: 0.8rem; font-weight: 600; color: #dc2626; margin-bottom: 0.25rem;">Motivo da rejeição:</div>
             <div style="font-size: 0.875rem; color: #7f1d1d;">${item.rejection_reason}</div>
@@ -1031,7 +1041,10 @@ async function displayReviewContent(filter) {
           ${item.content_type === 'carousel' && item.carousel_images ? `
             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem;">
               ${(Array.isArray(item.carousel_images) ? item.carousel_images : JSON.parse(item.carousel_images)).slice(0, 5).map((img, idx) => {
-                const imgUrl = img.replace('./output', '/output').replace('output/', '/output/');
+                let imgUrl = img;
+                if (img.includes('/output/')) imgUrl = '/output/' + img.split('/output/').pop();
+                else if (img.startsWith('./output')) imgUrl = img.replace('./output', '/output');
+                else if (img.startsWith('output/')) imgUrl = '/' + img;
                 return `
                 <div style="position: relative; flex-shrink: 0;">
                   <img src="${imgUrl}" alt="Slide ${idx+1} do carrossel" style="height: 140px; border-radius: 8px; border: 2px solid #e0e0e0;">
@@ -1043,19 +1056,22 @@ async function displayReviewContent(filter) {
             <button class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; margin-bottom: 1rem;" onclick="downloadAllSlides(${item.id})">⬇️ Baixar todos os slides</button>
           ` : ''}
 
-          ${item.content_type === 'reel' && item.reel_video_path ? `
+          ${item.content_type === 'reel' && item.reel_video_path ? (() => {
+            const videoSrc = item.reel_video_path.replace('./output', '/output').replace('output/', '/output/');
+            const posterSrc = videoSrc.replace(/\/[^/]+$/, '/thumbnail.jpg');
+            return `
             <div style="margin-bottom: 1rem;">
-              <video controls style="width: 100%; max-width: 300px; border-radius: 8px;">
-                <source src="${item.reel_video_path.replace('./output', '/output').replace('output/', '/output/')}" type="video/mp4">
+              <video controls poster="${posterSrc}" preload="metadata" style="width: 100%; max-width: 300px; border-radius: 8px; background: #000;">
+                <source src="${videoSrc}" type="video/mp4">
               </video>
               <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.75rem;">
                 ${item.reel_script ? `<span style="font-size: 0.8rem; color: #666;">
                   Duração: ~${item.reel_script.totalDurationTarget}s • ${item.reel_script.scenes?.length || 0} cenas
                 </span>` : ''}
-                <a href="${item.reel_video_path.replace('./output', '/output').replace('output/', '/output/')}" download class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; text-decoration: none;">⬇️ Baixar vídeo</a>
+                <a href="${videoSrc}" download class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; text-decoration: none;">⬇️ Baixar vídeo</a>
               </div>
-            </div>
-          ` : ''}
+            </div>`;
+          })() : ''}
 
           ${item.carousel_content ? `
             <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
@@ -1134,7 +1150,10 @@ async function downloadAllSlides(contentId) {
   if (!item?.carousel_images) return;
   const images = Array.isArray(item.carousel_images) ? item.carousel_images : JSON.parse(item.carousel_images);
   for (let i = 0; i < images.length; i++) {
-    const url = images[i].replace('./output', '/output').replace('output/', '/output/');
+    let url = images[i];
+    if (url.includes('/output/')) url = '/output/' + url.split('/output/').pop();
+    else if (url.startsWith('./output')) url = url.replace('./output', '/output');
+    else if (url.startsWith('output/')) url = '/' + url;
     const a = document.createElement('a');
     a.href = url;
     a.download = `slide-${i + 1}.png`;
@@ -1180,13 +1199,17 @@ async function approveContent(id) {
 }
 
 async function rejectContent(id) {
-  const reason = await showConfirm('Motivo da rejeição:', { showInput: true, inputPlaceholder: 'Opcional: descreva por que está rejeitando...', okText: 'Rejeitar', cancelText: 'Cancelar' });
+  const reason = await showConfirm('Motivo da rejeição (obrigatório):', { showInput: true, inputPlaceholder: 'Descreva por que está rejeitando...', okText: 'Rejeitar', cancelText: 'Cancelar' });
   if (reason === false) return;
+  if (!reason || (typeof reason === 'string' && !reason.trim())) {
+    setTimeout(() => showToast('Informe o motivo da rejeição', 'error', 5000), 150);
+    return;
+  }
   try {
     await fetch(`/api/content/${id}/reject`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason: (typeof reason === 'string' ? reason : '') || 'Sem motivo informado' })
+      body: JSON.stringify({ reason: reason.trim() })
     });
     showToast('Conteúdo rejeitado', 'info');
     await loadReviewData();
@@ -1699,6 +1722,7 @@ async function submitFeedback() {
     return;
   }
 
+  const preciseMode = document.getElementById('precise-mode-toggle')?.checked || false;
   closeFeedbackModal();
 
   try {
@@ -1710,7 +1734,11 @@ async function submitFeedback() {
     });
 
     // Auto-trigger regeneration
-    const res = await fetch(`/api/content/${contentId}/regenerate`, { method: 'POST' });
+    const res = await fetch(`/api/content/${contentId}/regenerate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preciseMode })
+    });
     const data = await res.json();
 
     if (data.success) {
@@ -1764,12 +1792,18 @@ function trackRegenProgress(contentId) {
   document.body.appendChild(progressEl);
 
   let attempts = 0;
-  const previousCount = allContent.length;
 
-  const interval = setInterval(async () => {
+  // Sequential polling — waits for each request to complete before scheduling next
+  const poll = async () => {
+    if (attempts >= 60) {
+      progressEl.remove();
+      showToast('Regeneração está demorando. Recarregue a página em breve.', 'warning');
+      loadReviewData();
+      return;
+    }
     attempts++;
+
     try {
-      // Poll progress
       const progRes = await fetch(`/api/progress/${progressKey}`);
       const prog = await progRes.json();
 
@@ -1786,44 +1820,25 @@ function trackRegenProgress(contentId) {
 
         // Check if done
         if (step >= total) {
-          bar.style.background = 'linear-gradient(90deg, #22c55e, #16a34a)';
+          if (bar) bar.style.background = 'linear-gradient(90deg, #22c55e, #16a34a)';
           if (msg) msg.style.color = '#16a34a';
           setTimeout(async () => {
             progressEl.remove();
             await loadReviewData();
             showToast('Nova versão pronta!', 'success');
           }, 2000);
-          clearInterval(interval);
-          return;
+          return; // Stop polling
         }
       }
-
-      // Also check if new content appeared
-      const contentRes = await fetch('/api/content');
-      const content = await contentRes.json();
-      if (content.length > previousCount) {
-        const bar = document.getElementById(`regen-bar-${contentId}`);
-        const msg = document.getElementById(`regen-msg-${contentId}`);
-        if (bar) { bar.style.width = '100%'; bar.style.background = 'linear-gradient(90deg, #22c55e, #16a34a)'; }
-        if (msg) { msg.textContent = 'Nova versão criada!'; msg.style.color = '#16a34a'; }
-        setTimeout(async () => {
-          progressEl.remove();
-          await loadReviewData();
-          showToast('Nova versão pronta!', 'success');
-        }, 1500);
-        clearInterval(interval);
-        return;
-      }
-    } catch (e) {}
-
-    // Timeout after 2 minutes
-    if (attempts >= 60) {
-      progressEl.remove();
-      clearInterval(interval);
-      showToast('Regeneração está demorando. Recarregue a página em breve.', 'warning');
-      loadReviewData();
+    } catch (e) {
+      // Server may be busy, just retry
     }
-  }, 2000);
+
+    // Schedule next poll (sequential, not overlapping)
+    setTimeout(poll, 2500);
+  };
+
+  poll();
 }
 
 /**

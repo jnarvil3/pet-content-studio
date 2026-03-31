@@ -43,12 +43,14 @@ export class ContentWriter {
     brand: BrandConfig,
     viralInsights?: ViralInsights,
     editFeedback?: string,
-    previousContent?: CarouselContent
+    previousContent?: CarouselContent,
+    preciseMode: boolean = false
   ): Promise<CarouselContent> {
-    const prompt = this.buildCarouselPrompt(signal, brand, viralInsights, editFeedback, previousContent);
+    const prompt = this.buildCarouselPrompt(signal, brand, viralInsights, editFeedback, previousContent, preciseMode);
 
+    const model = preciseMode ? 'gpt-4o' : 'gpt-4o-mini';
     const mode = viralInsights ? 'viral-enhanced' : 'standard';
-    console.log(`[ContentWriter] Generating ${mode} carousel for signal #${signal.id}: "${signal.title}"`);
+    console.log(`[ContentWriter] Generating ${mode} carousel for signal #${signal.id}: "${signal.title}" (model: ${model})`);
 
     if (viralInsights) {
       console.log(`[ContentWriter] 🔥 Using viral insights: Top hook = ${viralInsights.recommendedHook || 'auto'}, Avg engagement = ${viralInsights.avgEngagement.toFixed(1)}%`);
@@ -56,7 +58,7 @@ export class ContentWriter {
 
     try {
       const response = await this.client.chat.completions.create({
-        model: 'gpt-4o-mini', // Cheap and fast
+        model,
         max_tokens: 2000,
         response_format: { type: 'json_object' },
         messages: [
@@ -72,6 +74,20 @@ export class ContentWriter {
       // Parse JSON response
       const result = JSON.parse(responseText);
 
+      // Precise mode: override caption and hashtags with exact user text
+      if (preciseMode && editFeedback) {
+        const quotedCaption = ContentWriter.extractQuotedText(editFeedback, 'caption');
+        if (quotedCaption) {
+          console.log(`[ContentWriter] 🎯 Precise override: replacing AI caption "${result.caption?.substring(0, 40)}..." with user's exact text "${quotedCaption}"`);
+          result.caption = quotedCaption;
+        }
+        const extractedHashtags = ContentWriter.extractHashtags(editFeedback);
+        if (extractedHashtags) {
+          console.log(`[ContentWriter] 🎯 Precise override: replacing AI hashtags with user's exact hashtags: ${extractedHashtags.join(', ')}`);
+          result.hashtags = extractedHashtags;
+        }
+      }
+
       console.log(`[ContentWriter] ✅ Generated 5-slide carousel with ${result.hashtags.length} hashtags`);
 
       return result as CarouselContent;
@@ -85,7 +101,7 @@ export class ContentWriter {
    * Build the improved system prompt for carousel generation
    * Optionally enhanced with viral insights
    */
-  private buildCarouselPrompt(signal: Signal, brand: BrandConfig, viralInsights?: ViralInsights, editFeedback?: string, previousContent?: CarouselContent): string {
+  private buildCarouselPrompt(signal: Signal, brand: BrandConfig, viralInsights?: ViralInsights, editFeedback?: string, previousContent?: CarouselContent, preciseMode: boolean = false): string {
     const services = brand.services.join(', ');
     const brandHandle = brand.handle;
 
@@ -162,6 +178,14 @@ INSTRUÇÕES DE REVISÃO:
 2. ALTERE APENAS o que foi especificamente solicitado acima
 3. A nova versão deve ser claramente diferente nos pontos solicitados
 4. Preserve o mesmo tom e estilo geral, exceto onde o cliente pediu mudança
+${preciseMode ? `
+🎯 MODO PRECISO ATIVADO — REGRAS OBRIGATÓRIAS:
+- Quando o cliente fornecer texto exato entre aspas, use esse texto LITERALMENTE — não reformule, não expanda, não adicione nada
+- Quando o cliente especificar hashtags exatas, use SOMENTE essas hashtags — não adicione extras
+- Quando o cliente pedir para substituir algo, substitua EXATAMENTE como pedido
+- Trate as instruções do cliente como comandos literais, NÃO como sugestões criativas
+- NÃO adicione conteúdo extra além do que foi solicitado
+- Se o cliente deu texto exato para a legenda, a legenda deve ser IDÊNTICA ao texto fornecido` : ''}
 
 ---
 `;
@@ -172,7 +196,9 @@ INSTRUÇÕES DE REVISÃO:
 ALTERAÇÕES SOLICITADAS PELO CLIENTE:
 ${editFeedback}
 
-Gere uma versão REVISADA que incorpore todas as alterações acima.
+${preciseMode ? `🎯 MODO PRECISO: Siga as instruções LITERALMENTE. Texto entre aspas deve ser usado VERBATIM. Hashtags especificadas devem ser as ÚNICAS usadas. Não adicione conteúdo extra.
+
+` : ''}Gere uma versão REVISADA que incorpore todas as alterações acima.
 
 ---
 `;
@@ -310,9 +336,45 @@ OUTPUT FORMAT (return ONLY valid JSON):
 
 IMPORTANT:
 - pexelsSearchQuery must be 2-5 words, specific to slide topic, always include dog/pet term
-- caption should be 50-120 words. Start with question or bold statement
-- Include exactly 5 hashtags: 2 broad, 2 medium, 1 niche
+${preciseMode && editFeedback ? `- 🎯 CAPTION: If the client provided exact caption text in quotes, use THAT TEXT EXACTLY as the "caption" value. Do NOT generate your own caption. Copy it character-for-character.
+- 🎯 HASHTAGS: If the client specified exact hashtags, use ONLY those hashtags. Ignore the "5 hashtags" rule below.` : `- caption should be 50-120 words. Start with question or bold statement
+- Include exactly 5 hashtags: 2 broad, 2 medium, 1 niche`}
 - hookFormula must be one of: curiosity_gap, contrarian, mistake_hook, personal_specific, question_hook, number_outcome
 - The stat on slide 3 should have "number" as prominent display value and "context" as supporting text`;
+  }
+
+  /**
+   * Extract quoted text from user feedback for precise mode override
+   */
+  static extractQuotedText(feedback: string, field: string): string | null {
+    // Match patterns like: Replace the caption with EXACTLY this text: "some text here"
+    // or: caption: "some text here"
+    // Supports straight quotes ("), curly quotes (\u201c\u201d), and guillemets
+    const patterns = [
+      new RegExp(`(?:caption|legenda).*?(?:EXACTLY|EXATAMENTE|exactly)?[:\\s]*["""\u201c]([^"""\u201d]+)["""\u201d]`, 'i'),
+      new RegExp(`(?:text|texto)[:\\s]*["""\u201c]([^"""\u201d]+)["""\u201d]`, 'i'),
+    ];
+    if (field === 'caption') {
+      for (const pattern of patterns) {
+        const match = feedback.match(pattern);
+        if (match) return match[1];
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Extract exact hashtags from user feedback for precise mode override
+   */
+  static extractHashtags(feedback: string): string[] | null {
+    // Match patterns like: "hashtags to EXACTLY: #agility #treinopet #cachorro"
+    const match = feedback.match(/hashtags?\s+(?:to\s+)?(?:EXACTLY|EXATAMENTE|exactly)[:\s]+([#\w\s]+?)(?:\.|$|\n)/i);
+    if (match) {
+      const hashtags = match[1].match(/#\w+/g);
+      if (hashtags && hashtags.length > 0) {
+        return hashtags.map(h => h.replace('#', ''));
+      }
+    }
+    return null;
   }
 }

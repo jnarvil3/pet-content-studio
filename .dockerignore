@@ -1,6 +1,7 @@
 node_modules
 .git
 .env
+.env.local
 *.md
 src/tests
 output/carousels
@@ -9,3 +10,6 @@ output/cache
 data/*.db
 data/*.db-wal
 data/*.db-shm
+railway.toml
+docker-compose.yml
+.DS_Store

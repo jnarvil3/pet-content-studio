@@ -757,6 +757,16 @@
         <textarea id="feedback-text" rows="4" style="width:100%; padding:0.75rem; border:2px solid #e0e0e0; border-radius:8px; font-size:1rem; resize:vertical; font-family:inherit;" placeholder="Descreva as alterações que você deseja..."></textarea>
       </div>
       <div id="feedback-history" style="margin-bottom:1.5rem;"></div>
+      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.5rem; padding:1rem; border:2px solid #e0e0e0; border-radius:10px;" id="precise-mode-container">
+        <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; flex:1;">
+          <input type="checkbox" id="precise-mode-toggle" style="width:18px; height:18px; accent-color:#7c3aed; cursor:pointer;">
+          <div>
+            <div style="font-weight:600; color:#333; font-size:0.9rem;">🎯 Edição Precisa</div>
+            <div style="font-size:0.75rem; color:#666;">Modelo premium — segue instruções específicas com mais fidelidade</div>
+          </div>
+        </label>
+        <span id="precise-mode-cost" style="font-size:0.75rem; color:#7c3aed; font-weight:600; white-space:nowrap;">~10x custo</span>
+      </div>
       <div style="display:flex; gap:1rem; justify-content:flex-end;">
         <button class="btn btn-secondary" onclick="closeFeedbackModal()" data-i18n="feedback.cancel">Cancelar</button>
         <button class="btn btn-primary" onclick="submitFeedback()" data-i18n="feedback.submit">Enviar e Solicitar Revisao</button>
@@ -765,6 +775,6 @@
   </div>
 
   <script src="/i18n.js"></script>
-  <script src="/studio.js"></script>
+  <script src="/studio.js?v=8"></script>
 </body>
 </html>

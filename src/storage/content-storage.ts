@@ -375,17 +375,22 @@ export class ContentStorage {
   /**
    * Parse database row to GeneratedContent
    */
+  private safeParse(str: string | null | undefined): any {
+    if (!str) return undefined;
+    try { return JSON.parse(str); } catch { return undefined; }
+  }
+
   private parseContent(row: any): GeneratedContent {
     return {
       id: row.id,
       signal_id: row.signal_id,
       content_type: row.content_type,
       status: row.status,
-      carousel_content: row.carousel_content ? JSON.parse(row.carousel_content) : undefined,
-      carousel_images: row.carousel_images ? JSON.parse(row.carousel_images) : undefined,
-      reel_script: row.reel_script ? JSON.parse(row.reel_script) : undefined,
+      carousel_content: this.safeParse(row.carousel_content),
+      carousel_images: this.safeParse(row.carousel_images),
+      reel_script: this.safeParse(row.reel_script),
       reel_video_path: row.reel_video_path || undefined,
-      linkedin_content: row.linkedin_content ? JSON.parse(row.linkedin_content) : undefined,
+      linkedin_content: this.safeParse(row.linkedin_content),
       version: row.version || 1,
       parent_id: row.parent_id || undefined,
       source_url: row.source_url || undefined,

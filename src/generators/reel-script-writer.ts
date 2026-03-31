@@ -178,6 +178,11 @@ INSTRUÇÕES DE REVISÃO:
 2. ALTERE APENAS o que foi especificamente solicitado
 3. Preserve o mesmo tom e estilo, exceto onde pedido
 4. A narração revisada deve ter duração similar (~${previousScript.totalDurationTarget}s)
+${this.modelPreference === 'claude-sonnet-4' ? `
+🎯 MODO PRECISO ATIVADO:
+- Texto exato entre aspas deve ser usado LITERALMENTE — não reformule, não expanda
+- Trate instruções como comandos literais, NÃO sugestões criativas
+- NÃO adicione conteúdo extra além do solicitado` : ''}
 
 ---
 `;
@@ -188,7 +193,7 @@ INSTRUÇÕES DE REVISÃO:
 ALTERAÇÕES SOLICITADAS PELO CLIENTE:
 ${editFeedback}
 
-Gere uma versão REVISADA que incorpore todas as alterações acima.
+${this.modelPreference === 'claude-sonnet-4' ? '🎯 MODO PRECISO: Siga instruções LITERALMENTE. Texto entre aspas = VERBATIM. Sem conteúdo extra.\n' : ''}Gere uma versão REVISADA que incorpore todas as alterações acima.
 
 ---
 `;

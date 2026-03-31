@@ -153,11 +153,26 @@ app.get('/api/content', (req, res) => {
       content = [...pending, ...revision, ...approved, ...rejected, ...published];
     }
 
+    // Normalize image paths: convert absolute filesystem paths to /output/... URLs
+    const outputBase = path.resolve('output');
+    const normalizePaths = (paths: string[] | undefined): string[] | undefined => {
+      if (!paths) return paths;
+      return paths.map(p => {
+        if (p.includes(outputBase)) {
+          return '/output' + p.split(outputBase)[1];
+        }
+        if (p.startsWith('./output')) return p.replace('./output', '/output');
+        if (p.startsWith('output/')) return '/' + p;
+        return p;
+      });
+    };
+
     // Enrich with signal info
     const enriched = content.map(item => {
       const signal = intelConnector.getSignal(item.signal_id);
       return {
         ...item,
+        carousel_images: normalizePaths(item.carousel_images as any),
         signal: signal ? {
           title: signal.title,
           source: signal.source,
@@ -183,10 +198,23 @@ app.get('/api/content/:id', (req, res) => {
       return res.status(404).json({ error: 'Content not found' });
     }
 
+    // Normalize image paths
+    const outputBase = path.resolve('output');
+    const normalizeImagePaths = (paths: string[] | undefined): string[] | undefined => {
+      if (!paths) return paths;
+      return paths.map(p => {
+        if (p.includes(outputBase)) return '/output' + p.split(outputBase)[1];
+        if (p.startsWith('./output')) return p.replace('./output', '/output');
+        if (p.startsWith('output/')) return '/' + p;
+        return p;
+      });
+    };
+
     // Enrich with signal info
     const signal = intelConnector.getSignal(content.signal_id);
     const enriched = {
       ...content,
+      carousel_images: normalizeImagePaths(content.carousel_images as any),
       signal: signal ? {
         title: signal.title,
         description: signal.description,
@@ -305,6 +333,11 @@ app.get('/api/content/:id/versions', (req, res) => {
 app.post('/api/content/:id/regenerate', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    const preciseMode = req.body?.preciseMode === true;
+    const genKey = `regen-${id}`;
+    if (activeGenerations.has(genKey)) {
+      return res.status(409).json({ error: 'Regeneração já em andamento para este conteúdo' });
+    }
     const original = contentStorage.get(id);
 
     if (!original) {
@@ -326,11 +359,13 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
     }
 
     // Start regeneration in background
-    res.json({ success: true, message: 'Regeneration started', signalId: signal.id, contentType: original.content_type });
+    activeGenerations.add(genKey);
+    if (preciseMode) console.log(`[Server] 🎯 Precise mode enabled for regeneration of content #${id}`);
+    res.json({ success: true, message: 'Regeneration started', signalId: signal.id, contentType: original.content_type, preciseMode });
 
     // Track progress for this regeneration
     const progressKey = `regen-${id}`;
-    progressMap.set(progressKey, { step: 1, totalSteps: 5, message: 'Iniciando regeneração...' });
+    progressMap.set(progressKey, { step: 1, totalSteps: 5, message: preciseMode ? '🎯 Iniciando regeneração precisa...' : 'Iniciando regeneração...' });
 
     (async () => {
       try {
@@ -346,9 +381,10 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
 
           try {
             progressMap.set(progressKey, { step: 2, totalSteps: 5, message: 'Gerando texto com IA (incorporando feedback)...' });
-            const result = await generator.generate(signal, true, feedbackText, original.carousel_content);
+            const newVersion = (original.version || 1) + 1;
+            const result = await generator.generate(signal, true, feedbackText, original.carousel_content, newVersion, preciseMode);
             progressMap.set(progressKey, { step: 4, totalSteps: 5, message: 'Salvando nova versão...' });
-            result.content.version = (original.version || 1) + 1;
+            result.content.version = newVersion;
             result.content.parent_id = original.id;
             const newId = contentStorage.save(result.content);
             progressMap.set(progressKey, { step: 5, totalSteps: 5, message: 'Carrossel v' + result.content.version + ' pronto!' });
@@ -358,7 +394,7 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
           }
         } else if (original.content_type === 'reel') {
           const { ReelGenerator } = await import('./generators/reel-generator');
-          const generator = new ReelGenerator(brand, './output/reels');
+          const generator = new ReelGenerator(brand, './output/reels', preciseMode ? 'claude-sonnet-4' : undefined);
 
           const onProgress = (step: number, totalSteps: number, message: string) => {
             const msgMap: Record<string, string> = {
@@ -381,7 +417,7 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
           const { LinkedInWriter } = await import('./generators/linkedin-writer');
           progressMap.set(progressKey, { step: 2, totalSteps: 3, message: 'Gerando post LinkedIn com IA...' });
           const writer = new LinkedInWriter();
-          const linkedinContent = await writer.generatePost(signal, brand, feedbackText, original.linkedin_content);
+          const linkedinContent = await writer.generatePost(signal, brand, feedbackText, original.linkedin_content, preciseMode);
           const content = {
             signal_id: signal.id,
             content_type: 'linkedin' as const,
@@ -397,10 +433,13 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
         }
 
         // Mark feedback as addressed ONLY after successful regeneration
+        console.log(`[Server] Marking ${pendingFeedback.length} feedback items as addressed for content type: ${original.content_type}`);
         for (const fb of pendingFeedback) {
-          if (fb.id) contentStorage.addressFeedback(fb.id);
+          if (fb.id) {
+            contentStorage.addressFeedback(fb.id);
+            console.log(`[Server] ✅ Marked feedback #${fb.id} as addressed`);
+          }
         }
-        console.log(`[Server] Marked ${pendingFeedback.length} feedback items as addressed`);
 
         // Keep progress visible for 10s then clear
         setTimeout(() => progressMap.delete(progressKey), 10000);
@@ -409,6 +448,8 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
         // DON'T mark feedback as addressed — it stays pending for retry
         progressMap.set(progressKey, { step: 0, totalSteps: 1, message: `Erro: ${error.message}` });
         setTimeout(() => progressMap.delete(progressKey), 15000);
+      } finally {
+        activeGenerations.delete(genKey);
       }
     })();
   } catch (error: any) {
@@ -1233,6 +1274,15 @@ app.listen(PORT, () => {
   console.log('  GET  /api/help/info              - Platform & API info');
   console.log();
   console.log('='.repeat(60));
+});
+
+// Prevent crashes from unhandled errors
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Server] Unhandled promise rejection:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('[Server] Uncaught exception:', error);
 });
 
 // Cleanup on exit
