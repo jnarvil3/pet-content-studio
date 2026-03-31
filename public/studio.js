@@ -991,7 +991,17 @@ function viewCompletedReel() {
 async function loadReviewData() {
   try {
     const response = await fetch('/api/content');
-    allContent = await response.json();
+    const rawContent = await response.json();
+
+    // Only show the latest version per signal (hide superseded versions)
+    const latestBySignal = {};
+    rawContent.forEach(item => {
+      const key = item.signal_id || item.id; // custom topics have no signal_id
+      if (!latestBySignal[key] || item.version > latestBySignal[key].version) {
+        latestBySignal[key] = item;
+      }
+    });
+    allContent = Object.values(latestBySignal);
 
     // Update filter button counts
     const counts = { all: allContent.length };
