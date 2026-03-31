@@ -88,6 +88,7 @@ export class ReelGenerator {
       viralVideoId?: number;
       viralTitle?: string;
       viralContentAngle?: string;
+      withAudio?: boolean;
     },
     editFeedback?: string,
     previousScript?: ReelScript
@@ -118,16 +119,24 @@ export class ReelGenerator {
         }
       });
 
-      // Step 3: Generate TTS audio for each scene
-      onProgress?.(2, 5, 'Generating voiceover...', 40);
-      console.log('[ReelGenerator] Step 2/5: Generating voiceover audio...');
-      const narrations = script.scenes.map(scene => scene.narration);
-      const audioPaths = await this.tts.generateSceneAudio(
-        narrations,
-        audioDir,
-        `scene`,
-        {}
-      );
+      const withAudio = options?.withAudio !== false && this.tts.isEnabled();
+
+      // Step 3: Generate TTS audio for each scene (if audio enabled)
+      let audioPaths: string[] = [];
+      if (withAudio) {
+        onProgress?.(2, 5, 'Generating voiceover...', 40);
+        console.log('[ReelGenerator] Step 2/5: Generating voiceover audio...');
+        const narrations = script.scenes.map(scene => scene.narration);
+        audioPaths = await this.tts.generateSceneAudio(
+          narrations,
+          audioDir,
+          `scene`,
+          {}
+        );
+      } else {
+        onProgress?.(2, 5, 'Skipping audio (no-audio mode)...', 40);
+        console.log('[ReelGenerator] Step 2/5: Skipping audio (no-audio mode)');
+      }
 
       // Step 4: Fetch B-roll videos
       onProgress?.(3, 5, 'Fetching B-roll videos...', 30);
@@ -149,12 +158,20 @@ export class ReelGenerator {
       console.log('[ReelGenerator] Step 4/5: Compositing video with FFmpeg...');
       const finalVideoPath = path.join(reelDir, `reel-final.mp4`);
 
-      await this.composeReelWithFFmpeg(
-        script,
-        audioPaths,
-        videoPaths,
-        finalVideoPath
-      );
+      if (withAudio && audioPaths.length > 0) {
+        await this.composeReelWithFFmpeg(
+          script,
+          audioPaths,
+          videoPaths,
+          finalVideoPath
+        );
+      } else {
+        await this.composeReelNoAudio(
+          script,
+          videoPaths,
+          finalVideoPath
+        );
+      }
 
       // Step 6: Generate thumbnail
       onProgress?.(5, 5, 'Finalizing...', 5);
@@ -367,6 +384,83 @@ export class ReelGenerator {
       console.log(`[ReelGenerator] ✅ Video composed: ${path.basename(outputPath)}`);
     } catch (error: any) {
       console.error('[ReelGenerator] Error composing video:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Compose reel without audio — uses script duration estimates
+   */
+  private async composeReelNoAudio(
+    script: ReelScript,
+    videoPaths: string[],
+    outputPath: string
+  ): Promise<void> {
+    try {
+      const workDir = path.dirname(outputPath);
+      const sceneVideos: string[] = [];
+
+      for (let i = 0; i < script.scenes.length; i++) {
+        const videoPath = videoPaths[i];
+        const sceneDuration = script.scenes[i].durationEstimate || 5;
+
+        if (!videoPath || !fs.existsSync(videoPath)) {
+          console.warn(`[ReelGenerator] Missing video for scene ${i + 1}, skipping`);
+          continue;
+        }
+
+        const { stdout: videoDurationStr } = await execAsync(
+          `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${videoPath}"`
+        );
+        const videoDuration = parseFloat(videoDurationStr.trim());
+
+        const sceneVideoPath = path.join(workDir, `scene-${i + 1}-processed.mp4`);
+        let videoFilter = 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920';
+
+        // Add text overlay with narration text (since there's no audio)
+        if (this.hasDrawtext && script.scenes[i].narration) {
+          const captionText = this.escapeFFmpegText(script.scenes[i].narration);
+          videoFilter += `,drawtext=fontfile=${process.env.FFMPEG_FONT || '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'}:text='${captionText}':fontcolor=white:fontsize=48:` +
+            `box=1:boxcolor=black@0.7:boxborderw=15:x=(w-text_w)/2:y=h-150`;
+        }
+
+        let ffmpegCmd: string;
+        if (videoDuration < sceneDuration) {
+          ffmpegCmd = `ffmpeg -y -stream_loop -1 -i "${videoPath}" -t ${sceneDuration} ` +
+            `-vf "${videoFilter}" -c:v libx264 -preset fast -crf 23 -r 25 -an "${sceneVideoPath}" < /dev/null`;
+        } else {
+          const seekStart = Math.max(0, (videoDuration - sceneDuration) / 2);
+          ffmpegCmd = `ffmpeg -y -ss ${seekStart.toFixed(2)} -i "${videoPath}" -t ${sceneDuration} ` +
+            `-vf "${videoFilter}" -c:v libx264 -preset fast -crf 23 -r 25 -an "${sceneVideoPath}" < /dev/null`;
+        }
+
+        await execAsync(ffmpegCmd);
+        sceneVideos.push(sceneVideoPath);
+        console.log(`[ReelGenerator] Processed scene ${i + 1} (${sceneDuration}s, no audio)`);
+      }
+
+      if (sceneVideos.length === 0) {
+        throw new Error('No scene videos were processed');
+      }
+
+      // Concatenate scenes
+      if (sceneVideos.length === 1) {
+        await execAsync(`ffmpeg -y -i "${sceneVideos[0]}" -c copy "${outputPath}" < /dev/null`);
+      } else {
+        const videoListPath = path.join(workDir, 'video-list.txt');
+        const videoList = sceneVideos.map(p => `file '${path.resolve(p)}'`).join('\n');
+        fs.writeFileSync(videoListPath, videoList);
+        await execAsync(
+          `ffmpeg -y -f concat -safe 0 -i "${videoListPath}" -c:v libx264 -preset fast -crf 23 -r 25 "${outputPath}" < /dev/null`
+        );
+        if (fs.existsSync(videoListPath)) fs.unlinkSync(videoListPath);
+      }
+
+      // Cleanup
+      sceneVideos.forEach(f => { if (fs.existsSync(f)) fs.unlinkSync(f); });
+      console.log(`[ReelGenerator] ✅ Video composed (no audio): ${path.basename(outputPath)}`);
+    } catch (error: any) {
+      console.error('[ReelGenerator] Error composing video (no audio):', error.message);
       throw error;
     }
   }

@@ -715,6 +715,12 @@ async function loadCreateData() {
           'create-reel-btn': 'reel',
           'create-linkedin-btn': 'linkedin'
         };
+        // Show/hide audio toggle for reels
+        const audioToggle = document.getElementById('reel-audio-toggle');
+        if (audioToggle) {
+          audioToggle.style.display = typeMap[btn.id] === 'reel' ? 'block' : 'none';
+        }
+
         generateContent(typeMap[btn.id]);
       });
     });
@@ -825,6 +831,12 @@ async function generateContent(type) {
       };
     } else {
       requestBody.signalId = parseInt(signalId);
+    }
+
+    // Add audio preference for reels
+    if (type === 'reel') {
+      const audioCheckbox = document.getElementById('reel-with-audio');
+      requestBody.withAudio = audioCheckbox ? audioCheckbox.checked : true;
     }
 
     // Add viral pattern if selected
