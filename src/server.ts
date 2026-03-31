@@ -1349,6 +1349,20 @@ app.get('/api/debug/signals', (req, res) => {
   }
 });
 
+// Reset bad scores so they can be re-scored after API key fix
+app.post('/api/debug/reset-scores', (req, res) => {
+  try {
+    const Database = require('better-sqlite3');
+    const dbPath = require('path').join(process.cwd(), 'data', 'signals.db');
+    const db = new Database(dbPath);
+    const result = db.prepare("UPDATE signals SET relevance_score = NULL, relevance_reason = NULL, is_relevant = 0, scored_at = NULL WHERE relevance_reason LIKE 'Error%'").run();
+    db.close();
+    res.json({ reset: result.changes, message: `Reset ${result.changes} failed scores. Run collection again to re-score.` });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Create snapshot on demand (for saving current trends to history)
 app.post('/api/trending/snapshot', async (req, res) => {
   try {
