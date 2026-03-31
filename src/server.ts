@@ -1317,6 +1317,38 @@ app.get('/api/debug/feeds', async (req, res) => {
   }
 });
 
+// Debug endpoint: direct DB query to diagnose signal visibility
+app.get('/api/debug/signals', (req, res) => {
+  try {
+    const Database = require('better-sqlite3');
+    const dbPath = require('path').join(process.cwd(), 'data', 'signals.db');
+    const fs = require('fs');
+    const exists = fs.existsSync(dbPath);
+    if (!exists) {
+      return res.json({ error: 'signals.db does not exist', path: dbPath, cwd: process.cwd() });
+    }
+    const db = new Database(dbPath);
+    const total = db.prepare('SELECT COUNT(*) as c FROM signals').get();
+    const scored = db.prepare('SELECT COUNT(*) as c FROM signals WHERE scored_at IS NOT NULL').get();
+    const relevant = db.prepare('SELECT COUNT(*) as c FROM signals WHERE is_relevant = 1').get();
+    const sample = db.prepare('SELECT id, title, relevance_score, is_relevant, scored_at FROM signals WHERE scored_at IS NOT NULL ORDER BY relevance_score DESC LIMIT 5').all();
+    db.close();
+    res.json({
+      dbPath,
+      cwd: process.cwd(),
+      exists,
+      total: total.c,
+      scored: scored.c,
+      relevant: relevant.c,
+      intelConnectorHasDb: !!(intelConnector as any).db,
+      intelConnectorPath: (intelConnector as any).dbPath,
+      sample
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+
 // Create snapshot on demand (for saving current trends to history)
 app.post('/api/trending/snapshot', async (req, res) => {
   try {
