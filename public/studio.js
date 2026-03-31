@@ -1115,9 +1115,12 @@ async function displayReviewContent(filter) {
                 if (img.includes('/output/')) imgUrl = '/output/' + img.split('/output/').pop();
                 else if (img.startsWith('./output')) imgUrl = img.replace('./output', '/output');
                 else if (img.startsWith('output/')) imgUrl = '/' + img;
+                const slideTitle = item.carousel_content?.slides?.[idx]?.title || '';
+                const safeTitleAttr = slideTitle.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
                 return `
                 <div style="position: relative; flex-shrink: 0;">
-                  <img src="${imgUrl}" alt="Slide ${idx+1} do carrossel" style="height: 140px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                  <img src="${imgUrl}" alt="Slide ${idx+1} do carrossel" style="height: 140px; border-radius: 8px; border: 2px solid #e0e0e0;"
+                    onerror="this.onerror=null;var p=document.createElement('div');p.style.cssText='height:140px;width:140px;border-radius:8px;border:2px solid #e0e0e0;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0.75rem;box-sizing:border-box;';var num=document.createElement('div');num.style.cssText='font-size:1.5rem;font-weight:700;color:rgba(255,255,255,0.9);margin-bottom:0.25rem;';num.textContent='${idx+1}';p.appendChild(num);var t=document.createElement('div');t.style.cssText='font-size:0.65rem;color:rgba(255,255,255,0.85);text-align:center;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;';t.textContent='${safeTitleAttr}';p.appendChild(t);this.parentNode.replaceChild(p,this);">
                   <div style="position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px;">${idx+1}/5</div>
                   <a href="${imgUrl}" download style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 0.7rem; padding: 3px 6px; border-radius: 4px; text-decoration: none; cursor: pointer;" title="Baixar slide ${idx+1}">⬇</a>
                 </div>
@@ -1593,20 +1596,29 @@ async function triggerCollection() {
   progressBar.style.width = '10%';
 
   try {
-    const response = await fetch('/api/collection/trigger', { method: 'POST' });
-    const result = await response.json();
+    // Step 1: Seed trending demo data (instant — populates viral_signals table)
+    statusText.textContent = 'Coletando dados de tendências...';
+    progressBar.style.width = '40%';
+    const seedResponse = await fetch('/api/trending/collect', { method: 'POST' });
+    const seedResult = await seedResponse.json();
 
-    if (result.success) {
-      // Show success feedback immediately instead of polling SSE
-      statusText.textContent = 'Coleta iniciada com sucesso!';
+    // Step 2: Also trigger the regular RSS/intelligence collection in background
+    progressBar.style.width = '70%';
+    statusText.textContent = 'Iniciando coleta de sinais...';
+    const collectionResponse = await fetch('/api/collection/trigger', { method: 'POST' });
+    const collectionResult = await collectionResponse.json();
+
+    if (seedResult.success || collectionResult.success) {
+      statusText.textContent = 'Dados coletados com sucesso!';
       progressBar.style.width = '100%';
 
-      showToast('Coleta iniciada com sucesso! Os dados serão atualizados em breve.', 'success');
+      const countMsg = seedResult.count ? ` ${seedResult.count} vídeos em alta carregados.` : '';
+      showToast('Tendências atualizadas!' + countMsg, 'success');
 
       // Show inline status near the button
       const refreshStatus = document.getElementById('refresh-status');
       refreshStatus.style.display = 'block';
-      refreshStatus.textContent = '✅ Coleta iniciada com sucesso! Os dados serão atualizados em breve.';
+      refreshStatus.textContent = '✅ Tendências atualizadas!' + countMsg;
 
       // Hide progress bar after a short delay
       setTimeout(() => {
@@ -1618,22 +1630,22 @@ async function triggerCollection() {
         btn.disabled = false;
         btn.textContent = '🔄 Atualizar Tendências';
         btn.style.opacity = '1';
-      }, 5000);
+      }, 3000);
 
-      // Reload data after a delay to pick up new results
+      // Reload data immediately (demo data is already in the DB)
+      loadSignalsList();
+      loadVideosList();
+      loadHooksList();
       setTimeout(() => {
-        loadSignalsList();
-        loadVideosList();
-        loadHooksList();
         refreshStatus.textContent = '✓ Dados recarregados';
         setTimeout(() => { refreshStatus.style.display = 'none'; }, 5000);
-      }, 15000);
+      }, 2000);
     } else {
       progressDiv.style.display = 'none';
       btn.disabled = false;
       btn.textContent = '🔄 Atualizar Tendências';
       btn.style.opacity = '1';
-      showToast('Erro ao iniciar coleta: ' + (result.error || 'Erro desconhecido'), 'error');
+      showToast('Erro ao iniciar coleta: ' + (seedResult.error || collectionResult.error || 'Erro desconhecido'), 'error');
     }
 
   } catch (error) {

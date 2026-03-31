@@ -62,8 +62,9 @@ app.get('/index.html', (_req, res) => res.redirect('/studio.html'));
 app.get('/demo.html', (_req, res) => res.redirect('/studio.html'));
 app.use(express.static('public'));
 
-// Serve generated images
-app.use('/output', express.static('output'));
+// Serve generated images (from Railway volume at /app/data/output/)
+const OUTPUT_DIR = path.join(process.cwd(), 'data', 'output');
+app.use('/output', express.static(OUTPUT_DIR));
 
 // Initialize storage
 const contentStorage = new ContentStorage();
@@ -158,13 +159,16 @@ app.get('/api/content', (req, res) => {
     }
 
     // Normalize image paths: convert absolute filesystem paths to /output/... URLs
-    const outputBase = path.resolve('output');
+    const outputBase = path.resolve('data', 'output');
     const normalizePaths = (paths: string[] | undefined): string[] | undefined => {
       if (!paths) return paths;
       return paths.map(p => {
         if (p.includes(outputBase)) {
           return '/output' + p.split(outputBase)[1];
         }
+        if (p.startsWith('./data/output')) return p.replace('./data/output', '/output');
+        if (p.startsWith('data/output/')) return '/' + p.replace('data/output/', 'output/');
+        // Legacy fallback for paths stored before migration
         if (p.startsWith('./output')) return p.replace('./output', '/output');
         if (p.startsWith('output/')) return '/' + p;
         return p;
@@ -203,11 +207,14 @@ app.get('/api/content/:id', (req, res) => {
     }
 
     // Normalize image paths
-    const outputBase = path.resolve('output');
+    const outputBase = path.resolve('data', 'output');
     const normalizeImagePaths = (paths: string[] | undefined): string[] | undefined => {
       if (!paths) return paths;
       return paths.map(p => {
         if (p.includes(outputBase)) return '/output' + p.split(outputBase)[1];
+        if (p.startsWith('./data/output')) return p.replace('./data/output', '/output');
+        if (p.startsWith('data/output/')) return '/' + p.replace('data/output/', 'output/');
+        // Legacy fallback for paths stored before migration
         if (p.startsWith('./output')) return p.replace('./output', '/output');
         if (p.startsWith('output/')) return '/' + p;
         return p;
@@ -386,7 +393,7 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
           const { CarouselGenerator } = await import('./generators/carousel-generator');
 
           progressMap.set(progressKey, { step: 1, totalSteps: 5, message: 'Preparando gerador de carrossel...' });
-          const generator = new CarouselGenerator(brand, './output/carousels');
+          const generator = new CarouselGenerator(brand, path.join(process.cwd(), 'data', 'output', 'carousels'));
           await generator.initialize();
 
           try {
@@ -404,7 +411,7 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
           }
         } else if (original.content_type === 'reel') {
           const { ReelGenerator } = await import('./generators/reel-generator');
-          const generator = new ReelGenerator(brand, './output/reels', preciseMode ? 'claude-sonnet-4' : undefined);
+          const generator = new ReelGenerator(brand, path.join(process.cwd(), 'data', 'output', 'reels'), preciseMode ? 'claude-sonnet-4' : undefined);
 
           const onProgress = (step: number, totalSteps: number, message: string) => {
             const msgMap: Record<string, string> = {
@@ -814,7 +821,7 @@ app.post('/api/generate-reel', async (req, res) => {
     // Generate reels asynchronously
     (async () => {
       const brand = getBrandConfig();
-      const generator = new ReelGenerator(brand, './output/reels', aiModel);
+      const generator = new ReelGenerator(brand, path.join(process.cwd(), 'data', 'output', 'reels'), aiModel);
 
       // Check FFmpeg
       const hasFFmpeg = await generator.checkFFmpeg();
@@ -941,7 +948,7 @@ app.post('/api/generate', async (req, res) => {
     // Generate carousels asynchronously
     (async () => {
       const brand = getBrandConfig();
-      const generator = new CarouselGenerator(brand, './output/carousels');
+      const generator = new CarouselGenerator(brand, path.join(process.cwd(), 'data', 'output', 'carousels'));
       await generator.initialize();
 
       try {
@@ -1210,6 +1217,21 @@ app.get('/api/trending/hooks', async (req, res) => {
   }
 });
 
+// Seed trending data with realistic demo content (for client demos / empty databases)
+app.post('/api/trending/collect', async (req, res) => {
+  try {
+    const count = viralConnector.seedDemoData();
+    res.json({
+      success: true,
+      message: `Seeded ${count} trending videos and hooks with realistic pet content data.`,
+      count
+    });
+  } catch (error: any) {
+    console.error('[Trending Collect] Error seeding demo data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Help / API info endpoint
 app.get('/api/help/info', (req, res) => {
   res.json({
@@ -1425,6 +1447,7 @@ app.listen(PORT, () => {
   console.log('  GET  /api/viral/insights         - Get viral trends & insights');
   console.log('  GET  /api/trending/videos        - Trending videos (pet/all, time periods)');
   console.log('  GET  /api/trending/hooks         - Trending hooks (pet/all, time periods)');
+  console.log('  POST /api/trending/collect       - Seed demo trending data');
   console.log('  POST /api/trending/snapshot      - Save current trends to history');
   console.log('  POST /api/collection/trigger     - Trigger new data collection');
   console.log('  GET  /api/collection/status/:id  - Collection progress (SSE)');

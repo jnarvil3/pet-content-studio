@@ -24,8 +24,8 @@ RUN npm ci --legacy-peer-deps
 # Copy source
 COPY . .
 
-# Create data directory for SQLite
-RUN mkdir -p /app/data /app/output/carousels /app/output/reels /app/config
+# Create data directory for SQLite and persistent output (Railway volume at /app/data)
+RUN mkdir -p /app/data/output/carousels /app/data/output/reels /app/config
 
 # Railway sets PORT dynamically
 EXPOSE ${PORT:-3001}

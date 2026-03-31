@@ -30,7 +30,7 @@ export class PexelsVideoService {
   private baseUrl = 'https://api.pexels.com/videos';
   private cacheDir: string;
 
-  constructor(cacheDir: string = './output/cache/pexels-videos') {
+  constructor(cacheDir: string = path.join(process.cwd(), 'data', 'output', 'cache', 'pexels-videos')) {
     this.apiKey = process.env.PEXELS_API_KEY || '';
     this.cacheDir = cacheDir;
 

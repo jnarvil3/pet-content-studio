@@ -28,7 +28,7 @@ export class CarouselGenerator {
   private brand: BrandConfig;
   private outputDir: string;
 
-  constructor(brand: BrandConfig, outputDir: string = './output/carousels') {
+  constructor(brand: BrandConfig, outputDir: string = path.join(process.cwd(), 'data', 'output', 'carousels')) {
     this.brand = brand;
     this.writer = new ContentWriter();
     this.template = new CarouselTemplate(brand);

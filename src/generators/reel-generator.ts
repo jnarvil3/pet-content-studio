@@ -34,7 +34,7 @@ export class ReelGenerator {
 
   constructor(
     brand: BrandConfig,
-    outputDir: string = './output/reels',
+    outputDir: string = path.join(process.cwd(), 'data', 'output', 'reels'),
     aiModel?: 'claude-sonnet-4' | 'gpt-4o-mini'
   ) {
     this.brand = brand;

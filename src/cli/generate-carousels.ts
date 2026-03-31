@@ -11,6 +11,7 @@ import { IntelConnector } from '../storage/intel-connector';
 import { ContentStorage } from '../storage/content-storage';
 import { CarouselGenerator } from '../generators/carousel-generator';
 import { getBrandConfig } from '../config/brand-config';
+import * as path from 'path';
 
 async function main() {
   console.log('='.repeat(60));
@@ -47,7 +48,7 @@ async function main() {
   });
 
   // Initialize carousel generator
-  const generator = new CarouselGenerator(brand, './output/carousels');
+  const generator = new CarouselGenerator(brand, path.join(process.cwd(), 'data', 'output', 'carousels'));
   await generator.initialize();
 
   try {
@@ -105,7 +106,7 @@ async function main() {
     }
 
     console.log('💡 Next steps:');
-    console.log('   1. Review generated carousels in ./output/carousels/');
+    console.log('   1. Review generated carousels in ./data/output/carousels/');
     console.log('   2. Approve/reject content using the approval API (coming soon)');
     console.log('   3. Publish approved content to Instagram');
     console.log();
