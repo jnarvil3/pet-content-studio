@@ -351,12 +351,12 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
 
     // Use feedback from request body (primary) or fall back to stored pending feedback
     let feedbackText = '';
+    const feedback = contentStorage.getFeedback(id);
+    const pendingFeedback = feedback.filter((f: any) => f.status === 'pending');
     if (bodyFeedback) {
       feedbackText = bodyFeedback;
     } else {
-      const feedback = contentStorage.getFeedback(id);
-      const pendingFeedback = feedback.filter(f => f.status === 'pending');
-      feedbackText = pendingFeedback.map((f, i) => `Alteração #${i + 1}: ${f.feedback_text}`).join('\n');
+      feedbackText = pendingFeedback.map((f: any, i: number) => `Alteração #${i + 1}: ${f.feedback_text}`).join('\n');
     }
 
     if (!feedbackText) {
