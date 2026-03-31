@@ -104,7 +104,9 @@ export class ReelScriptWriter {
         throw new Error('No AI client configured');
       }
 
-      const result = JSON.parse(responseText);
+      // Strip markdown code fences if present (Claude sometimes wraps JSON in ```json ... ```)
+      const cleaned = responseText.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+      const result = JSON.parse(cleaned);
 
       console.log(`[ReelScriptWriter] ✅ Generated ${result.scenes?.length || 0}-scene script (${result.totalDurationTarget}s target) using ${this.modelPreference}`);
 
