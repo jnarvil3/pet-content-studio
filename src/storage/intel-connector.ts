@@ -14,7 +14,10 @@ export class IntelConnector {
 
   constructor(dbPath?: string) {
     const localPath = path.join(process.cwd(), 'data', 'signals.db');
-    this.dbPath = dbPath || process.env.INTEL_DATABASE_PATH || localPath;
+    const envPath = process.env.INTEL_DATABASE_PATH;
+    // Resolve env path to absolute to avoid mismatches with the collector's path
+    this.dbPath = dbPath || (envPath ? path.resolve(envPath) : localPath);
+    console.log(`[IntelConnector] DB path resolved to: ${this.dbPath}`);
     this.tryConnect();
   }
 
