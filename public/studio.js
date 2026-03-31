@@ -1836,7 +1836,7 @@ async function submitFeedback() {
     const res = await fetch(`/api/content/${contentId}/regenerate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ preciseMode })
+      body: JSON.stringify({ preciseMode, feedback_text: feedbackText })
     });
     const data = await res.json();
 

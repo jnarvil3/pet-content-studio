@@ -13,6 +13,8 @@ import * as path from 'path';
 export function loadBrandConfig(): BrandConfig {
   const configPath = path.join(__dirname, '../../config/brand.json');
 
+  let config = { ...defaultBrandConfig };
+
   if (fs.existsSync(configPath)) {
     try {
       const configFile = fs.readFileSync(configPath, 'utf-8');
@@ -21,7 +23,7 @@ export function loadBrandConfig(): BrandConfig {
       console.log('[BrandConfig] Loaded custom brand configuration');
 
       // Merge with defaults
-      return {
+      config = {
         ...defaultBrandConfig,
         ...customConfig,
         colors: { ...defaultBrandConfig.colors, ...customConfig.colors },
@@ -31,13 +33,21 @@ export function loadBrandConfig(): BrandConfig {
       };
     } catch (error) {
       console.error('[BrandConfig] Error loading custom config, using defaults:', error);
-      return defaultBrandConfig;
     }
   } else {
     console.log('[BrandConfig] No custom config found, using defaults');
     console.log('[BrandConfig] Create config/brand.json to customize');
-    return defaultBrandConfig;
   }
+
+  // Environment variables override file config for name and handle
+  if (process.env.BRAND_NAME) {
+    config.name = process.env.BRAND_NAME;
+  }
+  if (process.env.BRAND_HANDLE) {
+    config.handle = process.env.BRAND_HANDLE;
+  }
+
+  return config;
 }
 
 /**

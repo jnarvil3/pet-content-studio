@@ -156,7 +156,7 @@ export class CarouselTemplate {
 <body>
   <div class="safe-zone">
     <div class="slide-number">1/${totalSlides}</div>
-    <h1 class="hook-text">${this.escapeHTML(slide.heading || slide.body)}</h1>
+    <h1 class="hook-text">${this.escapeHTML(slide.title || slide.body)}</h1>
     <div class="swipe-cue">
       <span>Swipe</span>
       <span class="swipe-arrow">→</span>
@@ -394,9 +394,9 @@ export class CarouselTemplate {
 </head>
 <body>
   ${!hasBackground ? '<div class="accent-bar"></div>' : ''}
-  <div class="slide-number">${slide.slide_number}/${totalSlides}</div>
+  <div class="slide-number">${slide.slideNumber}/${totalSlides}</div>
   <div class="safe-zone">
-    ${slide.heading ? `<h2 class="heading">${this.escapeHTML(slide.heading)}</h2>` : ''}
+    ${slide.title ? `<h2 class="heading">${this.escapeHTML(slide.title)}</h2>` : ''}
     <p class="body">${this.escapeHTML(slide.body)}</p>
   </div>
 </body>
@@ -493,8 +493,8 @@ export class CarouselTemplate {
 </head>
 <body>
   <div class="safe-zone">
-    <div class="slide-number">${slide.slide_number}/${totalSlides}</div>
-    ${slide.heading ? `<h2 class="cta-heading">${this.escapeHTML(slide.heading)}</h2>` : ''}
+    <div class="slide-number">${slide.slideNumber}/${totalSlides}</div>
+    ${slide.title ? `<h2 class="cta-heading">${this.escapeHTML(slide.title)}</h2>` : ''}
     <p class="cta-body">${this.escapeHTML(slide.body)}</p>
   </div>
   <div class="brand-footer">

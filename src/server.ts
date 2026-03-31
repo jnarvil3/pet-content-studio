@@ -338,6 +338,7 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const preciseMode = req.body?.preciseMode === true;
+    const bodyFeedback = req.body?.feedback_text;
     const genKey = `regen-${id}`;
     if (activeGenerations.has(genKey)) {
       return res.status(409).json({ error: 'Regeneração já em andamento para este conteúdo' });
@@ -348,10 +349,15 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
       return res.status(404).json({ error: 'Content not found' });
     }
 
-    // Get pending feedback for this content
-    const feedback = contentStorage.getFeedback(id);
-    const pendingFeedback = feedback.filter(f => f.status === 'pending');
-    const feedbackText = pendingFeedback.map((f, i) => `Alteração #${i + 1}: ${f.feedback_text}`).join('\n');
+    // Use feedback from request body (primary) or fall back to stored pending feedback
+    let feedbackText = '';
+    if (bodyFeedback) {
+      feedbackText = bodyFeedback;
+    } else {
+      const feedback = contentStorage.getFeedback(id);
+      const pendingFeedback = feedback.filter(f => f.status === 'pending');
+      feedbackText = pendingFeedback.map((f, i) => `Alteração #${i + 1}: ${f.feedback_text}`).join('\n');
+    }
 
     if (!feedbackText) {
       return res.status(400).json({ error: 'No pending feedback to address' });
