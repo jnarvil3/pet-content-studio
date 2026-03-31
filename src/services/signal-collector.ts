@@ -14,15 +14,15 @@ import * as fs from 'fs';
 // ---------- RSS Feed Definitions ----------
 
 const RSS_FEEDS_US = [
-  { name: 'Pet Food Industry', url: 'https://www.petfoodindustry.com/rss/topic/141-pet-food' },
-  { name: 'Pet Business', url: 'https://www.petbusiness.com/rss' },
-  { name: 'Modern Dog Magazine', url: 'https://moderndogmagazine.com/feed' },
-  { name: 'The Bark', url: 'https://thebark.com/feed' },
   { name: 'Whole Dog Journal', url: 'https://www.whole-dog-journal.com/feed/' },
+  { name: 'ASPCA News', url: 'https://www.aspca.org/rss.xml' },
+  { name: 'PetMD', url: 'https://www.petmd.com/rss' },
+  { name: 'Dogster', url: 'https://www.dogster.com/feed' },
+  { name: 'Catster', url: 'https://www.catster.com/feed' },
 ];
 
 const RSS_FEEDS_BR = [
-  { name: 'Petlove Blog', url: 'https://www.petlove.com.br/dicas/feed' },
+  { name: 'Canal do Pet', url: 'https://canaldopet.ig.com.br/feed/' },
   { name: 'Tudo Sobre Cachorros', url: 'https://tudosobrecachorros.com.br/feed/' },
   { name: 'PetCare Blog', url: 'https://www.petcare.com.br/blog/feed/' },
   { name: 'Blog do Cachorro', url: 'https://blogdocachorro.com.br/feed/' },
