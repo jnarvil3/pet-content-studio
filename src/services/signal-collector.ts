@@ -225,9 +225,11 @@ export class SignalCollector {
       try {
         const count = await this.fetchFeed(feed.name, feed.url, insertStmt);
         totalInserted += count;
-        console.log(`[SignalCollector] ${feed.name}: ${count} new signals`);
+        console.log(`[SignalCollector] ✅ ${feed.name}: ${count} new signals`);
       } catch (error: any) {
-        console.error(`[SignalCollector] Error fetching ${feed.name}: ${error.message}`);
+        const status = error.response?.status || 'N/A';
+        const code = error.code || '';
+        console.error(`[SignalCollector] ❌ ${feed.name} FAILED — HTTP ${status}, code: ${code}, msg: ${error.message}`);
       }
 
       // Polite delay between feeds
@@ -251,10 +253,11 @@ export class SignalCollector {
     const response = await axios.get(feedUrl, {
       timeout: 15000,
       headers: {
-        'User-Agent': 'PetContentStudio/1.0 (RSS reader)',
+        'User-Agent': 'Mozilla/5.0 (compatible; PetContentStudio/1.0)',
         'Accept': 'application/rss+xml, application/xml, text/xml, */*',
       },
       responseType: 'text',
+      maxRedirects: 5,
     });
 
     const xml = response.data as string;
@@ -409,6 +412,37 @@ export class SignalCollector {
       console.error(`[SignalCollector] OpenAI API error: ${error.message}`);
       return { score: 0, reason: `Error scoring: ${error.message}` };
     }
+  }
+
+  /**
+   * Test all RSS feeds and report status (for debugging).
+   */
+  async testFeeds(): Promise<Array<{ name: string; url: string; status: string; items: number; error?: string }>> {
+    const results = [];
+    for (const feed of ALL_FEEDS) {
+      try {
+        const response = await axios.get(feed.url, {
+          timeout: 15000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; PetContentStudio/1.0)',
+            'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+          },
+          responseType: 'text',
+        });
+        const items = parseRSSItems(response.data as string);
+        results.push({ name: feed.name, url: feed.url, status: `${response.status} OK`, items: items.length });
+      } catch (error: any) {
+        results.push({
+          name: feed.name,
+          url: feed.url,
+          status: `FAILED`,
+          items: 0,
+          error: `HTTP ${error.response?.status || 'N/A'} — ${error.code || ''} ${error.message}`.trim()
+        });
+      }
+      await this.delay(300);
+    }
+    return results;
   }
 
   /**

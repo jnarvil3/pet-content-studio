@@ -1300,6 +1300,23 @@ app.get('/api/generate', (req, res) => {
   res.json({ status: 'idle', message: 'Use POST /api/generate to start carousel generation' });
 });
 
+// Debug endpoint: test all RSS feeds
+app.get('/api/debug/feeds', async (req, res) => {
+  try {
+    const { SignalCollector } = await import('./services/signal-collector');
+    const collector = new SignalCollector();
+    const results = await collector.testFeeds();
+    collector.close();
+    const working = results.filter(r => r.items > 0).length;
+    res.json({
+      summary: `${working}/${results.length} feeds returning data`,
+      feeds: results
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Create snapshot on demand (for saving current trends to history)
 app.post('/api/trending/snapshot', async (req, res) => {
   try {
