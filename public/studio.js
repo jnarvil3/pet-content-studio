@@ -1132,6 +1132,7 @@ async function displayReviewContent(filter) {
                   <img src="${imgUrl}" alt="Slide ${idx+1} do carrossel" style="height: 140px; border-radius: 8px; border: 2px solid #e0e0e0;"
                     onerror="this.onerror=null;var p=document.createElement('div');p.style.cssText='height:140px;width:140px;border-radius:8px;border:2px solid #e0e0e0;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0.75rem;box-sizing:border-box;';var num=document.createElement('div');num.style.cssText='font-size:1.5rem;font-weight:700;color:rgba(255,255,255,0.9);margin-bottom:0.25rem;';num.textContent='${idx+1}';p.appendChild(num);var t=document.createElement('div');t.style.cssText='font-size:0.65rem;color:rgba(255,255,255,0.85);text-align:center;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;';t.textContent='${safeTitleAttr}';p.appendChild(t);this.parentNode.replaceChild(p,this);">
                   <div style="position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px;">${idx+1}/5</div>
+                  <button onclick="editSlideImage(${item.id}, ${idx+1})" style="position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 0.7rem; padding: 3px 6px; border-radius: 4px; border: none; cursor: pointer;" title="Trocar foto do slide ${idx+1}">✏️</button>
                   <a href="${imgUrl}" download style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 0.7rem; padding: 3px 6px; border-radius: 4px; text-decoration: none; cursor: pointer;" title="Baixar slide ${idx+1}">⬇</a>
                 </div>
               `}).join('')}
@@ -1226,6 +1227,33 @@ async function displayReviewContent(filter) {
       `}).join('')}
     </div>
   `;
+}
+
+async function editSlideImage(contentId, slideNum) {
+  const query = prompt(`Trocar foto do slide ${slideNum}\n\nDigite o que você quer ver na foto (em inglês ou português):\n\nExemplos:\n• dog agility course\n• golden retriever on beach\n• cat playing with toy\n• veterinarian examining puppy`);
+
+  if (!query || !query.trim()) return;
+
+  showToast(`Atualizando slide ${slideNum}...`, 'info');
+
+  try {
+    const response = await fetch(`/api/content/${contentId}/edit-slide/${slideNum}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ searchQuery: query.trim() })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      showToast(`Slide ${slideNum} atualizado!`, 'success');
+      await loadReviewData();
+    } else {
+      showToast(`Erro: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    showToast('Erro ao atualizar slide', 'error');
+    console.error('Edit slide error:', error);
+  }
 }
 
 async function downloadAllSlides(contentId) {

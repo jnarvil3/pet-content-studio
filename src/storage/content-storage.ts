@@ -194,6 +194,22 @@ export class ContentStorage {
   }
 
   /**
+   * Update carousel content and images in-place (for single-slide edits)
+   */
+  updateCarousel(id: number, carouselContent: any, carouselImages: string[]): void {
+    this.db.prepare(`
+      UPDATE generated_content
+      SET carousel_content = ?, carousel_images = ?
+      WHERE id = ?
+    `).run(
+      JSON.stringify(carouselContent),
+      JSON.stringify(carouselImages),
+      id
+    );
+    console.log(`[ContentStorage] Updated carousel content for #${id}`);
+  }
+
+  /**
    * Get content by ID
    */
   get(id: number): GeneratedContent | null {

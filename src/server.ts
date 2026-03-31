@@ -474,6 +474,93 @@ app.post('/api/content/:id/regenerate', async (req, res) => {
   }
 });
 
+// Edit a single slide's image (without regenerating all slides)
+app.post('/api/content/:id/edit-slide/:slideNum', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const slideNum = parseInt(req.params.slideNum);
+    const { searchQuery } = req.body; // e.g. "dog agility course"
+
+    if (!searchQuery) {
+      return res.status(400).json({ error: 'searchQuery is required' });
+    }
+    if (slideNum < 1 || slideNum > 5) {
+      return res.status(400).json({ error: 'slideNum must be 1-5' });
+    }
+
+    const content = contentStorage.get(id);
+    if (!content || content.content_type !== 'carousel') {
+      return res.status(404).json({ error: 'Carousel not found' });
+    }
+
+    const carouselContent = content.carousel_content;
+    const slideIndex = slideNum - 1;
+    const slide = carouselContent.slides[slideIndex];
+    if (!slide) {
+      return res.status(400).json({ error: `Slide ${slideNum} not found` });
+    }
+
+    // Update the search query on this slide
+    const oldQuery = slide.pexelsSearchQuery;
+    slide.pexelsSearchQuery = searchQuery;
+
+    // Fetch new photo from Pexels
+    const { PexelsService } = await import('./services/pexels-service');
+    const pexels = new PexelsService();
+
+    let newBackgroundUrl: string | undefined;
+    if (pexels.isEnabled()) {
+      const photos = await pexels.searchPhotos(searchQuery, 3);
+      if (photos.length > 0) {
+        newBackgroundUrl = pexels.getBestPhotoUrl(photos[0]);
+      }
+    }
+
+    // Re-render just this one slide
+    const { getBrandConfig } = await import('./config/brand-config');
+    const brand = getBrandConfig();
+    const { CarouselTemplate } = await import('./templates/carousel-template');
+    const { ImageRenderer } = await import('./renderers/image-renderer');
+
+    const template = new CarouselTemplate(brand);
+    const html = template.generateSlideHTML(slide, carouselContent.slides.length, newBackgroundUrl);
+
+    const renderer = new ImageRenderer();
+    await renderer.initialize();
+
+    try {
+      const versionSuffix = content.version && content.version > 1 ? `-v${content.version}` : '';
+      const carouselDir = path.join(process.cwd(), 'data', 'output', 'carousels', `signal-${content.signal_id}`);
+      const filename = `carousel-${content.signal_id}${versionSuffix}-${slideNum}.png`;
+      const outputPath = path.join(carouselDir, filename);
+
+      await renderer.renderToPNG(html, outputPath);
+
+      // Update image path in the stored array
+      const imagePaths = content.carousel_images || [];
+      imagePaths[slideIndex] = outputPath;
+
+      // Save updated content in-place (no new version)
+      contentStorage.updateCarousel(id, carouselContent, imagePaths);
+
+      console.log(`[Server] ✅ Edited slide ${slideNum} of content #${id}: "${oldQuery}" → "${searchQuery}"`);
+      res.json({
+        success: true,
+        message: `Slide ${slideNum} atualizado`,
+        slide: slideNum,
+        oldQuery,
+        newQuery: searchQuery,
+        imagePath: outputPath
+      });
+    } finally {
+      await renderer.close();
+    }
+  } catch (error: any) {
+    console.error('[Server] Edit slide error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Mark as published
 app.post('/api/content/:id/publish', (req, res) => {
   try {
