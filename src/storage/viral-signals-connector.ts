@@ -53,8 +53,9 @@ export class ViralSignalsConnector {
   private db: Database.Database | null = null;
 
   constructor(dbPath?: string) {
-    const defaultPath = path.join(__dirname, '../../../../viral-social-media-analyzer/data/viral-signals.db');
-    const finalPath = dbPath || process.env.VIRAL_DATABASE_PATH || defaultPath;
+    // Use persistent volume path (same as signals.db and content.db)
+    const defaultPath = path.join(process.cwd(), 'data', 'viral-signals.db');
+    const finalPath = dbPath || defaultPath;
 
     if (fs.existsSync(finalPath)) {
       this.db = new Database(finalPath);
@@ -301,8 +302,8 @@ export class ViralSignalsConnector {
    */
   private ensureDb(): void {
     if (!this.db) {
-      const defaultPath = path.join(__dirname, '../../../../viral-social-media-analyzer/data/viral-signals.db');
-      const finalPath = process.env.VIRAL_DATABASE_PATH || defaultPath;
+      const defaultPath = path.join(process.cwd(), 'data', 'viral-signals.db');
+      const finalPath = defaultPath;
       const dir = path.dirname(finalPath);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
@@ -360,8 +361,8 @@ export class ViralSignalsConnector {
   seedDemoData(): number {
     // If no DB connection, create one (handles Railway/demo deployments with no pre-existing DB)
     if (!this.db) {
-      const defaultPath = path.join(__dirname, '../../../../viral-social-media-analyzer/data/viral-signals.db');
-      const finalPath = process.env.VIRAL_DATABASE_PATH || defaultPath;
+      const defaultPath = path.join(process.cwd(), 'data', 'viral-signals.db');
+      const finalPath = defaultPath;
       const dir = path.dirname(finalPath);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
