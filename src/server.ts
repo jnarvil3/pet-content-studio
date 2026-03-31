@@ -751,6 +751,7 @@ app.post('/api/generate-reel', async (req, res) => {
     const limit = parseInt(req.body.limit) || 1;
     const minScore = parseInt(req.body.minScore) || 80;
     const signalId = req.body.signalId ? parseInt(req.body.signalId) : null;
+    const customTopic = req.body.customTopic; // { title: string, description: string }
     const viralHook = req.body.viralHook; // Selected viral hook formula
     const viralVideoId = req.body.viralVideoId; // Source viral video ID
     const viralTitle = req.body.viralTitle; // Actual viral video title
@@ -761,9 +762,23 @@ app.post('/api/generate-reel', async (req, res) => {
     const { ReelGenerator } = await import('./generators/reel-generator');
     const { getBrandConfig } = await import('./config/brand-config');
 
-    // Fetch signals - either specific signal or top signals
+    // Fetch signals - custom topic, specific signal, or top signals
     let signals;
-    if (signalId) {
+    if (customTopic && customTopic.title) {
+      signals = [{
+        id: 0,
+        source: 'custom',
+        title: customTopic.title,
+        description: customTopic.description || customTopic.title,
+        url: '',
+        metadata: {},
+        collected_at: new Date().toISOString(),
+        relevance_score: 100,
+        relevance_reason: 'Custom topic',
+        is_relevant: true,
+        scored_at: new Date().toISOString()
+      }];
+    } else if (signalId) {
       const signal = intelConnector.getSignal(signalId);
       if (!signal) {
         return res.status(404).json({
@@ -858,6 +873,7 @@ app.post('/api/generate', async (req, res) => {
     const limit = parseInt(req.body.limit) || 3;
     const minScore = parseInt(req.body.minScore) || 80;
     const signalId = req.body.signalId ? parseInt(req.body.signalId) : null;
+    const customTopic = req.body.customTopic; // { title: string, description: string }
 
     // Prevent duplicate generation
     if (signalId) {
@@ -873,9 +889,23 @@ app.post('/api/generate', async (req, res) => {
     const { CarouselGenerator } = await import('./generators/carousel-generator');
     const { getBrandConfig } = await import('./config/brand-config');
 
-    // Fetch signals - either specific signal or top signals
+    // Fetch signals - custom topic, specific signal, or top signals
     let signals;
-    if (signalId) {
+    if (customTopic && customTopic.title) {
+      signals = [{
+        id: 0,
+        source: 'custom',
+        title: customTopic.title,
+        description: customTopic.description || customTopic.title,
+        url: '',
+        metadata: {},
+        collected_at: new Date().toISOString(),
+        relevance_score: 100,
+        relevance_reason: 'Custom topic',
+        is_relevant: true,
+        scored_at: new Date().toISOString()
+      }];
+    } else if (signalId) {
       const signal = intelConnector.getSignal(signalId);
       if (!signal) {
         return res.status(404).json({
@@ -944,18 +974,35 @@ const activeGenerations = new Set<string>();
 app.post('/api/generate-linkedin', async (req, res) => {
   try {
     const signalId = req.body.signalId ? parseInt(req.body.signalId) : null;
+    const customTopic = req.body.customTopic; // { title: string, description: string }
 
-    if (!signalId) {
-      return res.status(400).json({ error: 'signalId is required' });
-    }
-
-    const signal = intelConnector.getSignal(signalId);
-    if (!signal) {
-      return res.status(404).json({ error: `Signal #${signalId} not found` });
+    // Resolve signal from customTopic, signalId, or error
+    let signal;
+    if (customTopic && customTopic.title) {
+      signal = {
+        id: 0,
+        source: 'custom',
+        title: customTopic.title,
+        description: customTopic.description || customTopic.title,
+        url: '',
+        metadata: {},
+        collected_at: new Date().toISOString(),
+        relevance_score: 100,
+        relevance_reason: 'Custom topic',
+        is_relevant: true,
+        scored_at: new Date().toISOString()
+      };
+    } else if (signalId) {
+      signal = intelConnector.getSignal(signalId);
+      if (!signal) {
+        return res.status(404).json({ error: `Signal #${signalId} not found` });
+      }
+    } else {
+      return res.status(400).json({ error: 'signalId or customTopic is required' });
     }
 
     // Prevent duplicate generation
-    const genKey = `linkedin-${signalId}`;
+    const genKey = `linkedin-${signal.id}`;
     if (activeGenerations.has(genKey)) {
       return res.status(409).json({ error: 'Geração já em andamento para este sinal' });
     }
@@ -987,6 +1034,7 @@ app.post('/api/generate-linkedin', async (req, res) => {
         console.log(`[Server] LinkedIn post saved for signal #${signal.id}`);
       } catch (error: any) {
         console.error('[Server] LinkedIn generation failed:', error.message);
+        activeGenerations.delete(genKey);
       }
     })();
   } catch (error: any) {

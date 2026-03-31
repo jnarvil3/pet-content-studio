@@ -623,6 +623,10 @@ async function loadCreateData() {
         reelBtn.disabled = false;
         linkedinBtn.disabled = false;
 
+        // Clear custom topic inputs when a signal is selected
+        document.getElementById('custom-topic-title').value = '';
+        document.getElementById('custom-topic-description').value = '';
+
         // Show signal details
         const signal = signals.find(s => s.id === signalId);
         const detailsDiv = document.getElementById('signal-details');
@@ -644,12 +648,70 @@ async function loadCreateData() {
 
         loadViralContext();
       } else {
-        carouselBtn.disabled = true;
-        reelBtn.disabled = true;
-        linkedinBtn.disabled = true;
+        const customTitle = document.getElementById('custom-topic-title').value.trim();
+        if (!customTitle) {
+          carouselBtn.disabled = true;
+          reelBtn.disabled = true;
+          linkedinBtn.disabled = true;
+        }
         document.getElementById('viral-context-panel').style.display = 'none';
         const detailsDiv = document.getElementById('signal-details');
         if (detailsDiv) detailsDiv.style.display = 'none';
+      }
+    });
+
+    // Custom topic input listener
+    const customTopicInput = document.getElementById('custom-topic-title');
+    customTopicInput.addEventListener('input', () => {
+      const carouselBtn = document.getElementById('create-carousel-btn');
+      const reelBtn = document.getElementById('create-reel-btn');
+      const linkedinBtn = document.getElementById('create-linkedin-btn');
+      const customTitle = customTopicInput.value.trim();
+      const detailsDiv = document.getElementById('signal-details');
+
+      if (customTitle) {
+        // Reset signal dropdown when custom topic is typed
+        select.value = '';
+        document.getElementById('viral-context-panel').style.display = 'none';
+
+        // Enable content type buttons
+        carouselBtn.disabled = false;
+        reelBtn.disabled = false;
+        linkedinBtn.disabled = false;
+
+        // Show details panel for custom topic
+        if (detailsDiv) {
+          detailsDiv.style.display = 'block';
+          const customDesc = document.getElementById('custom-topic-description').value.trim();
+          detailsDiv.innerHTML = `
+            <div style="background: #f9fafb; border-radius: 12px; padding: 1.5rem; border: 2px solid #e0e0e0;">
+              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                <h3 style="color: #333; font-size: 1.125rem; margin: 0;">${customTitle}</h3>
+                <span style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.875rem; font-weight: 600;">Tópico personalizado</span>
+              </div>
+              ${customDesc ? `<p style="color: #666; font-size: 0.875rem; line-height: 1.5; margin: 0;">${customDesc}</p>` : ''}
+              <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e0e0e0; font-size: 0.875rem; color: #999;">
+                ✏️ Tópico livre
+              </div>
+            </div>
+          `;
+        }
+      } else {
+        // Custom topic cleared and no signal selected — disable buttons
+        if (!select.value) {
+          carouselBtn.disabled = true;
+          reelBtn.disabled = true;
+          linkedinBtn.disabled = true;
+        }
+        if (detailsDiv && !select.value) detailsDiv.style.display = 'none';
+      }
+    });
+
+    // Also update details panel when custom description changes
+    document.getElementById('custom-topic-description').addEventListener('input', () => {
+      const customTitle = customTopicInput.value.trim();
+      if (customTitle) {
+        customTopicInput.dispatchEvent(new Event('input'));
       }
     });
 
@@ -736,8 +798,9 @@ async function generateContent(type) {
   }
 
   const signalId = document.getElementById('create-signal-select').value;
-  if (!signalId) {
-    showToast('Selecione um sinal primeiro', 'warning');
+  const customTitle = document.getElementById('custom-topic-title').value.trim();
+  if (!signalId && !customTitle) {
+    showToast('Selecione um sinal ou escreva um tópico personalizado', 'warning');
     return;
   }
 
@@ -777,11 +840,19 @@ async function generateContent(type) {
 
     // Build request body
     const requestBody = {
-      signalId: parseInt(signalId),
       limit: 1,
       minScore: 0,
       aiModel: selectedAIModel // Pass selected AI model
     };
+
+    if (customTitle) {
+      requestBody.customTopic = {
+        title: customTitle,
+        description: document.getElementById('custom-topic-description').value.trim()
+      };
+    } else {
+      requestBody.signalId = parseInt(signalId);
+    }
 
     // Add viral pattern if selected
     if (selectedViralPattern) {
