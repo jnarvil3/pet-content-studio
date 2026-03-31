@@ -10,23 +10,35 @@ import * as fs from 'fs';
 
 export class IntelConnector {
   private db: Database.Database | null = null;
+  private dbPath: string;
 
   constructor(dbPath?: string) {
-    const defaultPath = path.join(__dirname, '../../../pet-intel-collector/data/signals.db');
-    const finalPath = dbPath || process.env.INTEL_DATABASE_PATH || defaultPath;
+    const localPath = path.join(process.cwd(), 'data', 'signals.db');
+    this.dbPath = dbPath || process.env.INTEL_DATABASE_PATH || localPath;
+    this.tryConnect();
+  }
 
-    if (fs.existsSync(finalPath)) {
-      this.db = new Database(finalPath, { readonly: true });
-      console.log(`[IntelConnector] Connected to intelligence database at ${finalPath}`);
-    } else {
-      console.warn(`[IntelConnector] Database not found at ${finalPath} — running without intel signals`);
-    }
+  /**
+   * Attempt to connect to the database. Called on construction and
+   * lazily on each query so that signals created by the built-in
+   * SignalCollector become visible without a server restart.
+   */
+  private tryConnect(): void {
+    if (this.db) return;
+    if (!fs.existsSync(this.dbPath)) return;
+
+    const localPath = path.join(process.cwd(), 'data', 'signals.db');
+    const isLocalDb = path.resolve(this.dbPath) === path.resolve(localPath);
+    const opts = isLocalDb ? {} : { readonly: true };
+    this.db = new Database(this.dbPath, opts);
+    console.log(`[IntelConnector] Connected to intelligence database at ${this.dbPath}${isLocalDb ? ' (read-write)' : ' (readonly)'}`);
   }
 
   /**
    * Get all relevant signals (score >= 70) that haven't been used yet
    */
   getRelevantSignals(limit: number = 50): Signal[] {
+    this.tryConnect();
     if (!this.db) return [];
     const rows = this.db.prepare(`
       SELECT * FROM signals
@@ -43,6 +55,7 @@ export class IntelConnector {
    * Get a specific signal by ID
    */
   getSignal(id: number): Signal | null {
+    this.tryConnect();
     if (!this.db) return null;
     const row = this.db.prepare(`
       SELECT * FROM signals
@@ -56,6 +69,7 @@ export class IntelConnector {
    * Get top signals above a certain score
    */
   getTopSignals(minScore: number = 80, limit: number = 20): Signal[] {
+    this.tryConnect();
     if (!this.db) return [];
     const rows = this.db.prepare(`
       SELECT * FROM signals
@@ -72,6 +86,7 @@ export class IntelConnector {
    * Get signals by source
    */
   getSignalsBySource(source: string, limit: number = 20): Signal[] {
+    this.tryConnect();
     if (!this.db) return [];
     const rows = this.db.prepare(`
       SELECT * FROM signals
