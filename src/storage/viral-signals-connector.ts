@@ -262,6 +262,96 @@ export class ViralSignalsConnector {
   }
 
   /**
+   * Insert real YouTube videos from the collector
+   */
+  insertYouTubeVideos(videos: any[]): number {
+    this.ensureDb();
+    this.ensureTable();
+
+    const stmt = this.db!.prepare(`
+      INSERT OR IGNORE INTO viral_signals (
+        platform, video_id, url, title, description,
+        channel_id, channel_name, published_at, collected_at,
+        view_count, like_count, comment_count,
+        engagement_rate, views_per_day, is_viral,
+        thumbnail_url, tags,
+        text_analyzed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    `);
+
+    let inserted = 0;
+    for (const v of videos) {
+      const result = stmt.run(
+        'youtube', v.video_id, `https://youtube.com/watch?v=${v.video_id}`,
+        v.title, v.description,
+        v.channel_id, v.channel_name, v.published_at, new Date().toISOString(),
+        v.view_count, v.like_count, v.comment_count,
+        v.engagement_rate, v.views_per_day, v.is_viral ? 1 : 0,
+        v.thumbnail_url, JSON.stringify(v.tags || [])
+      );
+      if (result.changes > 0) inserted++;
+    }
+
+    return inserted;
+  }
+
+  /**
+   * Ensure DB connection exists (create if needed for Railway)
+   */
+  private ensureDb(): void {
+    if (!this.db) {
+      const defaultPath = path.join(__dirname, '../../../../viral-social-media-analyzer/data/viral-signals.db');
+      const finalPath = process.env.VIRAL_DATABASE_PATH || defaultPath;
+      const dir = path.dirname(finalPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      this.db = new Database(finalPath);
+      this.db.pragma('journal_mode = WAL');
+    }
+  }
+
+  /**
+   * Ensure table exists
+   */
+  private ensureTable(): void {
+    this.db!.exec(`
+      CREATE TABLE IF NOT EXISTS viral_signals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        platform TEXT NOT NULL,
+        video_id TEXT NOT NULL,
+        url TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        channel_id TEXT,
+        channel_name TEXT,
+        published_at TEXT NOT NULL,
+        collected_at TEXT NOT NULL,
+        view_count INTEGER DEFAULT 0,
+        like_count INTEGER DEFAULT 0,
+        comment_count INTEGER DEFAULT 0,
+        engagement_rate REAL DEFAULT 0,
+        views_per_day INTEGER DEFAULT 0,
+        is_viral INTEGER DEFAULT 0,
+        thumbnail_url TEXT,
+        tags TEXT,
+        hook_formula TEXT,
+        emotional_trigger TEXT,
+        viral_pattern TEXT,
+        content_angle TEXT,
+        content_themes TEXT,
+        text_analyzed_at TEXT,
+        visual_analyzed_at TEXT,
+        text_analysis_cost REAL DEFAULT 0,
+        visual_analysis_cost REAL DEFAULT 0,
+        total_cost REAL DEFAULT 0,
+        duration TEXT,
+        UNIQUE(platform, video_id)
+      )
+    `);
+  }
+
+  /**
    * Seed the database with realistic demo data for pet content trending videos and hooks.
    * Creates the viral_signals table if it doesn't exist, then inserts sample rows.
    * Returns the number of rows inserted.

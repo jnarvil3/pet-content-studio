@@ -1307,14 +1307,30 @@ app.get('/api/trending/hooks', async (req, res) => {
 // Seed trending data with realistic demo content (for client demos / empty databases)
 app.post('/api/trending/collect', async (req, res) => {
   try {
-    const count = viralConnector.seedDemoData();
+    const { YouTubeCollector } = await import('./services/youtube-collector');
+    const collector = new YouTubeCollector();
+
+    if (!collector.isEnabled()) {
+      // Fall back to demo data if no YouTube API key
+      const count = viralConnector.seedDemoData();
+      return res.json({
+        success: true,
+        message: `YOUTUBE_API_KEY not set — seeded ${count} demo videos instead.`,
+        count,
+        source: 'demo'
+      });
+    }
+
+    const result = await collector.collect(viralConnector);
     res.json({
       success: true,
-      message: `Seeded ${count} trending videos and hooks with realistic pet content data.`,
-      count
+      message: `Coletados ${result.collected} vídeos do YouTube (${result.viral} virais).`,
+      count: result.collected,
+      viral: result.viral,
+      source: 'youtube'
     });
   } catch (error: any) {
-    console.error('[Trending Collect] Error seeding demo data:', error);
+    console.error('[Trending Collect] Error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
