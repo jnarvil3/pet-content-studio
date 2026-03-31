@@ -468,13 +468,13 @@ function renderVideoFilters() {
         <div>
           <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333;">Hook Formula</label>
           <select id="filter-hook" style="width: 100%; padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.875rem;">
-            ${hookFormulas.map(h => `<option value="${h}" ${videoFilters.hook === h ? 'selected' : ''}>${h === 'all' ? 'All Hooks' : h}</option>`).join('')}
+            ${hookFormulas.map(h => `<option value="${h}" ${videoFilters.hook === h ? 'selected' : ''}>${h === 'all' ? 'Todos os Ganchos' : h}</option>`).join('')}
           </select>
         </div>
         <div>
           <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333;">Emotional Trigger</label>
           <select id="filter-emotion" style="width: 100%; padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.875rem;">
-            ${emotions.map(e => `<option value="${e}" ${videoFilters.emotion === e ? 'selected' : ''}>${e === 'all' ? 'All Emotions' : e}</option>`).join('')}
+            ${emotions.map(e => `<option value="${e}" ${videoFilters.emotion === e ? 'selected' : ''}>${e === 'all' ? 'Todas as Emoções' : e}</option>`).join('')}
           </select>
         </div>
         <div>
@@ -613,16 +613,9 @@ async function loadCreateData() {
       `).join('');
 
     select.addEventListener('change', () => {
-      const carouselBtn = document.getElementById('create-carousel-btn');
-      const reelBtn = document.getElementById('create-reel-btn');
-      const linkedinBtn = document.getElementById('create-linkedin-btn');
       const signalId = parseInt(select.value);
 
       if (signalId) {
-        carouselBtn.disabled = false;
-        reelBtn.disabled = false;
-        linkedinBtn.disabled = false;
-
         // Clear custom topic inputs when a signal is selected
         document.getElementById('custom-topic-title').value = '';
         document.getElementById('custom-topic-description').value = '';
@@ -648,12 +641,6 @@ async function loadCreateData() {
 
         loadViralContext();
       } else {
-        const customTitle = document.getElementById('custom-topic-title').value.trim();
-        if (!customTitle) {
-          carouselBtn.disabled = true;
-          reelBtn.disabled = true;
-          linkedinBtn.disabled = true;
-        }
         document.getElementById('viral-context-panel').style.display = 'none';
         const detailsDiv = document.getElementById('signal-details');
         if (detailsDiv) detailsDiv.style.display = 'none';
@@ -663,9 +650,6 @@ async function loadCreateData() {
     // Custom topic input listener
     const customTopicInput = document.getElementById('custom-topic-title');
     customTopicInput.addEventListener('input', () => {
-      const carouselBtn = document.getElementById('create-carousel-btn');
-      const reelBtn = document.getElementById('create-reel-btn');
-      const linkedinBtn = document.getElementById('create-linkedin-btn');
       const customTitle = customTopicInput.value.trim();
       const detailsDiv = document.getElementById('signal-details');
 
@@ -673,11 +657,6 @@ async function loadCreateData() {
         // Reset signal dropdown when custom topic is typed
         select.value = '';
         document.getElementById('viral-context-panel').style.display = 'none';
-
-        // Enable content type buttons
-        carouselBtn.disabled = false;
-        reelBtn.disabled = false;
-        linkedinBtn.disabled = false;
 
         // Show details panel for custom topic
         if (detailsDiv) {
@@ -697,12 +676,6 @@ async function loadCreateData() {
           `;
         }
       } else {
-        // Custom topic cleared and no signal selected — disable buttons
-        if (!select.value) {
-          carouselBtn.disabled = true;
-          reelBtn.disabled = true;
-          linkedinBtn.disabled = true;
-        }
         if (detailsDiv && !select.value) detailsDiv.style.display = 'none';
       }
     });
@@ -871,7 +844,7 @@ async function generateContent(type) {
     const result = await response.json();
 
     if (!result.success) {
-      throw new Error(result.error || 'Generation failed');
+      throw new Error(result.error || 'Falha na geração');
     }
 
     // For reels, show progress
@@ -913,7 +886,7 @@ async function generateContent(type) {
     statusDiv.innerHTML = `
       <div style="text-align: center; padding: 2rem; background: rgba(239,68,68,0.1); border-radius: 12px; color: #ef4444;">
         <div style="font-size: 3rem; margin-bottom: 0.5rem;">❌</div>
-        <p style="font-weight: 600;">Generation failed</p>
+        <p style="font-weight: 600;">Falha na geração</p>
         <p style="color: #666; margin-top: 0.5rem;">${error.message}</p>
         <button class="btn btn-secondary" style="margin-top: 1rem;" onclick="document.getElementById('generation-status').style.display='none'">Tentar Novamente</button>
       </div>
@@ -943,8 +916,8 @@ async function pollProgress(signalId, statusDiv, carouselBtn, reelBtn) {
         statusDiv.innerHTML = `
           <div style="text-align: center; padding: 2rem; background: rgba(34,197,94,0.1); border-radius: 12px; color: #22c55e;">
             <div style="font-size: 3rem; margin-bottom: 0.5rem;">✅</div>
-            <p style="font-weight: 600; margin-bottom: 1rem;">Reel complete!</p>
-            <button class="btn btn-primary" onclick="viewCompletedReel()">View in Review Queue</button>
+            <p style="font-weight: 600; margin-bottom: 1rem;">Reel concluído!</p>
+            <button class="btn btn-primary" onclick="viewCompletedReel()">Ver na Fila de Revisão</button>
           </div>
         `;
         return;
@@ -1466,9 +1439,9 @@ async function createFromVideo(videoId, hookFormula, viralTitle, contentAngle) {
   statusDiv.style.display = 'block';
   statusDiv.innerHTML = `
     <div style="padding: 1.5rem; background: rgba(102,126,234,0.1); border-radius: 12px; border-left: 4px solid #667eea;">
-      <p style="color: #4a5abb; font-weight: 600; margin-bottom: 0.5rem;">💡 Viral Pattern Selected</p>
-      <p style="color: #333; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Example:</strong> "${viralTitle}"</p>
-      ${contentAngle ? `<p style="color: #666; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Angle:</strong> ${contentAngle}</p>` : ''}
+      <p style="color: #4a5abb; font-weight: 600; margin-bottom: 0.5rem;">💡 Padrão Viral Selecionado</p>
+      <p style="color: #333; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Exemplo:</strong> "${viralTitle}"</p>
+      ${contentAngle ? `<p style="color: #666; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Ângulo:</strong> ${contentAngle}</p>` : ''}
       <p style="color: #666; font-size: 0.875rem;">Selecione um tópico abaixo. Seu reel vai usar este padrão viral para máximo engajamento!</p>
     </div>
   `;

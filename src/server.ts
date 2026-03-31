@@ -36,7 +36,8 @@ if (AUTH_PASSWORD) {
     const authHeader = req.headers.authorization;
     const authCookie = req.headers.cookie?.split(';').find(c => c.trim().startsWith('auth='));
 
-    if (authCookie?.includes(AUTH_PASSWORD) || (authHeader && Buffer.from(authHeader.split(' ')[1] || '', 'base64').toString().endsWith(`:${AUTH_PASSWORD}`))) {
+    const cookieValue = authCookie?.split('=')[1]?.trim();
+    if ((cookieValue === AUTH_PASSWORD) || (authHeader && Buffer.from(authHeader.split(' ')[1] || '', 'base64').toString().endsWith(`:${AUTH_PASSWORD}`))) {
       return next();
     }
 
@@ -1211,68 +1212,92 @@ app.get('/api/help/info', (req, res) => {
       platform: {
         name: 'Pet Content Studio',
         version: '1.0',
-        description: 'AI-powered content generation platform for pet-focused social media. Combines viral trend analysis with intelligent content signals to create high-engagement Instagram carousels and reels.'
+        description: 'Plataforma de geração de conteúdo com IA para redes sociais focadas em pets. Combina análise de tendências virais com sinais de conteúdo inteligentes para criar carrosséis e reels de alto engajamento no Instagram.'
       },
       pages: [
-        { name: 'Dashboard', icon: '📊', description: 'Overview of content pipeline stats, recent activity, and quick actions.' },
-        { name: 'Discover', icon: '🔍', description: 'Browse content signals (RSS-sourced topics), trending videos, and viral hooks. Use pet/all filters and time period dropdowns to find the best content opportunities.' },
-        { name: 'Create', icon: '✏️', description: 'Generate carousels (5-slide image sets) or reels (30-45s videos with narration and stock footage). Select a signal topic, choose AI quality, and optionally apply a viral pattern.' },
-        { name: 'Review', icon: '✅', description: 'Review generated content. Approve, reject, or mark as published. Filter by status.' },
-        { name: 'Help', icon: '❓', description: 'Platform guide, API usage, and credit information.' }
+        { name: 'Dashboard', icon: '📊', description: 'Visão geral das estatísticas do pipeline de conteúdo, atividade recente e ações rápidas.' },
+        { name: 'Descobrir', icon: '🔍', description: 'Navegue pelos sinais de conteúdo (tópicos de RSS), vídeos em alta e ganchos virais. Use os filtros pet/todos e os menus de período para encontrar as melhores oportunidades de conteúdo.' },
+        { name: 'Criar', icon: '✏️', description: 'Gere carrosséis (conjuntos de 5 slides) ou reels (vídeos de 30-45s com narração e filmagens de stock). Selecione um tópico, escolha a qualidade da IA e, opcionalmente, aplique um padrão viral.' },
+        { name: 'Revisar', icon: '✅', description: 'Revise o conteúdo gerado. Aprove, rejeite ou marque como publicado. Filtre por status.' },
+        { name: 'Ajuda', icon: '❓', description: 'Guia da plataforma, uso de APIs e informações de créditos.' }
       ],
       apis: [
         {
           name: 'OpenAI (GPT-4o)',
           usage: 'Geração de scripts de conteúdo (modo rápido), análise de texto de vídeos virais',
-          costPer: '~$0.01 per generation (fast mode)',
-          monthlyBudget: '$15.00',
+          costPer: '~$0,01 por geração (modo rápido)',
+          monthlyBudget: '$15,00',
           keyConfigured: !!process.env.OPENAI_API_KEY
         },
         {
           name: 'Anthropic (Claude Sonnet 4)',
           usage: 'Geração premium de scripts de conteúdo para roteiros de maior qualidade e otimizados para viralização',
-          costPer: '~$0.15-0.20 per generation (premium mode)',
-          monthlyBudget: 'Shared with OpenAI budget',
+          costPer: '~$0,15-0,20 por geração (modo premium)',
+          monthlyBudget: 'Compartilhado com orçamento OpenAI',
           keyConfigured: !!process.env.ANTHROPIC_API_KEY
         },
         {
           name: 'ElevenLabs',
           usage: 'Narração por voz para reels. Gera locução profissional para cada cena.',
-          costPer: '~10,000 characters/month free tier',
-          monthlyBudget: 'Free tier (10k chars)',
+          costPer: '~10.000 caracteres/mês (nível gratuito)',
+          monthlyBudget: 'Nível gratuito (10k caracteres)',
           keyConfigured: !!process.env.ELEVENLABS_API_KEY
         },
         {
           name: 'Pexels',
           usage: 'Vídeos de stock para reels. Busca B-roll relacionado a pets para acompanhar a narração.',
-          costPer: 'Free (unlimited)',
-          monthlyBudget: 'Unlimited',
+          costPer: 'Gratuito (ilimitado)',
+          monthlyBudget: 'Ilimitado',
           keyConfigured: !!process.env.PEXELS_API_KEY
         },
         {
           name: 'YouTube Data API',
           usage: 'Coleta de vídeos virais e descoberta de tendências. Busca conteúdo pet em alta para análise.',
-          costPer: '10,000 units/day free quota',
-          monthlyBudget: 'Free (10k units/day)',
+          costPer: '10.000 unidades/dia (cota gratuita)',
+          monthlyBudget: 'Gratuito (10k unidades/dia)',
           keyConfigured: !!process.env.YOUTUBE_API_KEY
         },
         {
           name: 'TikTok Scraper API',
           usage: 'Coleta de vídeos em alta do TikTok. Busca vídeos tendência com métricas de engajamento, thumbnails e metadados.',
-          costPer: '5,000 requests/month free tier',
-          monthlyBudget: 'Free (5k req/month)',
+          costPer: '5.000 requisições/mês (nível gratuito)',
+          monthlyBudget: 'Gratuito (5k req/mês)',
           keyConfigured: !!process.env.TIKTOK_API_KEY
         }
       ],
       workflow: [
-        { step: 1, title: 'Collect Intelligence', description: 'RSS feeds and YouTube trends are collected and scored for pet content relevance.' },
-        { step: 2, title: 'Analyze Viral Patterns', description: 'Top-performing videos are analyzed for hooks, emotional triggers, and engagement patterns.' },
-        { step: 3, title: 'Discover Signals', description: 'Browse ranked content signals in the Discover tab. Filter by pet/all and time period.' },
-        { step: 4, title: 'Generate Content', description: 'Select a signal, choose AI quality (fast/premium), and generate a carousel or reel.' },
-        { step: 5, title: 'Review & Publish', description: 'Review generated content, approve or reject, and mark as published when posted.' }
+        { step: 1, title: 'Coletar Inteligência', description: 'Feeds RSS e tendências do YouTube são coletados e pontuados por relevância para conteúdo pet.' },
+        { step: 2, title: 'Analisar Padrões Virais', description: 'Vídeos com melhor desempenho são analisados por ganchos, gatilhos emocionais e padrões de engajamento.' },
+        { step: 3, title: 'Descobrir Sinais', description: 'Navegue pelos sinais de conteúdo classificados na aba Descobrir. Filtre por pet/todos e período.' },
+        { step: 4, title: 'Gerar Conteúdo', description: 'Selecione um sinal, escolha a qualidade da IA (rápido/premium) e gere um carrossel ou reel.' },
+        { step: 5, title: 'Revisar e Publicar', description: 'Revise o conteúdo gerado, aprove ou rejeite, e marque como publicado quando postado.' }
       ]
     }
   });
+});
+
+// Budget endpoint (stub to prevent 404)
+app.get('/api/budget', (req, res) => {
+  res.json({
+    used: 0,
+    limit: 15,
+    currency: 'USD',
+    period: 'monthly',
+    breakdown: []
+  });
+});
+
+// Stub GET routes for legacy/phantom requests (prevent 404s)
+app.get('/api/collect', (req, res) => {
+  res.json({ status: 'idle', message: 'Use POST /api/collection/trigger to start collection' });
+});
+
+app.get('/api/collect/status', (req, res) => {
+  res.json({ status: 'idle', message: 'Use GET /api/collection/status/:jobId for job status' });
+});
+
+app.get('/api/generate', (req, res) => {
+  res.json({ status: 'idle', message: 'Use POST /api/generate to start carousel generation' });
 });
 
 // Create snapshot on demand (for saving current trends to history)

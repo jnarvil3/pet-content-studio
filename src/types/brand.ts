@@ -96,7 +96,7 @@ export const defaultBrandConfig: BrandConfig = {
   },
 
   voice: {
-    tone: ['friendly', 'educational', 'trustworthy', 'caring'],
+    tone: ['amigável', 'educativo', 'confiável', 'acolhedor'],
     forbidden_words: ['miracle', 'cure', 'guaranteed', 'always', 'never'],
     forbidden_claims: [
       'guaranteed results',
@@ -124,10 +124,10 @@ export const defaultBrandConfig: BrandConfig = {
   },
 
   services: [
-    'dog walking',
-    'veterinary care',
-    'doggie daycare',
-    'dog food delivery',
-    'pet grooming'
+    'app para passeio de cães',
+    'cuidados veterinários',
+    'creche para cães',
+    'entrega de ração',
+    'banho e tosa'
   ]
 };
