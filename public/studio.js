@@ -285,7 +285,7 @@ async function loadSignalsList() {
         ${allSignals.map(signal => `
           <div style="border: 2px solid #e0e0e0; border-radius: 12px; padding: 1.5rem; transition: all 0.2s;">
             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
-              <div style="font-size: 1.5rem; font-weight: 700; color: #667eea;">${signal.relevance_score}</div>
+              <div style="font-size: 1.5rem; font-weight: 700; color: #4a5abb;">${signal.relevance_score}</div>
               <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">📄 ${signal.sourceType || 'RSS'}</div>
             </div>
             <div style="font-weight: 600; margin-bottom: 0.5rem; color: #333;">${signal.title}</div>
@@ -326,7 +326,7 @@ function setVideoTimePeriod(period) {
 async function loadVideosList() {
   try {
     const videosList = document.getElementById('videos-list');
-    videosList.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #667eea;"></div><p style="color: #666;">Carregando vídeos...</p></div>';
+    videosList.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #4a5abb;"></div><p style="color: #666;">Carregando vídeos...</p></div>';
 
     const response = await fetch(`/api/trending/videos?period=today&petOnly=${videoPetFilter === 'pet'}`);
     const data = await response.json();
@@ -367,7 +367,7 @@ async function loadVideosList() {
             <div style="padding: 1rem;">
               <div style="font-weight: 600; color: #333; margin-bottom: 0.5rem; font-size: 0.9rem; line-height: 1.3;">${title}</div>
               <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
-                ${hook ? `<span style="background:rgba(102,126,234,0.1);color:#667eea;padding:2px 8px;border-radius:6px;font-size:0.7rem;font-weight:600;">${hook}</span>` : ''}
+                ${hook ? `<span style="background:rgba(102,126,234,0.1);color:#4a5abb;padding:2px 8px;border-radius:6px;font-size:0.7rem;font-weight:600;">${hook}</span>` : ''}
                 ${views !== '0' ? `<span style="color:#999;font-size:0.75rem;">${views} views</span>` : ''}
               </div>
               <button class="btn btn-primary" style="width:100%;padding:0.5rem;font-size:0.85rem;" onclick="event.stopPropagation(); createFromVideo(${video.id || 0}, '${(video.hook_formula || '').replace(/'/g, "\\'")}', '${(video.title || '').replace(/'/g, "\\'").substring(0, 60)}', '')">✨ Criar a partir deste</button>
@@ -413,7 +413,7 @@ async function loadTop10Lists() {
       section.innerHTML = `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
           <div style="background: white; border-radius: 12px; padding: 1.5rem; border: 2px solid #e0e0e0;">
-            <h3 style="color: #667eea; margin-bottom: 1rem; font-size: 1.25rem;">🔥 Top 10 Estratégias de Gancho</h3>
+            <h3 style="color: #4a5abb; margin-bottom: 1rem; font-size: 1.25rem;">🔥 Top 10 Estratégias de Gancho</h3>
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
               ${topHooks.map((hook, i) => `
                 <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: 8px; background: ${i === 0 ? 'rgba(245,87,108,0.1)' : '#f9fafb'};">
@@ -428,11 +428,11 @@ async function loadTop10Lists() {
           </div>
 
           <div style="background: white; border-radius: 12px; padding: 1.5rem; border: 2px solid #e0e0e0;">
-            <h3 style="color: #667eea; margin-bottom: 1rem; font-size: 1.25rem;">💡 Exemplos de Conteúdo Viral</h3>
+            <h3 style="color: #4a5abb; margin-bottom: 1rem; font-size: 1.25rem;">💡 Exemplos de Conteúdo Viral</h3>
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
               ${topIdeas.map((idea, i) => `
                 <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: 8px; background: ${i === 0 ? 'rgba(102,126,234,0.1)' : '#f9fafb'};">
-                  <div style="font-size: 1.25rem; font-weight: 700; color: ${i === 0 ? '#667eea' : '#999'}; min-width: 30px;">#${i + 1}</div>
+                  <div style="font-size: 1.25rem; font-weight: 700; color: ${i === 0 ? '#4a5abb' : '#999'}; min-width: 30px;">#${i + 1}</div>
                   <div style="flex: 1;">
                     <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">${idea.examples?.[0]?.title || hookLabel(idea.hook_formula)}</div>
                     <div style="font-size: 0.875rem; color: #666;">${(idea.avg_engagement_rate || 0).toFixed(1)}% engajamento • ${idea.count || 0} ${(idea.count || 0) === 1 ? 'vídeo' : 'vídeos'}</div>
@@ -556,7 +556,7 @@ function renderVideoGrid() {
             ${video.channel_name ? `<div style="font-size: 0.8rem; color: #999; margin-bottom: 0.5rem;">${video.channel_name}</div>` : ''}
             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
               <span style="background: rgba(245,87,108,0.1); color: #f5576c; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${(video.engagement_rate || 0).toFixed(1)}% engagement</span>
-              ${video.hook_formula ? `<span style="background: rgba(102,126,234,0.1); color: #667eea; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${hookLabel(video.hook_formula)}</span>` : ''}
+              ${video.hook_formula ? `<span style="background: rgba(102,126,234,0.1); color: #4a5abb; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${hookLabel(video.hook_formula)}</span>` : ''}
               ${video.emotional_trigger ? `<span style="background: rgba(251,146,60,0.1); color: #fb923c; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${video.emotional_trigger}</span>` : ''}
             </div>
             <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">${(video.view_count || 0).toLocaleString()} views</div>
@@ -593,7 +593,7 @@ async function loadCreateData() {
       fastBtn.style = 'flex: 1; padding: 0.5rem; background: white; color: #666; border: 2px solid #e0e0e0; font-size: 0.875rem;';
       premiumBtn.className = 'btn btn-primary';
       premiumBtn.style = 'flex: 1; padding: 0.5rem; font-size: 0.875rem;';
-      modelDesc.textContent = 'Premium: Claude Sonnet 4 for viral-quality scripts';
+      modelDesc.textContent = 'Premium: Claude Sonnet 4 para scripts de qualidade viral';
     }
   }
 
@@ -654,9 +654,35 @@ async function loadCreateData() {
     });
 
     // Setup generation buttons
-    document.getElementById('create-carousel-btn').addEventListener('click', () => generateContent('carousel'));
-    document.getElementById('create-reel-btn').addEventListener('click', () => generateContent('reel'));
-    document.getElementById('create-linkedin-btn').addEventListener('click', () => generateContent('linkedin'));
+    const contentTypeBtns = [
+      document.getElementById('create-carousel-btn'),
+      document.getElementById('create-reel-btn'),
+      document.getElementById('create-linkedin-btn')
+    ];
+
+    contentTypeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        // Remove active state from all buttons
+        contentTypeBtns.forEach(b => {
+          b.classList.remove('active');
+          b.style.background = '';
+          b.style.color = '';
+          b.style.borderColor = '';
+        });
+        // Add active state to clicked button
+        btn.classList.add('active');
+        btn.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+        btn.style.color = 'white';
+        btn.style.borderColor = '#667eea';
+
+        const typeMap = {
+          'create-carousel-btn': 'carousel',
+          'create-reel-btn': 'reel',
+          'create-linkedin-btn': 'linkedin'
+        };
+        generateContent(typeMap[btn.id]);
+      });
+    });
 
   } catch (error) {
     console.error('Error loading create data:', error);
@@ -711,7 +737,7 @@ async function generateContent(type) {
 
   const signalId = document.getElementById('create-signal-select').value;
   if (!signalId) {
-    showToast('Selecione um topico primeiro', 'warning');
+    showToast('Selecione um sinal primeiro', 'warning');
     return;
   }
 
@@ -740,7 +766,7 @@ async function generateContent(type) {
   statusDiv.style.display = 'block';
   statusDiv.innerHTML = `
     <div style="text-align: center; padding: 1.5rem; background: rgba(102,126,234,0.1); border-radius: 12px; border: 2px solid #667eea;">
-      <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">Gerando ${contentType}...</p>
+      <p style="color: #4a5abb; font-weight: 600; margin-bottom: 0.5rem;">Gerando ${contentType}...</p>
       <p style="color: #666; font-size: 0.875rem;">Qualidade IA: ${aiQuality}</p>
     </div>
   `;
@@ -818,7 +844,7 @@ async function generateContent(type) {
         <div style="font-size: 3rem; margin-bottom: 0.5rem;">❌</div>
         <p style="font-weight: 600;">Generation failed</p>
         <p style="color: #666; margin-top: 0.5rem;">${error.message}</p>
-        <button class="btn btn-secondary" style="margin-top: 1rem;" onclick="document.getElementById('generation-status').style.display='none'">Try Again</button>
+        <button class="btn btn-secondary" style="margin-top: 1rem;" onclick="document.getElementById('generation-status').style.display='none'">Tentar Novamente</button>
       </div>
     `;
   }
@@ -862,7 +888,7 @@ async function pollProgress(signalId, statusDiv, carouselBtn, reelBtn) {
               <div style="width: ${percent}%; height: 100%; background: #667eea; transition: width 0.3s ease;"></div>
             </div>
           </div>
-          <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">${progress.message}</p>
+          <p style="color: #4a5abb; font-weight: 600; margin-bottom: 0.5rem;">${progress.message}</p>
           <p style="color: #666; font-size: 0.875rem;">Step ${progress.step}/${progress.totalSteps} • ${progress.estimatedTimeRemaining || 0}s remaining</p>
         </div>
       `;
@@ -1008,7 +1034,7 @@ async function displayReviewContent(filter) {
                 <span>•</span>
                 <span>Criado em ${new Date(item.generated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                 <span style="background: ${item.version > 1 ? '#ede9fe' : '#f3f4f6'}; color: ${item.version > 1 ? '#7c3aed' : '#6b7280'}; padding: 1px 8px; border-radius: 10px; font-weight: 600;">v${item.version || 1}</span>
-                ${feedback.length > 0 ? `<span style="color: #667eea;">📝 ${feedback.length} feedback${feedback.length > 1 ? 's' : ''}</span>` : ''}
+                ${feedback.length > 0 ? `<span style="color: #4a5abb;">📝 ${feedback.length} feedback${feedback.length > 1 ? 's' : ''}</span>` : ''}
               </div>
             </div>
             <div style="padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; font-size: 0.8rem; white-space: nowrap; background: ${sc.bg}; color: ${sc.fg};">
@@ -1077,7 +1103,7 @@ async function displayReviewContent(filter) {
             <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
               <div style="font-size: 0.8rem; font-weight: 600; color: #333; margin-bottom: 0.5rem;">Legenda</div>
               <div style="font-size: 0.875rem; color: #666; line-height: 1.5;">${item.carousel_content.caption}</div>
-              <div style="font-size: 0.8rem; color: #667eea; margin-top: 0.5rem;">${item.carousel_content.hashtags.map(h => h.startsWith('#') ? h : '#'+h).join(' ')}</div>
+              <div style="font-size: 0.8rem; color: #4a5abb; margin-top: 0.5rem;">${item.carousel_content.hashtags.map(h => h.startsWith('#') ? h : '#'+h).join(' ')}</div>
             </div>
           ` : ''}
 
@@ -1085,7 +1111,7 @@ async function displayReviewContent(filter) {
             <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
               <div style="font-size: 0.8rem; font-weight: 600; color: #333; margin-bottom: 0.5rem;">Legenda</div>
               <div style="font-size: 0.875rem; color: #666; line-height: 1.5;">${item.reel_script.caption}</div>
-              <div style="font-size: 0.8rem; color: #667eea; margin-top: 0.5rem;">${item.reel_script.hashtags.map(h => h.startsWith('#') ? h : '#'+h).join(' ')}</div>
+              <div style="font-size: 0.8rem; color: #4a5abb; margin-top: 0.5rem;">${item.reel_script.hashtags.map(h => h.startsWith('#') ? h : '#'+h).join(' ')}</div>
             </div>
           ` : ''}
 
@@ -1249,7 +1275,7 @@ async function loadSettingsData() {
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
           <div>
             <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Orçamento Mensal</div>
-            <div style="font-size: 2rem; font-weight: 700; color: #667eea;">$${costs.budget}</div>
+            <div style="font-size: 2rem; font-weight: 700; color: #4a5abb;">$${costs.budget}</div>
           </div>
           <div>
             <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Gasto este Mês</div>
@@ -1280,17 +1306,52 @@ async function runCollectionPipeline() {
     return;
   }
 
+  const btn = document.getElementById('settings-collection-btn');
+  const statusSpan = document.getElementById('settings-collection-status');
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Iniciando...';
+    btn.style.opacity = '0.6';
+  }
+
   try {
     const response = await fetch('/api/collection/trigger', { method: 'POST' });
     const result = await response.json();
 
     if (result.success) {
-      showToast('Pipeline de coleta iniciado!', 'success');
+      showToast('Coleta iniciada com sucesso! Os dados serão atualizados em breve.', 'success');
+      if (statusSpan) {
+        statusSpan.style.display = 'inline';
+        statusSpan.style.color = '#27ae60';
+        statusSpan.textContent = '✅ Coleta iniciada com sucesso! Os dados serão atualizados em breve.';
+        setTimeout(() => { statusSpan.style.display = 'none'; }, 10000);
+      }
     } else {
       showToast('Erro ao iniciar coleta: ' + (result.error || 'Erro desconhecido'), 'error');
+      if (statusSpan) {
+        statusSpan.style.display = 'inline';
+        statusSpan.style.color = '#e74c3c';
+        statusSpan.textContent = '❌ ' + (result.error || 'Erro desconhecido');
+        setTimeout(() => { statusSpan.style.display = 'none'; }, 10000);
+      }
     }
   } catch (error) {
     showToast('Erro ao iniciar pipeline de coleta', 'error');
+    if (statusSpan) {
+      statusSpan.style.display = 'inline';
+      statusSpan.style.color = '#e74c3c';
+      statusSpan.textContent = '❌ Erro ao iniciar pipeline de coleta';
+      setTimeout(() => { statusSpan.style.display = 'none'; }, 10000);
+    }
+  } finally {
+    if (btn) {
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = 'Iniciar Coleta';
+        btn.style.opacity = '1';
+      }, 5000);
+    }
   }
 }
 
@@ -1334,7 +1395,7 @@ async function createFromVideo(videoId, hookFormula, viralTitle, contentAngle) {
   statusDiv.style.display = 'block';
   statusDiv.innerHTML = `
     <div style="padding: 1.5rem; background: rgba(102,126,234,0.1); border-radius: 12px; border-left: 4px solid #667eea;">
-      <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">💡 Viral Pattern Selected</p>
+      <p style="color: #4a5abb; font-weight: 600; margin-bottom: 0.5rem;">💡 Viral Pattern Selected</p>
       <p style="color: #333; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Example:</strong> "${viralTitle}"</p>
       ${contentAngle ? `<p style="color: #666; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Angle:</strong> ${contentAngle}</p>` : ''}
       <p style="color: #666; font-size: 0.875rem;">Selecione um tópico abaixo. Seu reel vai usar este padrão viral para máximo engajamento!</p>
@@ -1377,7 +1438,7 @@ async function loadHooksList() {
   const grid = document.getElementById('hooks-grid');
   if (!grid) return;
 
-  grid.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #667eea;"></div><p style="color: #666;">Carregando padrões virais...</p></div>';
+  grid.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #4a5abb;"></div><p style="color: #666;">Carregando padrões virais...</p></div>';
 
   try {
     const response = await fetch(`/api/trending/hooks?period=today&petOnly=${hookPetFilter === 'pet'}`);
@@ -1412,14 +1473,14 @@ function renderHooksGrid(hooks) {
         <div style="border: 2px solid ${i === 0 ? '#f5576c' : '#e0e0e0'}; border-radius: 12px; padding: 1.5rem; transition: all 0.2s; ${i === 0 ? 'background: rgba(245,87,108,0.03);' : ''}" onmouseover="this.style.borderColor='#667eea'" onmouseout="this.style.borderColor='${i === 0 ? '#f5576c' : '#e0e0e0'}'">
           <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-              <div style="font-size: 1.5rem; font-weight: 700; color: ${i === 0 ? '#f5576c' : i < 3 ? '#667eea' : '#999'};">#${i + 1}</div>
+              <div style="font-size: 1.5rem; font-weight: 700; color: ${i === 0 ? '#f5576c' : i < 3 ? '#4a5abb' : '#999'};">#${i + 1}</div>
               <div style="font-weight: 700; font-size: 1.1rem; color: #333;">${hookLabel(hook.hook_formula)}</div>
             </div>
             ${i === 0 ? '<span style="background: rgba(245,87,108,0.1); color: #f5576c; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">MAIS VIRAL</span>' : ''}
           </div>
           <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
             <div style="background: rgba(102,126,234,0.1); padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.875rem;">
-              <span style="color: #667eea; font-weight: 700;">${(hook.avg_engagement_rate || hook.engagement_rate || 0).toFixed(1)}%</span>
+              <span style="color: #4a5abb; font-weight: 700;">${(hook.avg_engagement_rate || hook.engagement_rate || 0).toFixed(1)}%</span>
               <span style="color: #666;"> engajamento médio</span>
             </div>
             <div style="background: rgba(139,92,246,0.1); padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.875rem;">
@@ -1433,7 +1494,7 @@ function renderHooksGrid(hooks) {
               ${hook.examples.slice(0, 2).map(ex => `
                 <div style="font-size: 0.875rem; color: #555; margin-bottom: 0.25rem; line-height: 1.3;">
                   "${(ex.title || '').substring(0, 80)}${(ex.title || '').length > 80 ? '...' : ''}"
-                  <span style="color: #667eea; font-weight: 600;">(${(ex.engagement_rate || 0).toFixed(1)}%)</span>
+                  <span style="color: #4a5abb; font-weight: 600;">(${(ex.engagement_rate || 0).toFixed(1)}%)</span>
                 </div>
               `).join('')}
             </div>
@@ -1461,7 +1522,7 @@ function selectHook(hookFormula) {
     statusDiv.style.display = 'block';
     statusDiv.innerHTML = `
       <div style="padding: 1.5rem; background: rgba(102,126,234,0.1); border-radius: 12px; border-left: 4px solid #667eea;">
-        <p style="color: #667eea; font-weight: 600; margin-bottom: 0.5rem;">✨ Gancho Selecionado</p>
+        <p style="color: #4a5abb; font-weight: 600; margin-bottom: 0.5rem;">✨ Gancho Selecionado</p>
         <p style="color: #333; font-size: 0.875rem; margin-bottom: 0.5rem;"><strong>Gancho:</strong> ${hookLabel(hookFormula)}</p>
         <p style="color: #666; font-size: 0.875rem;">Selecione um tópico abaixo. Seu conteúdo vai usar este gancho para máximo engajamento!</p>
       </div>
@@ -1481,67 +1542,61 @@ async function triggerCollection() {
   const progressBar = document.getElementById('collection-progress-bar');
 
   btn.disabled = true;
-  btn.textContent = '⏳ Starting...';
+  btn.textContent = '⏳ Iniciando...';
   btn.style.opacity = '0.6';
   progressDiv.style.display = 'block';
+  statusText.textContent = 'Enviando requisição...';
+  progressBar.style.width = '10%';
 
   try {
     const response = await fetch('/api/collection/trigger', { method: 'POST' });
-    const { jobId } = await response.json();
+    const result = await response.json();
 
-    // Connect to SSE for progress updates
-    const eventSource = new EventSource(`/api/collection/status/${jobId}`);
+    if (result.success) {
+      // Show success feedback immediately instead of polling SSE
+      statusText.textContent = 'Coleta iniciada com sucesso!';
+      progressBar.style.width = '100%';
 
-    eventSource.addEventListener('message', (event) => {
-      const update = JSON.parse(event.data);
-      statusText.textContent = update.message;
-      progressBar.style.width = `${update.progress}%`;
+      showToast('Coleta iniciada com sucesso! Os dados serão atualizados em breve.', 'success');
 
-      if (update.status === 'complete') {
-        eventSource.close();
+      // Show inline status near the button
+      const refreshStatus = document.getElementById('refresh-status');
+      refreshStatus.style.display = 'block';
+      refreshStatus.textContent = '✅ Coleta iniciada com sucesso! Os dados serão atualizados em breve.';
+
+      // Hide progress bar after a short delay
+      setTimeout(() => {
         progressDiv.style.display = 'none';
+      }, 2000);
+
+      // Re-enable button after a cooldown to prevent double-triggers
+      setTimeout(() => {
         btn.disabled = false;
-        btn.textContent = '🔄 Buscar Tendências';
+        btn.textContent = '🔄 Atualizar Tendências';
         btn.style.opacity = '1';
+      }, 5000);
 
-        // Save snapshot of current trends
-        fetch('/api/trending/snapshot', { method: 'POST' });
-
-        // Reload data
+      // Reload data after a delay to pick up new results
+      setTimeout(() => {
         loadSignalsList();
         loadVideosList();
         loadHooksList();
-
-        // Show success
-        const refreshStatus = document.getElementById('refresh-status');
-        refreshStatus.style.display = 'block';
-        refreshStatus.textContent = '✓ Atualizado agora';
+        refreshStatus.textContent = '✓ Dados recarregados';
         setTimeout(() => { refreshStatus.style.display = 'none'; }, 5000);
-      }
-
-      if (update.status === 'error') {
-        eventSource.close();
-        progressDiv.style.display = 'none';
-        btn.disabled = false;
-        btn.textContent = '🔄 Buscar Tendências';
-        btn.style.opacity = '1';
-        showToast('Coleta falhou: ' + update.message, 'error');
-      }
-    });
-
-    eventSource.addEventListener('error', () => {
-      eventSource.close();
+      }, 15000);
+    } else {
       progressDiv.style.display = 'none';
       btn.disabled = false;
-      btn.textContent = '🔄 Buscar Tendências';
+      btn.textContent = '🔄 Atualizar Tendências';
       btn.style.opacity = '1';
-    });
+      showToast('Erro ao iniciar coleta: ' + (result.error || 'Erro desconhecido'), 'error');
+    }
 
   } catch (error) {
     console.error('Collection trigger error:', error);
     progressDiv.style.display = 'none';
     btn.disabled = false;
-    btn.textContent = '🔄 Buscar Tendências';
+    btn.textContent = '🔄 Atualizar Tendências';
     btn.style.opacity = '1';
     showToast('Erro ao iniciar coleta: ' + error.message, 'error');
   }
@@ -1634,7 +1689,7 @@ async function loadHelpData() {
                 </div>
                 <div style="font-size: 0.875rem;">
                   <span style="color: #999;">Orçamento:</span>
-                  <span style="color: #667eea; font-weight: 600;">${api.monthlyBudget}</span>
+                  <span style="color: #4a5abb; font-weight: 600;">${api.monthlyBudget}</span>
                 </div>
               </div>
             </div>

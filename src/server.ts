@@ -777,8 +777,8 @@ app.post('/api/generate-reel', async (req, res) => {
 
     if (signals.length === 0) {
       return res.status(400).json({
-        error: `No signals found with score >= ${minScore}`,
-        suggestion: 'Try lowering the minimum score or run the intelligence collector first'
+        error: `Nenhum sinal encontrado com pontuação >= ${minScore}`,
+        suggestion: 'Tente reduzir a pontuação mínima ou execute o coletor de inteligência primeiro'
       });
     }
 
@@ -889,8 +889,8 @@ app.post('/api/generate', async (req, res) => {
 
     if (signals.length === 0) {
       return res.status(400).json({
-        error: `No signals found with score >= ${minScore}`,
-        suggestion: 'Try lowering the minimum score or run the intelligence collector first'
+        error: `Nenhum sinal encontrado com pontuação >= ${minScore}`,
+        suggestion: 'Tente reduzir a pontuação mínima ou execute o coletor de inteligência primeiro'
       });
     }
 
@@ -1019,17 +1019,29 @@ app.post('/api/collection/trigger', async (req, res) => {
 
 // Collection status (SSE)
 app.get('/api/collection/status/:jobId', (req, res) => {
+  const jobId = req.params.jobId;
+
+  // Check if job exists before opening SSE stream
+  const job = orchestrator.getJob(jobId);
+  if (!job) {
+    // Return a graceful JSON response instead of 503 or hanging SSE
+    res.json({ jobId, status: 'not_found', message: 'Job not found. It may have already completed or expired.' });
+    return;
+  }
+
+  // If job already completed, return its final state as JSON
+  if (job.status === 'complete' || job.status === 'error') {
+    res.json(job);
+    return;
+  }
+
+  // Only open SSE stream for actively running jobs
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
 
-  const jobId = req.params.jobId;
-
   // Send current status immediately
-  const job = orchestrator.getJob(jobId);
-  if (job) {
-    res.write(`data: ${JSON.stringify(job)}\n\n`);
-  }
+  res.write(`data: ${JSON.stringify(job)}\n\n`);
 
   // Listen for updates
   const onUpdate = (updatedJob: any) => {
@@ -1163,42 +1175,42 @@ app.get('/api/help/info', (req, res) => {
       apis: [
         {
           name: 'OpenAI (GPT-4o)',
-          usage: 'Content script generation (fast mode), viral video text analysis',
+          usage: 'Geração de scripts de conteúdo (modo rápido), análise de texto de vídeos virais',
           costPer: '~$0.01 per generation (fast mode)',
           monthlyBudget: '$15.00',
           keyConfigured: !!process.env.OPENAI_API_KEY
         },
         {
           name: 'Anthropic (Claude Sonnet 4)',
-          usage: 'Premium content script generation for higher-quality, viral-optimized scripts',
+          usage: 'Geração premium de scripts de conteúdo para roteiros de maior qualidade e otimizados para viralização',
           costPer: '~$0.15-0.20 per generation (premium mode)',
           monthlyBudget: 'Shared with OpenAI budget',
           keyConfigured: !!process.env.ANTHROPIC_API_KEY
         },
         {
           name: 'ElevenLabs',
-          usage: 'Text-to-speech narration for reels. Generates professional voiceover for each scene.',
+          usage: 'Narração por voz para reels. Gera locução profissional para cada cena.',
           costPer: '~10,000 characters/month free tier',
           monthlyBudget: 'Free tier (10k chars)',
           keyConfigured: !!process.env.ELEVENLABS_API_KEY
         },
         {
           name: 'Pexels',
-          usage: 'Stock video footage for reels. Searches pet-related B-roll to accompany narration.',
+          usage: 'Vídeos de stock para reels. Busca B-roll relacionado a pets para acompanhar a narração.',
           costPer: 'Free (unlimited)',
           monthlyBudget: 'Unlimited',
           keyConfigured: !!process.env.PEXELS_API_KEY
         },
         {
           name: 'YouTube Data API',
-          usage: 'Viral video collection and trend discovery. Searches for trending pet content to analyze.',
+          usage: 'Coleta de vídeos virais e descoberta de tendências. Busca conteúdo pet em alta para análise.',
           costPer: '10,000 units/day free quota',
           monthlyBudget: 'Free (10k units/day)',
           keyConfigured: !!process.env.YOUTUBE_API_KEY
         },
         {
           name: 'TikTok Scraper API',
-          usage: 'TikTok trending video collection. Fetches trending videos with engagement metrics, thumbnails, and metadata.',
+          usage: 'Coleta de vídeos em alta do TikTok. Busca vídeos tendência com métricas de engajamento, thumbnails e metadados.',
           costPer: '5,000 requests/month free tier',
           monthlyBudget: 'Free (5k req/month)',
           keyConfigured: !!process.env.TIKTOK_API_KEY

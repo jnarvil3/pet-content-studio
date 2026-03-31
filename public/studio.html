@@ -73,13 +73,13 @@
 
     .nav-item:hover {
       background: rgba(102, 126, 234, 0.1);
-      color: #667eea;
+      color: #4a5abb;
     }
 
     .nav-item.active {
       background: rgba(102, 126, 234, 0.15);
-      color: #667eea;
-      border-left-color: #667eea;
+      color: #4a5abb;
+      border-left-color: #4a5abb;
       font-weight: 600;
     }
 
@@ -280,13 +280,20 @@
 
     .btn-secondary {
       background: white;
-      color: #667eea;
-      border: 2px solid #667eea;
+      color: #4a5abb;
+      border: 2px solid #4a5abb;
     }
 
     .btn-secondary:hover {
       background: #667eea;
       color: white;
+    }
+
+    .btn-secondary.filter-btn.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-color: transparent;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
     }
 
     /* Loading */
@@ -325,8 +332,8 @@
     }
 
     .toggle-btn:hover {
-      border-color: #667eea;
-      color: #667eea;
+      border-color: #4a5abb;
+      color: #4a5abb;
     }
 
     .toggle-btn.active {
@@ -347,13 +354,13 @@
       font-family: inherit;
     }
     .feedback-chip:hover {
-      border-color: #667eea;
+      border-color: #4a5abb;
       background: rgba(102, 126, 234, 0.05);
     }
     .feedback-chip.selected {
-      border-color: #667eea;
+      border-color: #4a5abb;
       background: rgba(102, 126, 234, 0.1);
-      color: #667eea;
+      color: #4a5abb;
     }
 
     /* Disabled buttons */
@@ -413,7 +420,7 @@
 
       .nav-item.active {
         border-left-color: transparent;
-        border-top-color: #667eea;
+        border-top-color: #4a5abb;
       }
 
       .nav-icon {
@@ -551,20 +558,20 @@
                 <p style="color: #666;">Classificados por pontuação de relevância e potencial viral</p>
               </div>
               <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <div id="refresh-status" style="display: none; font-size: 0.875rem; color: #667eea;"></div>
+                <div id="refresh-status" style="display: none; font-size: 0.875rem; color: #4a5abb;"></div>
                 <button class="btn btn-primary" id="refresh-signals-btn" onclick="triggerCollection()" style="white-space: nowrap;">🔄 Atualizar Tendências</button>
               </div>
             </div>
             <div id="collection-progress" style="display: none; margin-bottom: 1.5rem; padding: 1rem; background: rgba(102,126,234,0.05); border-radius: 8px;">
               <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
                 <div class="spinner" style="width: 20px; height: 20px; border-width: 3px; margin: 0;"></div>
-                <span id="collection-status" style="color: #667eea; font-weight: 500;">Inicializando...</span>
+                <span id="collection-status" style="color: #4a5abb; font-weight: 500;">Inicializando...</span>
               </div>
               <div style="width: 100%; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
                 <div id="collection-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); transition: width 0.3s;"></div>
               </div>
             </div>
-            <div id="signals-list">Loading...</div>
+            <div id="signals-list">Carregando...</div>
           </div>
         </div>
 
@@ -675,7 +682,7 @@
             <button class="btn btn-secondary filter-btn" data-filter="published" data-i18n="review.filter_published">Publicados</button>
           </div>
 
-          <div id="review-content-grid">Loading...</div>
+          <div id="review-content-grid">Carregando...</div>
         </div>
       </div>
 
@@ -695,7 +702,7 @@
           <h2 class="card-title" data-i18n="settings.brand">Configuracao da Marca</h2>
           <!-- Brand Document Upload -->
           <div style="margin-bottom: 2rem; padding: 1.5rem; background: linear-gradient(135deg, rgba(102,126,234,0.05), rgba(118,75,162,0.05)); border: 2px dashed #667eea; border-radius: 12px;">
-            <h3 style="color: #667eea; margin-bottom: 0.75rem;">📄 Upload de Documentos da Marca</h3>
+            <h3 style="color: #4a5abb; margin-bottom: 0.75rem;">📄 Upload de Documentos da Marca</h3>
             <p style="color: #666; font-size: 0.875rem; margin-bottom: 1rem;">Envie diretrizes, logo ou exemplos de posts. A IA vai extrair a voz, tom e regras da marca automaticamente.</p>
             <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
               <input type="file" id="brand-file-input" accept=".pdf,.png,.jpg,.jpeg,.svg,.webp" style="display:none;">
@@ -756,7 +763,10 @@
         <div class="card">
           <h2 class="card-title" data-i18n="settings.collection">Pipeline de Coleta</h2>
           <p style="color: #666; margin-bottom: 1.5rem;">Gerenciar coleta de vídeos virais</p>
-          <button class="btn btn-primary" onclick="runCollectionPipeline()" data-i18n="settings.trigger_collection">Iniciar Coleta</button>
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <button class="btn btn-primary" id="settings-collection-btn" onclick="runCollectionPipeline()" data-i18n="settings.trigger_collection">Iniciar Coleta</button>
+            <span id="settings-collection-status" style="display: none; font-size: 0.875rem; font-weight: 500;"></span>
+          </div>
         </div>
       </div>
       <!-- Help Page -->
@@ -766,7 +776,7 @@
           <p class="page-subtitle" data-i18n="help.subtitle">Guia da plataforma, uso de APIs e informacoes de creditos</p>
         </div>
 
-        <div id="help-content">Loading...</div>
+        <div id="help-content">Carregando...</div>
       </div>
     </main>
   </div>
