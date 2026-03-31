@@ -1204,7 +1204,7 @@ async function displayReviewContent(filter) {
           <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; padding-top: 0.75rem; border-top: 1px solid #f0f0f0;">
             ${item.status === 'pending' ? `
               <button class="btn btn-primary" onclick="approveContent(${item.id})">✅ Aprovar</button>
-              <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">✏️ Solicitar Alterações</button>
+              <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">🔄 Regenerar Tudo com Alterações</button>
               <button class="btn btn-secondary" style="color: #ef4444; border-color: #fecaca;" onclick="rejectContent(${item.id})">❌ Rejeitar</button>
             ` : ''}
             ${item.status === 'revision_requested' ? `
@@ -1214,7 +1214,7 @@ async function displayReviewContent(filter) {
             ` : ''}
             ${item.status === 'approved' ? `
               <button class="btn btn-primary" onclick="publishContent(${item.id})">🚀 Publicar</button>
-              <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">✏️ Solicitar Alterações</button>
+              <button class="btn btn-secondary" onclick="openFeedbackModal(${item.id})">🔄 Regenerar Tudo com Alterações</button>
             ` : ''}
             ${item.status === 'published' ? `
               <span style="font-size: 0.8rem; color: #8b5cf6; font-weight: 500;">Publicado em ${item.published_at ? new Date(item.published_at).toLocaleDateString('pt-BR') : '-'}</span>
@@ -1229,23 +1229,45 @@ async function displayReviewContent(filter) {
   `;
 }
 
-async function editSlideImage(contentId, slideNum) {
-  const query = prompt(`Trocar foto do slide ${slideNum}\n\nDigite o que você quer ver na foto (em inglês ou português):\n\nExemplos:\n• dog agility course\n• golden retriever on beach\n• cat playing with toy\n• veterinarian examining puppy`);
+function editSlideImage(contentId, slideNum) {
+  document.getElementById('slide-edit-content-id').value = contentId;
+  document.getElementById('slide-edit-slide-num').value = slideNum;
+  document.getElementById('slide-edit-num').textContent = slideNum;
+  document.getElementById('slide-edit-query').value = '';
+  const modal = document.getElementById('slide-edit-modal');
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('slide-edit-query').focus(), 100);
+}
 
-  if (!query || !query.trim()) return;
+function closeSlideEditModal() {
+  document.getElementById('slide-edit-modal').style.display = 'none';
+}
 
-  showToast(`Atualizando slide ${slideNum}...`, 'info');
+async function submitSlideEdit() {
+  const contentId = document.getElementById('slide-edit-content-id').value;
+  const slideNum = document.getElementById('slide-edit-slide-num').value;
+  const query = document.getElementById('slide-edit-query').value.trim();
+
+  if (!query) {
+    showToast('Digite o que você quer ver na foto', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('slide-edit-submit');
+  btn.disabled = true;
+  btn.textContent = 'Atualizando...';
 
   try {
     const response = await fetch(`/api/content/${contentId}/edit-slide/${slideNum}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ searchQuery: query.trim() })
+      body: JSON.stringify({ searchQuery: query })
     });
 
     const result = await response.json();
     if (result.success) {
       showToast(`Slide ${slideNum} atualizado!`, 'success');
+      closeSlideEditModal();
       await loadReviewData();
     } else {
       showToast(`Erro: ${result.error}`, 'error');
@@ -1253,6 +1275,9 @@ async function editSlideImage(contentId, slideNum) {
   } catch (error) {
     showToast('Erro ao atualizar slide', 'error');
     console.error('Edit slide error:', error);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Trocar Foto';
   }
 }
 

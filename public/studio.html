@@ -807,7 +807,8 @@
   <!-- Feedback Modal -->
   <div id="feedback-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
     <div style="background:white; border-radius:15px; padding:2rem; max-width:600px; width:90%; max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-      <h2 style="margin-bottom:1rem; color:#333;" data-i18n="feedback.title">Solicitar Alterações</h2>
+      <h2 style="margin-bottom:1rem; color:#333;" data-i18n="feedback.title">🔄 Regenerar Todos os Slides</h2>
+      <p style="color:#888; font-size:0.85rem; margin-bottom:1rem;">Isto vai regenerar <strong>todos os slides, textos e fotos</strong>. Para trocar apenas a foto de um slide, use o ✏️ no thumbnail.</p>
       <input type="hidden" id="feedback-content-id">
       <div style="margin-bottom:1rem;">
         <div style="font-size:0.85rem; color:#666; margin-bottom:0.5rem;">Sugestões rápidas (clique para adicionar):</div>
@@ -839,6 +840,31 @@
       <div style="display:flex; gap:1rem; justify-content:flex-end;">
         <button class="btn btn-secondary" onclick="closeFeedbackModal()" data-i18n="feedback.cancel">Cancelar</button>
         <button class="btn btn-primary" onclick="submitFeedback()" data-i18n="feedback.submit">Enviar e Solicitar Revisao</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide Image Edit Modal -->
+  <div id="slide-edit-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1500; justify-content:center; align-items:center;">
+    <div style="background:white; border-radius:15px; padding:2rem; max-width:480px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <h3 style="margin-bottom:0.25rem; color:#333;">📷 Trocar Foto do Slide <span id="slide-edit-num"></span></h3>
+      <p style="color:#888; font-size:0.85rem; margin-bottom:1.25rem;">Descreva a foto que você quer ver neste slide. A busca será feita no Pexels.</p>
+      <input type="hidden" id="slide-edit-content-id">
+      <input type="hidden" id="slide-edit-slide-num">
+      <div style="margin-bottom:1rem;">
+        <input type="text" id="slide-edit-query" placeholder="Ex: dog agility course, golden retriever beach" style="width:100%; padding:0.75rem; border:2px solid #e0e0e0; border-radius:8px; font-size:1rem; font-family:inherit; box-sizing:border-box;">
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1.25rem;">
+        <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='happy dog playing outdoors'">🐕 Cachorro feliz</button>
+        <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='cat relaxing cozy home'">🐱 Gato relaxando</button>
+        <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='dog agility training course'">🏃 Agility</button>
+        <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='veterinarian examining pet'">🩺 Veterinário</button>
+        <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='dog grooming salon'">✂️ Banho e tosa</button>
+        <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='pet owner walking dog park'">🌳 Passeio no parque</button>
+      </div>
+      <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeSlideEditModal()">Cancelar</button>
+        <button class="btn btn-primary" id="slide-edit-submit" onclick="submitSlideEdit()">Trocar Foto</button>
       </div>
     </div>
   </div>
