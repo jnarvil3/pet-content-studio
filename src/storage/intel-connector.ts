@@ -13,11 +13,9 @@ export class IntelConnector {
   private dbPath: string;
 
   constructor(dbPath?: string) {
-    const localPath = path.join(process.cwd(), 'data', 'signals.db');
-    const envPath = process.env.INTEL_DATABASE_PATH;
-    // Resolve env path to absolute to avoid mismatches with the collector's path
-    this.dbPath = dbPath || (envPath ? path.resolve(envPath) : localPath);
-    console.log(`[IntelConnector] DB path resolved to: ${this.dbPath}`);
+    // Always use the same path as SignalCollector to avoid mismatches
+    this.dbPath = dbPath || path.join(process.cwd(), 'data', 'signals.db');
+    console.log(`[IntelConnector] DB path: ${this.dbPath}`);
     this.tryConnect();
   }
 
@@ -30,11 +28,8 @@ export class IntelConnector {
     if (this.db) return;
     if (!fs.existsSync(this.dbPath)) return;
 
-    const localPath = path.join(process.cwd(), 'data', 'signals.db');
-    const isLocalDb = path.resolve(this.dbPath) === path.resolve(localPath);
-    const opts = isLocalDb ? {} : { readonly: true };
-    this.db = new Database(this.dbPath, opts);
-    console.log(`[IntelConnector] Connected to intelligence database at ${this.dbPath}${isLocalDb ? ' (read-write)' : ' (readonly)'}`);
+    this.db = new Database(this.dbPath);
+    console.log(`[IntelConnector] Connected to intelligence database at ${this.dbPath}`);
   }
 
   /**
