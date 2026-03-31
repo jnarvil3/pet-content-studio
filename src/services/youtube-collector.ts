@@ -50,22 +50,25 @@ export class YouTubeCollector {
     console.log('[YouTubeCollector] Fetching trending pet videos...');
 
     // Search multiple pet-related queries for variety
+    // Don't use videoCategoryId — it's too restrictive with search and often returns 0
     const queries = [
-      { q: 'dog training tips', categoryId: '15' },
-      { q: 'cat behavior funny', categoryId: '15' },
-      { q: 'pet care tips 2026', categoryId: '15' },
-      { q: 'puppy first time', categoryId: '15' },
-      { q: 'dog grooming transformation', categoryId: '15' },
+      'dog training tips',
+      'funny cat behavior',
+      'pet care tips',
+      'puppy reaction first time',
+      'dog grooming transformation',
+      'rescue dog adoption',
+      'cachorro treinamento dicas',
     ];
 
     const allVideos: YouTubeVideo[] = [];
 
     for (const query of queries) {
       try {
-        const videos = await this.searchAndEnrich(query.q, query.categoryId);
+        const videos = await this.searchAndEnrich(query);
         allVideos.push(...videos);
       } catch (error: any) {
-        console.error(`[YouTubeCollector] Error searching "${query.q}":`, error.message);
+        console.error(`[YouTubeCollector] Error searching "${query}":`, error.message);
       }
     }
 
@@ -90,31 +93,32 @@ export class YouTubeCollector {
   /**
    * Search YouTube and enrich with stats
    */
-  private async searchAndEnrich(query: string, categoryId: string): Promise<YouTubeVideo[]> {
-    // Step 1: Search
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  private async searchAndEnrich(query: string): Promise<YouTubeVideo[]> {
+    // Step 1: Search — no category filter (too restrictive), 30 day window
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const searchParams = new URLSearchParams({
       key: this.apiKey,
       part: 'snippet',
       type: 'video',
       q: query,
-      videoCategoryId: categoryId,
       order: 'viewCount',
-      publishedAfter: sevenDaysAgo.toISOString(),
+      publishedAfter: thirtyDaysAgo.toISOString(),
       maxResults: '10',
       regionCode: 'US'
     });
 
-    const searchRes = await fetch(`${YOUTUBE_API}/search?${searchParams}`);
+    const searchUrl = `${YOUTUBE_API}/search?${searchParams}`;
+    const searchRes = await fetch(searchUrl);
     const searchData = await searchRes.json();
 
     if (searchData.error) {
-      throw new Error(searchData.error.message);
+      throw new Error(`YouTube API: ${searchData.error.message} (${searchData.error.code})`);
     }
 
     const items = searchData.items || [];
+    console.log(`[YouTubeCollector] "${query}" → ${items.length} results`);
     if (items.length === 0) return [];
 
     // Step 2: Get video stats
