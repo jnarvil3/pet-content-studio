@@ -356,10 +356,37 @@
       color: #667eea;
     }
 
-    /* Responsive */
+    /* Disabled buttons */
+    .btn:disabled,
+    .btn[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    /* Responsive — tablet: 2-column stat cards */
     @media (max-width: 768px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Responsive — mobile: bottom nav bar */
+    @media (max-width: 768px) {
+      .app-container {
+        flex-direction: column;
+      }
+
       .sidebar {
-        width: 60px;
+        width: 100%;
+        height: auto;
+        order: 2;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        z-index: 100;
+        flex-direction: row;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
       }
 
       .sidebar-header,
@@ -368,8 +395,34 @@
         display: none;
       }
 
+      .sidebar-nav {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-around;
+        width: 100%;
+        padding: 0;
+      }
+
       .nav-item {
+        flex: 1;
         justify-content: center;
+        padding: 0.75rem 0;
+        border-left: none;
+        border-top: 3px solid transparent;
+      }
+
+      .nav-item.active {
+        border-left-color: transparent;
+        border-top-color: #667eea;
+      }
+
+      .nav-icon {
+        margin-right: 0;
+      }
+
+      .main-content {
+        width: 100%;
+        padding-bottom: 60px;
       }
     }
   </style>
@@ -643,7 +696,7 @@
           <!-- Brand Document Upload -->
           <div style="margin-bottom: 2rem; padding: 1.5rem; background: linear-gradient(135deg, rgba(102,126,234,0.05), rgba(118,75,162,0.05)); border: 2px dashed #667eea; border-radius: 12px;">
             <h3 style="color: #667eea; margin-bottom: 0.75rem;">📄 Upload de Documentos da Marca</h3>
-            <p style="color: #666; font-size: 0.875rem; margin-bottom: 1rem;">Envie guidelines, logo ou exemplos de posts. A IA vai extrair a voz, tom e regras da marca automaticamente.</p>
+            <p style="color: #666; font-size: 0.875rem; margin-bottom: 1rem;">Envie diretrizes, logo ou exemplos de posts. A IA vai extrair a voz, tom e regras da marca automaticamente.</p>
             <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
               <input type="file" id="brand-file-input" accept=".pdf,.png,.jpg,.jpeg,.svg,.webp" style="display:none;">
               <button class="btn btn-primary" onclick="document.getElementById('brand-file-input').click()">📎 Escolher Arquivo</button>

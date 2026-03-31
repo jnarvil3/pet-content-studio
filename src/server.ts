@@ -57,6 +57,8 @@ if (AUTH_PASSWORD) {
 }
 
 app.get('/', (_req, res) => res.redirect('/studio.html'));
+app.get('/index.html', (_req, res) => res.redirect('/studio.html'));
+app.get('/demo.html', (_req, res) => res.redirect('/studio.html'));
 app.use(express.static('public'));
 
 // Serve generated images

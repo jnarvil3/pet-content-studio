@@ -276,7 +276,7 @@ async function loadSignalsList() {
     const signalsList = document.getElementById('signals-list');
 
     if (allSignals.length === 0) {
-      signalsList.innerHTML = '<p style="color: #999;">Nenhum sinal disponivel. Execute o coletor de inteligencia.</p>';
+      signalsList.innerHTML = '<p style="color: #999;">Nenhum sinal disponível. Execute o coletor de inteligência.</p>';
       return;
     }
 
@@ -1501,7 +1501,7 @@ async function triggerCollection() {
         eventSource.close();
         progressDiv.style.display = 'none';
         btn.disabled = false;
-        btn.textContent = '🔄 Get Newest Trends';
+        btn.textContent = '🔄 Buscar Tendências';
         btn.style.opacity = '1';
 
         // Save snapshot of current trends
@@ -1515,7 +1515,7 @@ async function triggerCollection() {
         // Show success
         const refreshStatus = document.getElementById('refresh-status');
         refreshStatus.style.display = 'block';
-        refreshStatus.textContent = '✓ Updated just now';
+        refreshStatus.textContent = '✓ Atualizado agora';
         setTimeout(() => { refreshStatus.style.display = 'none'; }, 5000);
       }
 
@@ -1523,7 +1523,7 @@ async function triggerCollection() {
         eventSource.close();
         progressDiv.style.display = 'none';
         btn.disabled = false;
-        btn.textContent = '🔄 Get Newest Trends';
+        btn.textContent = '🔄 Buscar Tendências';
         btn.style.opacity = '1';
         showToast('Coleta falhou: ' + update.message, 'error');
       }
@@ -1533,7 +1533,7 @@ async function triggerCollection() {
       eventSource.close();
       progressDiv.style.display = 'none';
       btn.disabled = false;
-      btn.textContent = '🔄 Get Newest Trends';
+      btn.textContent = '🔄 Buscar Tendências';
       btn.style.opacity = '1';
     });
 
@@ -1541,7 +1541,7 @@ async function triggerCollection() {
     console.error('Collection trigger error:', error);
     progressDiv.style.display = 'none';
     btn.disabled = false;
-    btn.textContent = '🔄 Get Newest Trends';
+    btn.textContent = '🔄 Buscar Tendências';
     btn.style.opacity = '1';
     showToast('Erro ao iniciar coleta: ' + error.message, 'error');
   }

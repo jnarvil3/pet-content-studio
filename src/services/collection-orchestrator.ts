@@ -82,7 +82,7 @@ export class CollectionOrchestrator extends EventEmitter {
         status: 'complete',
         stage: 'complete',
         progress: 100,
-        message: 'Collection complete! New trending data is now available.',
+        message: 'Coleta concluída! Novos dados de tendências disponíveis.',
         completedAt: new Date()
       });
 
