@@ -1331,7 +1331,7 @@ app.get('/api/debug/signals', (req, res) => {
     const total = db.prepare('SELECT COUNT(*) as c FROM signals').get();
     const scored = db.prepare('SELECT COUNT(*) as c FROM signals WHERE scored_at IS NOT NULL').get();
     const relevant = db.prepare('SELECT COUNT(*) as c FROM signals WHERE is_relevant = 1').get();
-    const sample = db.prepare('SELECT id, title, relevance_score, is_relevant, scored_at FROM signals WHERE scored_at IS NOT NULL ORDER BY relevance_score DESC LIMIT 5').all();
+    const sample = db.prepare('SELECT id, title, relevance_score, relevance_reason, is_relevant, scored_at FROM signals WHERE scored_at IS NOT NULL ORDER BY relevance_score DESC LIMIT 5').all();
     db.close();
     res.json({
       dbPath,
