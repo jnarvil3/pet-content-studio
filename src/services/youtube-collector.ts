@@ -49,24 +49,36 @@ export class YouTubeCollector {
 
     console.log('[YouTubeCollector] Fetching trending pet videos...');
 
-    // Mix of pet-specific and general viral queries
-    // Pet filter on the frontend separates them
+    // Mix of pet-specific and general topic queries
+    // YouTube sorts by viewCount so we get the most-watched for each topic
+    // Pet filter on the frontend separates them by title keywords
     const queries = [
       // Pet
-      'dog training tips',
-      'funny cat behavior',
-      'puppy reaction first time',
-      'dog grooming transformation',
-      // General viral
-      'viral video this week',
-      'most viewed today',
-      'trending challenge',
-      'satisfying videos',
-      'life hack viral',
+      'dog training',
+      'funny cats',
+      'puppy',
+      'dog grooming',
+      'pet rescue',
+      // General (broad topics that get high views)
+      'cooking recipe',
+      'fitness workout',
+      'travel vlog',
+      'DIY home',
+      'tech review',
     ];
 
     const allVideos: YouTubeVideo[] = [];
 
+    // Source 1: YouTube's actual trending/mostPopular list
+    try {
+      const trending = await this.getMostPopular();
+      allVideos.push(...trending);
+      console.log(`[YouTubeCollector] Trending: ${trending.length} videos`);
+    } catch (error: any) {
+      console.error(`[YouTubeCollector] Error fetching trending:`, error.message);
+    }
+
+    // Source 2: Search queries for specific topics
     for (const query of queries) {
       try {
         const videos = await this.searchAndEnrich(query);
@@ -143,6 +155,60 @@ export class YouTubeCollector {
 
     // Step 3: Build enriched video objects
     return (statsData.items || []).map((video: any) => {
+      const snippet = video.snippet || {};
+      const stats = video.statistics || {};
+
+      const viewCount = parseInt(stats.viewCount || '0');
+      const likeCount = parseInt(stats.likeCount || '0');
+      const commentCount = parseInt(stats.commentCount || '0');
+
+      const engagementRate = viewCount > 0
+        ? ((likeCount + commentCount) / viewCount) * 100
+        : 0;
+
+      const publishedAt = new Date(snippet.publishedAt || new Date());
+      const daysSince = Math.max(1, (Date.now() - publishedAt.getTime()) / (1000 * 60 * 60 * 24));
+      const viewsPerDay = viewCount / daysSince;
+
+      return {
+        video_id: video.id,
+        title: snippet.title || '',
+        description: (snippet.description || '').substring(0, 500),
+        channel_name: snippet.channelTitle || '',
+        channel_id: snippet.channelId || '',
+        published_at: snippet.publishedAt || new Date().toISOString(),
+        thumbnail_url: snippet.thumbnails?.high?.url || snippet.thumbnails?.medium?.url || '',
+        view_count: viewCount,
+        like_count: likeCount,
+        comment_count: commentCount,
+        engagement_rate: parseFloat(engagementRate.toFixed(2)),
+        views_per_day: Math.round(viewsPerDay),
+        is_viral: engagementRate > 5 || viewsPerDay > 100000,
+        tags: snippet.tags || []
+      };
+    });
+  }
+
+  /**
+   * Get YouTube's actual trending/most popular videos (no search query needed)
+   */
+  private async getMostPopular(): Promise<YouTubeVideo[]> {
+    const params = new URLSearchParams({
+      key: this.apiKey,
+      part: 'snippet,statistics',
+      chart: 'mostPopular',
+      maxResults: '25',
+      regionCode: 'US'
+    });
+
+    const res = await fetch(`${YOUTUBE_API}/videos?${params}`);
+    const data = await res.json();
+
+    if (data.error) {
+      throw new Error(`YouTube API: ${data.error.message}`);
+    }
+
+    return (data.items || []).map((video: any) => {
       const snippet = video.snippet || {};
       const stats = video.statistics || {};
 
