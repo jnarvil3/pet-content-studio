@@ -49,16 +49,20 @@ export class YouTubeCollector {
 
     console.log('[YouTubeCollector] Fetching trending pet videos...');
 
-    // Search multiple pet-related queries for variety
-    // Don't use videoCategoryId — it's too restrictive with search and often returns 0
+    // Mix of pet-specific and general viral queries
+    // Pet filter on the frontend separates them
     const queries = [
+      // Pet
       'dog training tips',
       'funny cat behavior',
-      'pet care tips',
       'puppy reaction first time',
       'dog grooming transformation',
-      'rescue dog adoption',
-      'cachorro treinamento dicas',
+      // General viral
+      'viral video this week',
+      'most viewed today',
+      'trending challenge',
+      'satisfying videos',
+      'life hack viral',
     ];
 
     const allVideos: YouTubeVideo[] = [];
