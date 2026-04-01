@@ -117,7 +117,13 @@ function setupNavigation() {
   });
 }
 
-function navigateTo(pageName) {
+async function navigateTo(pageName) {
+  // Warn if generation is in progress
+  if (isGenerating && currentPage === 'create' && pageName !== 'create') {
+    const leave = await showConfirm('Conteúdo está sendo gerado! A geração continuará no servidor, mas você não verá o progresso.\n\nDeseja sair mesmo assim?', { okText: 'Sair', cancelText: 'Ficar aqui' });
+    if (!leave) return;
+  }
+
   // Update nav items
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.remove('active');
