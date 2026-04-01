@@ -786,13 +786,6 @@ async function generateContent(type) {
     return;
   }
 
-  isGenerating = true;
-
-  // Get buttons and disable them immediately
-  const carouselBtn = document.getElementById('create-carousel-btn');
-  const reelBtn = document.getElementById('create-reel-btn');
-  const linkedinBtn = document.getElementById('create-linkedin-btn');
-
   // Confirmation before generation
   const contentTypeLabels = { carousel: '📱 Carrossel', reel: '🎥 Reel', linkedin: '💼 LinkedIn' };
   const contentType = contentTypeLabels[type] || type;
@@ -800,6 +793,13 @@ async function generateContent(type) {
 
   const confirmed = await showConfirm(`Gerar ${contentType}?\n\nQualidade: ${aiQuality}\nIsso vai consumir créditos da API.`, { okText: 'Gerar', cancelText: 'Cancelar' });
   if (!confirmed) return;
+
+  isGenerating = true;
+
+  // Get buttons and disable them immediately
+  const carouselBtn = document.getElementById('create-carousel-btn');
+  const reelBtn = document.getElementById('create-reel-btn');
+  const linkedinBtn = document.getElementById('create-linkedin-btn');
 
   [carouselBtn, reelBtn, linkedinBtn].forEach(btn => {
     btn.disabled = true;
