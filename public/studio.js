@@ -721,7 +721,10 @@ async function loadCreateData() {
           audioToggle.style.display = typeMap[btn.id] === 'reel' ? 'block' : 'none';
         }
 
-        generateContent(typeMap[btn.id]);
+        // Store selected type, show generate button
+        window._selectedContentType = typeMap[btn.id];
+        const genBtn = document.getElementById('generate-btn');
+        if (genBtn) genBtn.style.display = 'inline-block';
       });
     });
 
