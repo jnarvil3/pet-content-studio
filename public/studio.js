@@ -881,6 +881,7 @@ async function generateContent(type) {
         reelBtn.style.opacity = '1';
         reelBtn.style.cursor = 'pointer';
       }, 2000);
+      isGenerating = false;
       // Carousels are fast
       statusDiv.innerHTML = `
         <div style="text-align: center; padding: 2rem; background: rgba(34,197,94,0.1); border-radius: 12px; color: #22c55e;">
@@ -925,6 +926,7 @@ async function pollProgress(signalId, statusDiv, carouselBtn, reelBtn) {
       if (!progress.inProgress) {
         // Generation complete - re-enable buttons
         clearInterval(pollInterval);
+        isGenerating = false;
 
         // Re-enable buttons
         carouselBtn.disabled = false;
