@@ -1014,15 +1014,15 @@ async function loadReviewData() {
     const response = await fetch('/api/content');
     const rawContent = await response.json();
 
-    // Only show the latest version per signal (hide superseded versions)
-    const latestBySignal = {};
+    // Only show the latest version per signal+type (hide superseded versions)
+    const latestByKey = {};
     rawContent.forEach(item => {
-      const key = item.signal_id || item.id; // custom topics have no signal_id
-      if (!latestBySignal[key] || item.version > latestBySignal[key].version) {
-        latestBySignal[key] = item;
+      const key = `${item.signal_id || item.id}_${item.content_type}`;
+      if (!latestByKey[key] || item.version > latestByKey[key].version) {
+        latestByKey[key] = item;
       }
     });
-    allContent = Object.values(latestBySignal);
+    allContent = Object.values(latestByKey);
 
     // Update filter button counts
     const counts = { all: allContent.length };
