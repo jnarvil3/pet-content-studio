@@ -1377,7 +1377,8 @@ app.post('/api/trending/custom-search', async (req, res) => {
     const allVideos: any[] = [];
     for (const query of searchQueries) {
       try {
-        const videos = await collector.searchVideos(query, regionCode, 5, lang);
+        // Fetch more results to have enough after language filtering
+        const videos = await collector.searchVideos(query, regionCode, 10, lang);
         allVideos.push(...videos);
       } catch (err: any) {
         console.log(`[CustomSearch] Query "${query}" failed: ${err.message}`);
@@ -1386,15 +1387,45 @@ app.post('/api/trending/custom-search', async (req, res) => {
 
     // Deduplicate by video ID
     const seen = new Set<string>();
-    const unique = allVideos.filter(v => {
+    const deduped = allVideos.filter(v => {
       const vid = v.video_id || v.id;
       if (seen.has(vid)) return false;
       seen.add(vid);
       return true;
     });
 
+    // Filter by language — only keep videos matching the target language
+    // YouTube's language field uses codes like 'pt', 'pt-BR', 'es', 'fr', etc.
+    // Also detect by script: filter out Hindi/Devanagari, Arabic, CJK when targeting Latin-script languages
+    const latinScriptLangs = ['pt', 'es', 'en', 'fr', 'de'];
+    const isLatinTarget = latinScriptLangs.includes(lang);
+
+    const hasNonLatinChars = (text: string) => /[\u0900-\u097F\u0600-\u06FF\u3040-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF\u0400-\u04FF]/.test(text);
+
+    const filtered = deduped.filter((v: any) => {
+      // If video has a language tag, check it matches
+      if (v.language) {
+        const videoLang = v.language.toLowerCase().split('-')[0]; // 'pt-BR' → 'pt'
+        if (videoLang === lang) return true;
+        // For English queries, also accept videos without a specific language
+        if (lang === 'en' && !v.language) return true;
+        // Reject if language is clearly different
+        if (videoLang !== lang) return false;
+      }
+
+      // No language tag — check by title script
+      if (isLatinTarget && hasNonLatinChars(v.title || '')) {
+        return false; // Hindi, Arabic, CJK, Cyrillic titles for a Latin-language search
+      }
+
+      return true;
+    });
+
+    console.log(`[CustomSearch] Language filter (${lang}): ${deduped.length} → ${filtered.length} videos`);
+
     // Sort by views
-    unique.sort((a: any, b: any) => (b.view_count || 0) - (a.view_count || 0));
+    filtered.sort((a: any, b: any) => (b.view_count || 0) - (a.view_count || 0));
+    const unique = filtered;
 
     // Map to consistent format for the frontend
     const mapped = unique.slice(0, 15).map((v: any) => ({
