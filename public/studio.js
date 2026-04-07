@@ -346,23 +346,75 @@ async function runCustomSearch() {
 
     if (data.success && data.videos && data.videos.length > 0) {
       const countryFlag = document.getElementById('custom-search-country').selectedOptions[0].textContent;
+
+      // Extract hooks from video titles
+      const hooks = data.videos
+        .filter(v => v.hook_formula && v.hook_formula !== 'unknown')
+        .reduce((acc, v) => {
+          const key = v.hook_formula;
+          if (!acc[key]) acc[key] = { formula: key, count: 0, examples: [], totalViews: 0 };
+          acc[key].count++;
+          acc[key].examples.push(v.title);
+          acc[key].totalViews += v.views || 0;
+          return acc;
+        }, {});
+      const hookList = Object.values(hooks).sort((a, b) => b.count - a.count);
+
       resultsDiv.innerHTML = `
         <div style="margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
           <strong>${data.videos.length} resultados para "${topic}" em ${countryFlag}</strong>
-          <span style="font-size: 0.8rem; color: #666;">Custo: ${data.cost || 'YouTube: ~100 unidades'}</span>
+          <span style="font-size: 0.8rem; color: #666;">Custo: ${data.cost || 'YouTube: ~300 unidades'}</span>
         </div>
-        ${data.videos.map((v, i) => `
-          <div style="display: flex; gap: 1rem; padding: 0.75rem; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.5rem; align-items: center; ${i < 3 ? 'background: rgba(102,126,234,0.03);' : ''}">
-            ${v.thumbnail ? `<img src="${v.thumbnail}" style="width: 120px; height: 68px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" onerror="this.style.display='none'">` : ''}
-            <div style="flex: 1; min-width: 0;">
-              <div style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.title || 'Sem título'}</div>
-              <div style="font-size: 0.8rem; color: #666;">${v.channel || ''} · ${v.views ? Number(v.views).toLocaleString() + ' views' : ''} · ${v.engagement_rate ? (v.engagement_rate * 100).toFixed(1) + '% eng.' : ''}</div>
+
+        <!-- Videos section -->
+        <details open style="margin-bottom: 1rem;">
+          <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">🔥 Vídeos Mais Virais (${data.videos.length})</summary>
+          ${data.videos.map((v, i) => `
+            <div style="display: flex; gap: 1rem; padding: 0.75rem; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.5rem; align-items: center; ${i < 3 ? 'background: rgba(102,126,234,0.03);' : ''}">
+              ${v.thumbnail ? `<img src="${v.thumbnail}" style="width: 120px; height: 68px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" onerror="this.style.display='none'">` : ''}
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.title || 'Sem título'}</div>
+                <div style="font-size: 0.8rem; color: #666;">${v.channel || ''} · ${v.views ? Number(v.views).toLocaleString() + ' views' : ''} · ${v.engagement_rate ? (v.engagement_rate * 100).toFixed(1) + '% eng.' : ''}</div>
+                ${v.hook_formula && v.hook_formula !== 'unknown' ? `<span style="font-size: 0.7rem; background: #f0f4ff; color: #4a5abb; padding: 2px 6px; border-radius: 4px;">🎣 ${v.hook_formula}</span>` : ''}
+              </div>
+              <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; white-space: nowrap;" onclick="createFromVideo('${v.id}', '${(v.hook_formula || '').replace(/'/g, "\\'")}', '${(v.title || '').replace(/'/g, "\\'")}', '${(v.content_angle || topic).replace(/'/g, "\\'")}')">
+                Usar
+              </button>
             </div>
-            <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; white-space: nowrap;" onclick="createFromVideo('${v.id}', '${(v.hook_formula || '').replace(/'/g, "\\'")}', '${(v.title || '').replace(/'/g, "\\'")}', '${(v.content_angle || topic).replace(/'/g, "\\'")}')">
-              Usar
-            </button>
-          </div>
-        `).join('')}
+          `).join('')}
+        </details>
+
+        <!-- Hooks section -->
+        ${hookList.length > 0 ? `
+        <details style="margin-bottom: 1rem;">
+          <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">🎣 Ganchos Virais Encontrados (${hookList.length})</summary>
+          ${hookList.map(h => `
+            <div style="padding: 0.75rem; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.5rem;">
+              <div style="font-weight: 600; font-size: 0.9rem; color: #4a5abb;">${h.formula}</div>
+              <div style="font-size: 0.8rem; color: #666; margin-top: 0.25rem;">${h.count} vídeo(s) · ${Number(h.totalViews).toLocaleString()} views total</div>
+              <div style="font-size: 0.8rem; color: #999; margin-top: 0.25rem; font-style: italic;">Ex: "${h.examples[0]?.substring(0, 80) || ''}"</div>
+            </div>
+          `).join('')}
+        </details>
+        ` : ''}
+
+        <!-- Content signals section -->
+        <details style="margin-bottom: 1rem;">
+          <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">💡 Ideias de Conteúdo (${Math.min(data.videos.length, 5)})</summary>
+          <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Baseado nos vídeos mais populares sobre "${topic}":</p>
+          ${data.videos.slice(0, 5).map((v, i) => `
+            <div style="display: flex; gap: 0.75rem; padding: 0.6rem; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.5rem; align-items: center;">
+              <span style="font-size: 1.2rem; flex-shrink: 0;">${['🔥','⭐','💡','📈','🎯'][i]}</span>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; font-size: 0.85rem;">${v.title || ''}</div>
+                <div style="font-size: 0.75rem; color: #999;">${v.views ? Number(v.views).toLocaleString() + ' views' : ''} — adaptar para o nosso público</div>
+              </div>
+              <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; white-space: nowrap;" onclick="document.getElementById('custom-topic-title').value='${(v.title || '').replace(/'/g, "\\'")}'; switchPage('create-page'); showToast('Tema preenchido! Escolha o tipo de conteúdo.', 'info');">
+                Criar
+              </button>
+            </div>
+          `).join('')}
+        </details>
       `;
     } else {
       resultsDiv.innerHTML = `<p style="color: #999; text-align: center; padding: 1rem;">Nenhum resultado encontrado para "${topic}" neste país. Tente outro termo.</p>`;
