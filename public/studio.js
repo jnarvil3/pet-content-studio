@@ -900,10 +900,12 @@ async function generateContent(type) {
       requestBody.signalId = parseInt(signalId);
     }
 
-    // Add audio preference for reels
+    // Add audio and captions preference for reels
     if (type === 'reel') {
       const audioCheckbox = document.getElementById('reel-with-audio');
+      const captionsCheckbox = document.getElementById('reel-with-captions');
       requestBody.withAudio = audioCheckbox ? audioCheckbox.checked : true;
+      requestBody.withCaptions = captionsCheckbox ? captionsCheckbox.checked : true;
     }
 
     // Add viral pattern if selected

@@ -123,6 +123,7 @@ export class ReelGenerator {
       viralTitle?: string;
       viralContentAngle?: string;
       withAudio?: boolean;
+      withCaptions?: boolean;
     },
     editFeedback?: string,
     previousScript?: ReelScript
@@ -154,6 +155,7 @@ export class ReelGenerator {
       });
 
       const withAudio = options?.withAudio !== false && this.tts.isEnabled();
+      const withCaptions = options?.withCaptions !== false; // Default true
 
       // Step 3: Generate TTS audio for each scene (if audio enabled)
       let audioPaths: string[] = [];
@@ -202,13 +204,15 @@ export class ReelGenerator {
           script,
           audioPaths,
           videoPaths,
-          finalVideoPath
+          finalVideoPath,
+          withCaptions
         );
       } else {
         await this.composeReelNoAudio(
           script,
           videoPaths,
-          finalVideoPath
+          finalVideoPath,
+          withCaptions
         );
       }
 
@@ -267,7 +271,8 @@ export class ReelGenerator {
     script: ReelScript,
     audioPaths: string[],
     videoPaths: string[],
-    outputPath: string
+    outputPath: string,
+    withCaptions: boolean = true
   ): Promise<void> {
     try {
       const workDir = path.dirname(outputPath);
@@ -301,8 +306,8 @@ export class ReelGenerator {
         // Build video filter chain
         let videoFilter = 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920';
 
-        // Add animated text overlay for hook (first scene only) - if drawtext available
-        if (this.hasDrawtext && i === 0 && script.scenes[0].narration) {
+        // Add animated text overlay for hook (first scene only) - if drawtext available and captions enabled
+        if (withCaptions && this.hasDrawtext && i === 0 && script.scenes[0].narration) {
           const hookText = this.escapeFFmpegText(script.scenes[0].narration);
           // Animated text: fade in at 0.2s, stay for 2.5s, fade out at 2.7s
           videoFilter += `,drawtext=fontfile=${this.fontBoldPath}:text='${hookText}':fontcolor=white:fontsize=64:` +
@@ -310,8 +315,8 @@ export class ReelGenerator {
             `enable='between(t,0.2,2.9)':alpha='if(lt(t,0.4),(t-0.2)*5,if(gt(t,2.7),(2.9-t)*5,1))'`;
         }
 
-        // Add subtitle captions matching narration (all scenes, bottom of screen) - if drawtext available
-        if (this.hasDrawtext && script.scenes[i].narration) {
+        // Add subtitle captions matching narration (all scenes, bottom of screen) - if drawtext available and captions enabled
+        if (withCaptions && this.hasDrawtext && script.scenes[i].narration) {
           const captionText = this.escapeFFmpegText(script.scenes[i].narration);
           videoFilter += `,drawtext=fontfile=${this.fontPath}:text='${captionText}':fontcolor=white:fontsize=48:` +
             `box=1:boxcolor=black@0.7:boxborderw=15:x=(w-text_w)/2:y=h-150`;
@@ -433,7 +438,8 @@ export class ReelGenerator {
   private async composeReelNoAudio(
     script: ReelScript,
     videoPaths: string[],
-    outputPath: string
+    outputPath: string,
+    withCaptions: boolean = true
   ): Promise<void> {
     try {
       const workDir = path.dirname(outputPath);
@@ -456,8 +462,8 @@ export class ReelGenerator {
         const sceneVideoPath = path.join(workDir, `scene-${i + 1}-processed.mp4`);
         let videoFilter = 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920';
 
-        // Add text overlay with narration text (since there's no audio)
-        if (this.hasDrawtext && script.scenes[i].narration) {
+        // Add text overlay with narration text - if captions enabled
+        if (withCaptions && this.hasDrawtext && script.scenes[i].narration) {
           const captionText = this.escapeFFmpegText(script.scenes[i].narration);
           videoFilter += `,drawtext=fontfile=${this.fontPath}:text='${captionText}':fontcolor=white:fontsize=48:` +
             `box=1:boxcolor=black@0.7:boxborderw=15:x=(w-text_w)/2:y=h-150`;

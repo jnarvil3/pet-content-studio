@@ -859,6 +859,7 @@ app.post('/api/generate-reel', async (req, res) => {
     const viralContentAngle = req.body.viralContentAngle; // Content angle
     const aiModel = req.body.aiModel as 'claude-sonnet-4' | 'gpt-4o-mini'; // AI model selection
     const withAudio = req.body.withAudio !== false; // Default true, user can opt out
+    const withCaptions = req.body.withCaptions !== false; // Default true, user can opt out
 
     // Import dependencies
     const { ReelGenerator } = await import('./generators/reel-generator');
@@ -934,13 +935,14 @@ app.post('/api/generate-reel', async (req, res) => {
           };
 
           try {
-            // Pass viral pattern and audio preference
+            // Pass viral pattern, audio and captions preference
             const options = {
               viralHook: viralHook || undefined,
               viralVideoId: viralVideoId || undefined,
               viralTitle: viralTitle || undefined,
               viralContentAngle: viralContentAngle || undefined,
-              withAudio
+              withAudio,
+              withCaptions
             };
             const result = await generator.generate(signal, onProgress, options);
             contentStorage.save(result.content);
