@@ -535,60 +535,63 @@
           <p class="page-subtitle" data-i18n="discover.subtitle">Encontre sinais de conteúdo e tendências virais</p>
         </div>
 
-        <!-- Custom Search Panel — shared across all discover tabs -->
-        <div class="card" style="margin-bottom: 1.5rem; border: 2px solid rgba(102,126,234,0.2);">
-          <h2 class="card-title" style="margin-bottom: 1rem;">🔍 Pesquisa Personalizada</h2>
-          <p style="color: #666; margin-bottom: 1rem;">Busque sinais, vídeos virais e ganchos por país e tema.</p>
-          <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: end;">
-            <div style="flex: 1; min-width: 150px;">
-              <label style="display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.85rem;">País / Região</label>
-              <select id="custom-search-country" style="width: 100%; padding: 0.6rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.95rem;">
-                <option value="BR">🇧🇷 Brasil</option>
-                <option value="US">🇺🇸 Estados Unidos</option>
-                <option value="MX">🇲🇽 México</option>
-                <option value="AR">🇦🇷 Argentina</option>
-                <option value="CO">🇨🇴 Colômbia</option>
-                <option value="CL">🇨🇱 Chile</option>
-                <option value="PT">🇵🇹 Portugal</option>
-                <option value="ES">🇪🇸 Espanha</option>
-                <option value="GB">🇬🇧 Reino Unido</option>
-                <option value="DE">🇩🇪 Alemanha</option>
-                <option value="FR">🇫🇷 França</option>
-                <option value="IN">🇮🇳 Índia</option>
-              </select>
-            </div>
-            <div style="flex: 2; min-width: 200px;">
-              <label style="display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.85rem;">Tema / Palavra-chave</label>
-              <input type="text" id="custom-search-topic" style="width: 100%; padding: 0.6rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.95rem;" placeholder="Ex: dog training, recursos humanos, marketing digital" value="pets">
-              <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.35rem;">
-                <span style="font-size: 0.75rem; color: #999;">Exemplos:</span>
-                <button type="button" onclick="document.getElementById('custom-search-topic').value='pet grooming'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">pet grooming</button>
-                <button type="button" onclick="document.getElementById('custom-search-topic').value='recursos humanos'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">recursos humanos</button>
-                <button type="button" onclick="document.getElementById('custom-search-topic').value='marketing digital'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">marketing digital</button>
-                <button type="button" onclick="document.getElementById('custom-search-topic').value='receitas fitness'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">receitas fitness</button>
-                <button type="button" onclick="document.getElementById('custom-search-topic').value='dog training'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">dog training</button>
-              </div>
-            </div>
-            <div>
-              <button class="btn btn-primary" onclick="runCustomSearch()" id="custom-search-btn" style="padding: 0.6rem 1.5rem;">
-                🔍 Pesquisar
-              </button>
-            </div>
-          </div>
-          <div style="margin-top: 0.5rem; font-size: 0.75rem; color: #999;">
-            <span style="cursor: help;" title="YouTube API = ~300 unidades (limite diário: 10.000). Custo monetário: ~$0.00 (APIs gratuitas dentro dos limites)">💰 Custo: gratuito dentro dos limites · <u>ver detalhes</u></span>
-          </div>
-          <div id="custom-search-results" style="margin-top: 1rem; display: none;"></div>
-        </div>
-
         <div class="tabs">
-          <button class="tab active" data-tab="signals-tab" data-i18n="discover.signals_tab">Sinais de Conteúdo</button>
+          <button class="tab active" data-tab="search-tab">🔍 Pesquisa</button>
+          <button class="tab" data-tab="signals-tab" data-i18n="discover.signals_tab">Sinais de Conteúdo</button>
           <button class="tab" data-tab="videos-tab" data-i18n="discover.videos_tab">Videos em Alta</button>
           <button class="tab" data-tab="hooks-tab" data-i18n="discover.hooks_tab">Ganchos Virais</button>
         </div>
 
+        <!-- Search Tab -->
+        <div class="tab-content active" id="search-tab">
+          <div class="card">
+            <h2 class="card-title" style="margin-bottom: 0.25rem;">🔍 Pesquisa Personalizada</h2>
+            <p style="color: #666; margin-bottom: 1rem;">Busque vídeos virais, ganchos e sinais de conteúdo por país e tema.</p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: end;">
+              <div style="flex: 1; min-width: 150px;">
+                <label style="display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.85rem;">País / Região</label>
+                <select id="custom-search-country" style="width: 100%; padding: 0.6rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.95rem;">
+                  <option value="BR">🇧🇷 Brasil</option>
+                  <option value="US">🇺🇸 Estados Unidos</option>
+                  <option value="MX">🇲🇽 México</option>
+                  <option value="AR">🇦🇷 Argentina</option>
+                  <option value="CO">🇨🇴 Colômbia</option>
+                  <option value="CL">🇨🇱 Chile</option>
+                  <option value="PT">🇵🇹 Portugal</option>
+                  <option value="ES">🇪🇸 Espanha</option>
+                  <option value="GB">🇬🇧 Reino Unido</option>
+                  <option value="DE">🇩🇪 Alemanha</option>
+                  <option value="FR">🇫🇷 França</option>
+                  <option value="IN">🇮🇳 Índia</option>
+                </select>
+              </div>
+              <div style="flex: 2; min-width: 200px;">
+                <label style="display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.85rem;">Tema / Palavra-chave</label>
+                <input type="text" id="custom-search-topic" style="width: 100%; padding: 0.6rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.95rem;" placeholder="Ex: dog training, recursos humanos, marketing digital" value="pets">
+                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.35rem;">
+                  <span style="font-size: 0.75rem; color: #999;">Exemplos:</span>
+                  <button type="button" onclick="document.getElementById('custom-search-topic').value='pet grooming'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">pet grooming</button>
+                  <button type="button" onclick="document.getElementById('custom-search-topic').value='recursos humanos'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">recursos humanos</button>
+                  <button type="button" onclick="document.getElementById('custom-search-topic').value='marketing digital'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">marketing digital</button>
+                  <button type="button" onclick="document.getElementById('custom-search-topic').value='receitas fitness'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">receitas fitness</button>
+                  <button type="button" onclick="document.getElementById('custom-search-topic').value='dog training'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">dog training</button>
+                </div>
+              </div>
+              <div>
+                <button class="btn btn-primary" onclick="runCustomSearch()" id="custom-search-btn" style="padding: 0.6rem 1.5rem;">
+                  🔍 Pesquisar
+                </button>
+              </div>
+            </div>
+            <div style="margin-top: 0.5rem; font-size: 0.75rem; color: #999;">
+              <span style="cursor: help;" title="YouTube API = ~300 unidades (limite diário: 10.000). Custo monetário: ~$0.00 (APIs gratuitas dentro dos limites)">💰 Custo: gratuito dentro dos limites · <u>ver detalhes</u></span>
+            </div>
+            <div id="custom-search-results" style="margin-top: 1rem; display: none;"></div>
+          </div>
+        </div>
+
         <!-- Signals Tab -->
-        <div class="tab-content active" id="signals-tab">
+        <div class="tab-content" id="signals-tab">
           <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
               <div>

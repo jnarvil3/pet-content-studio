@@ -411,20 +411,30 @@ async function runCustomSearch() {
 
         <!-- Content signals section -->
         <details style="margin-bottom: 1rem;">
-          <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">💡 Ideias de Conteúdo (${Math.min(data.videos.length, 5)})</summary>
-          <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Baseado nos vídeos mais populares sobre "${topic}":</p>
-          ${data.videos.slice(0, 5).map((v, i) => `
-            <div style="display: flex; gap: 0.75rem; padding: 0.6rem; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.5rem; align-items: center;">
-              <span style="font-size: 1.2rem; flex-shrink: 0;">${['🔥','⭐','💡','📈','🎯'][i]}</span>
-              <div style="flex: 1;">
-                <div style="font-weight: 600; font-size: 0.85rem;">${v.title || ''}</div>
-                <div style="font-size: 0.75rem; color: #999;">${v.views ? Number(v.views).toLocaleString() + ' views' : ''} — adaptar para o nosso público</div>
+          <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">📡 Sinais de Conteúdo (${Math.min(data.videos.length, 5)})</summary>
+          <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Temas validados pelo engajamento real — prontos para virar carrossel, reel ou post:</p>
+          ${data.videos.slice(0, 5).map((v, i) => {
+            const score = Math.min(100, Math.round((v.engagement_rate || 0) * 100 * 10 + (v.views > 1000000 ? 20 : v.views > 100000 ? 10 : 0)));
+            return `
+            <div style="display: flex; gap: 0.75rem; padding: 0.75rem; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.5rem; align-items: center; ${i === 0 ? 'background: rgba(102,126,234,0.04); border-color: rgba(102,126,234,0.2);' : ''}">
+              <div style="text-align: center; flex-shrink: 0; width: 45px;">
+                <div style="font-size: 1.1rem; font-weight: 700; color: ${score >= 80 ? '#16a34a' : score >= 50 ? '#ca8a04' : '#666'};">${score}</div>
+                <div style="font-size: 0.6rem; color: #999;">score</div>
               </div>
-              <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; white-space: nowrap;" onclick="document.getElementById('custom-topic-title').value='${(v.title || '').replace(/'/g, "\\'")}'; switchPage('create-page'); showToast('Tema preenchido! Escolha o tipo de conteúdo.', 'info');">
-                Criar
-              </button>
-            </div>
-          `).join('')}
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 600; font-size: 0.85rem;">${v.title || ''}</div>
+                <div style="font-size: 0.75rem; color: #999; margin-top: 0.2rem;">
+                  ${v.views ? Number(v.views).toLocaleString() + ' views' : ''} · ${v.channel || ''}
+                  ${v.hook_formula && v.hook_formula !== 'unknown' ? ` · <span style="color: #4a5abb;">${hookLabel(v.hook_formula)}</span>` : ''}
+                </div>
+              </div>
+              <div style="display: flex; gap: 0.4rem; flex-shrink: 0;">
+                <button class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="document.getElementById('custom-topic-title').value='${(v.title || '').replace(/'/g, "\\'")}'; switchPage('create-page'); showToast('Tema preenchido! Escolha o tipo de conteúdo.', 'info');">
+                  ✨ Criar
+                </button>
+              </div>
+            </div>`;
+          }).join('')}
         </details>
       `;
     } else {
