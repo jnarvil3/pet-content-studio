@@ -1394,36 +1394,45 @@ app.post('/api/trending/custom-search', async (req, res) => {
       return true;
     });
 
-    // Filter by language — reject videos not in the target language
-    const hasNonLatinChars = (text: string) => /[\u0900-\u097F\u0600-\u06FF\u3040-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF\u0400-\u04FF]/.test(text);
+    // Filter by language using AI — regex heuristics don't scale
+    // Send all titles to Claude Haiku in one batch to classify language
+    let filtered = deduped;
+    if (lang !== 'en' || regionCode !== 'US') {
+      try {
+        const Anthropic = (await import('@anthropic-ai/sdk')).default;
+        const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    // Common English words to detect English titles when target is non-English
-    const englishMarkers = /\b(the|this|how|what|why|you|your|with|for|from|that|have|watch|tips|best|top|never|ever|just|about|these|can't|don't|won't|didn't|here|stop|built|says|said|gets|even|secret|shocking|amazing|insane|crazy|ultimate|beginner)\b/i;
+        const titles = deduped.map((v: any, i: number) => `${i}: ${v.title || ''}`).join('\n');
+        const targetLangName = langName;
 
-    // Common Dutch markers
-    const dutchMarkers = /\b(het|een|van|voor|zijn|worden|hebben|deze|niet|ook|meer|maar|nog|wordt|naar|vrijgelaten)\b/i;
+        const result = await anthropic.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 200,
+          temperature: 0,
+          messages: [{
+            role: 'user',
+            content: `For each numbered video title, respond with ONLY the index numbers of titles that are in ${targetLangName}. Respond as comma-separated numbers only. If none match, respond "none".\n\n${titles}`
+          }]
+        });
 
-    const filtered = deduped.filter((v: any) => {
-      const title = v.title || '';
+        const aiResponse = (result.content[0] as any).text?.trim() || '';
+        console.log(`[CustomSearch] AI language filter response: "${aiResponse}"`);
 
-      // 1. If video has a language tag, use it
-      if (v.language) {
-        const videoLang = v.language.toLowerCase().split('-')[0];
-        if (videoLang === lang) return true;
-        return false; // Different language tag = reject
+        if (aiResponse.toLowerCase() === 'none') {
+          filtered = [];
+        } else {
+          const validIndices = new Set(
+            aiResponse.split(',').map((s: string) => parseInt(s.trim())).filter((n: number) => !isNaN(n))
+          );
+          filtered = deduped.filter((_: any, i: number) => validIndices.has(i));
+        }
+
+        console.log(`[CustomSearch] AI language filter (${targetLangName}): ${deduped.length} → ${filtered.length} videos`);
+      } catch (err: any) {
+        console.log(`[CustomSearch] AI language filter failed, using all results: ${err.message}`);
+        filtered = deduped;
       }
-
-      // 2. Reject non-Latin scripts (Hindi, Arabic, CJK, Cyrillic)
-      if (hasNonLatinChars(title)) return false;
-
-      // 3. For non-English targets, reject titles that are clearly in English
-      if (lang !== 'en' && englishMarkers.test(title)) return false;
-
-      // 4. For non-Dutch targets, reject Dutch
-      if (lang !== 'nl' && dutchMarkers.test(title)) return false;
-
-      return true;
-    });
+    }
 
     console.log(`[CustomSearch] Language filter (${lang}): ${deduped.length} → ${filtered.length} videos`);
 
