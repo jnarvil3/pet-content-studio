@@ -1394,29 +1394,33 @@ app.post('/api/trending/custom-search', async (req, res) => {
       return true;
     });
 
-    // Filter by language — only keep videos matching the target language
-    // YouTube's language field uses codes like 'pt', 'pt-BR', 'es', 'fr', etc.
-    // Also detect by script: filter out Hindi/Devanagari, Arabic, CJK when targeting Latin-script languages
-    const latinScriptLangs = ['pt', 'es', 'en', 'fr', 'de'];
-    const isLatinTarget = latinScriptLangs.includes(lang);
-
+    // Filter by language — reject videos not in the target language
     const hasNonLatinChars = (text: string) => /[\u0900-\u097F\u0600-\u06FF\u3040-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF\u0400-\u04FF]/.test(text);
 
+    // Common English words to detect English titles when target is non-English
+    const englishMarkers = /\b(the|this|how|what|why|you|your|with|for|from|that|have|watch|tips|best|top|never|ever|just|about|these|can't|don't|won't|didn't|here|stop|built|says|said|gets|even|secret|shocking|amazing|insane|crazy|ultimate|beginner)\b/i;
+
+    // Common Dutch markers
+    const dutchMarkers = /\b(het|een|van|voor|zijn|worden|hebben|deze|niet|ook|meer|maar|nog|wordt|naar|vrijgelaten)\b/i;
+
     const filtered = deduped.filter((v: any) => {
-      // If video has a language tag, check it matches
+      const title = v.title || '';
+
+      // 1. If video has a language tag, use it
       if (v.language) {
-        const videoLang = v.language.toLowerCase().split('-')[0]; // 'pt-BR' → 'pt'
+        const videoLang = v.language.toLowerCase().split('-')[0];
         if (videoLang === lang) return true;
-        // For English queries, also accept videos without a specific language
-        if (lang === 'en' && !v.language) return true;
-        // Reject if language is clearly different
-        if (videoLang !== lang) return false;
+        return false; // Different language tag = reject
       }
 
-      // No language tag — check by title script
-      if (isLatinTarget && hasNonLatinChars(v.title || '')) {
-        return false; // Hindi, Arabic, CJK, Cyrillic titles for a Latin-language search
-      }
+      // 2. Reject non-Latin scripts (Hindi, Arabic, CJK, Cyrillic)
+      if (hasNonLatinChars(title)) return false;
+
+      // 3. For non-English targets, reject titles that are clearly in English
+      if (lang !== 'en' && englishMarkers.test(title)) return false;
+
+      // 4. For non-Dutch targets, reject Dutch
+      if (lang !== 'nl' && dutchMarkers.test(title)) return false;
 
       return true;
     });
