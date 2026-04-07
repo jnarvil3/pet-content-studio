@@ -160,13 +160,18 @@ export class ReelGenerator {
       if (withAudio) {
         onProgress?.(2, 5, 'Generating voiceover...', 40);
         console.log('[ReelGenerator] Step 2/5: Generating voiceover audio...');
-        const narrations = script.scenes.map(scene => scene.narration);
-        audioPaths = await this.tts.generateSceneAudio(
-          narrations,
-          audioDir,
-          `scene`,
-          {}
-        );
+        try {
+          const narrations = script.scenes.map(scene => scene.narration);
+          audioPaths = await this.tts.generateSceneAudio(
+            narrations,
+            audioDir,
+            `scene`,
+            {}
+          );
+        } catch (ttsError: any) {
+          console.warn(`[ReelGenerator] ⚠️ TTS failed (${ttsError.message}) — continuing without audio`);
+          audioPaths = [];
+        }
       } else {
         onProgress?.(2, 5, 'Skipping audio (no-audio mode)...', 40);
         console.log('[ReelGenerator] Step 2/5: Skipping audio (no-audio mode)');
