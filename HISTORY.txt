@@ -1,0 +1,82 @@
+Pet Content Studio — Change History
+====================================
+
+2026-04-07 — Custom Search Debugging & Feature Overhaul
+-------------------------------------------------------
+Session with Jasper. Debugged the "Pesquisa Personalizada" (Custom Search)
+feature end-to-end after it was returning poor/irrelevant results.
+
+PROBLEMS FOUND:
+
+1. Language filter was too permissive (HIGH)
+   - Searching "dog" in Brasil returned 15/15 English results
+   - Root cause: The Haiku AI language filter prompt said to include
+     "language-neutral" titles (emojis, hashtags). YouTube Shorts titles
+     are loaded with emojis and #viralshort #funny, so Haiku classified
+     English titles as "language-neutral" and let them through.
+   - Fix: Rewrote the Haiku prompt to explicitly say hashtags and emojis
+     don't qualify a title as the target language. (server.ts:1413-1430)
+
+2. YouTube order:viewCount returned English results for Portuguese queries (HIGH)
+   - YouTube's relevanceLanguage param is just a hint. Sorting by viewCount
+     returns globally popular English videos regardless of language.
+   - Fix: Changed to order:relevance for language-specific searches, then
+     sort by views on our side after filtering. (youtube-collector.ts:119)
+
+3. No channel diversity — BarkBuddies dominated results (MEDIUM)
+   - 7 out of 8 results from a single channel.
+   - Fix: Added max 3 videos per channel cap. (server.ts:1456-1462)
+
+4. Fake "Sinais de Conteudo" section in Custom Search (FEATURE)
+   - The Content Signals section was just the top 5 videos re-displayed
+     with a made-up client-side score. No GPT analysis, no real value.
+   - Fix: Added a GPT-4o-mini scoring step that evaluates each video as a
+     content signal — returns a real score (0-100), recommended format
+     (carousel/reel/post), and actionable content opportunity description
+     in the target language. (server.ts:1485-1537, studio.js:412-443)
+
+5. RSS search was YouTube-only — no fallback for quota exhaustion (FEATURE)
+   - When YouTube API quota ran out, Custom Search showed nothing.
+   - Fix: Added two RSS sources to Custom Search:
+     a) Local signals.db — searches pre-collected pet industry articles
+     b) Google News RSS — live search for ANY topic in any language
+   - Now Custom Search always has something to show, even when YouTube
+     is down. (server.ts:1539-1597, signal-collector.ts exported parseRSSItems)
+
+6. RSS keyword search had false positives (BUG)
+   - Searching "cat food" returned "Dog Swollen Cheek Gland" because
+     LIKE '%cat%' matched "locations" in descriptions, and keywords were
+     extracted from AI query fragments ("best", "trending") not the topic.
+   - Fix: Only search with actual topic words. For single words, match
+     titles only using word-boundary patterns. (intel-connector.ts, server.ts)
+
+7. Signals tab had no region filter (FEATURE)
+   - All signals (BR + Global) were mixed together.
+   - Fix: Added Brasil / Global / All toggle buttons. Each card now shows
+     a region badge. Server-side filtering via ?region=br|global|all.
+     (studio.html, studio.js, server.ts)
+
+8. Promotional content in signals (DATA QUALITY)
+   - "Curso Presencial — garanta sua vaga!" scored 95 but was an ad.
+   - Fix: Server-side promo filter using keyword patterns (garanta sua vaga,
+     inscreva-se, desconto, buy now, etc.). (server.ts)
+
+9. YouTube API quota exhaustion not communicated to user (UX)
+   - When quota ran out, user saw "Nenhum resultado encontrado" with no
+     explanation.
+   - Fix: Backend detects quota errors, frontend shows a clear message
+     explaining the daily limit and when it resets. (server.ts, studio.js)
+
+FILES CHANGED:
+  src/server.ts                     — Custom search endpoint overhaul
+  src/services/youtube-collector.ts — Relevance-based ordering for i18n
+  src/services/signal-collector.ts  — Exported parseRSSItems for reuse
+  src/storage/intel-connector.ts    — Added searchByKeyword with word boundaries
+  public/studio.js                  — GPT signals UI, RSS section, region filter
+  public/studio.html                — Region filter buttons on Signals tab
+
+COMMITS:
+  648c89e Filter out promotional/ad content from signals
+  374db9c Add Brasil vs Global region filter to Signals tab
+  7702e03 Fix Custom Search: language filter, GPT signals, Google News RSS
+  ef11d75 Fix custom search grid alignment
