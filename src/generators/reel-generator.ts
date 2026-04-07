@@ -583,7 +583,12 @@ export class ReelGenerator {
       return `movie=${logoPath},scale=120:-1[wm];[in][wm]overlay=W-w-20:H-h-20[out]`;
     }
 
-    // Fallback: Text watermark with brand handle
+    // Fallback: Text watermark with brand handle (only if drawtext is available)
+    if (!this.hasDrawtext) {
+      console.log('[ReelGenerator] Skipping watermark — drawtext filter not available');
+      return null;
+    }
+
     const brandHandle = this.brand.handle || '@surestepautomation';
     const escapedHandle = this.escapeFFmpegText(brandHandle);
 
