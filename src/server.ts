@@ -1316,30 +1316,63 @@ app.post('/api/trending/custom-search', async (req, res) => {
 
     const regionCode = country || 'BR';
 
-    // Map country to language for localized search queries
-    const countryLanguage: Record<string, { lang: string; suffixes: string[] }> = {
-      'BR': { lang: 'pt', suffixes: ['viral', 'dicas', 'tendências'] },
-      'PT': { lang: 'pt', suffixes: ['viral', 'dicas', 'tendências'] },
-      'US': { lang: 'en', suffixes: ['viral', 'tips', 'trending'] },
-      'GB': { lang: 'en', suffixes: ['viral', 'tips', 'trending'] },
-      'MX': { lang: 'es', suffixes: ['viral', 'consejos', 'tendencias'] },
-      'AR': { lang: 'es', suffixes: ['viral', 'consejos', 'tendencias'] },
-      'CO': { lang: 'es', suffixes: ['viral', 'consejos', 'tendencias'] },
-      'CL': { lang: 'es', suffixes: ['viral', 'consejos', 'tendencias'] },
-      'ES': { lang: 'es', suffixes: ['viral', 'consejos', 'tendencias'] },
-      'DE': { lang: 'de', suffixes: ['viral', 'Tipps', 'Trends'] },
-      'FR': { lang: 'fr', suffixes: ['viral', 'conseils', 'tendances'] },
-      'IN': { lang: 'hi', suffixes: ['viral', 'tips', 'trending'] },
+    // Map country to language code
+    const countryLang: Record<string, { lang: string; langName: string }> = {
+      'BR': { lang: 'pt', langName: 'Brazilian Portuguese' },
+      'PT': { lang: 'pt', langName: 'European Portuguese' },
+      'US': { lang: 'en', langName: 'English' },
+      'GB': { lang: 'en', langName: 'English' },
+      'MX': { lang: 'es', langName: 'Mexican Spanish' },
+      'AR': { lang: 'es', langName: 'Argentine Spanish' },
+      'CO': { lang: 'es', langName: 'Colombian Spanish' },
+      'CL': { lang: 'es', langName: 'Chilean Spanish' },
+      'ES': { lang: 'es', langName: 'European Spanish' },
+      'DE': { lang: 'de', langName: 'German' },
+      'FR': { lang: 'fr', langName: 'French' },
+      'IN': { lang: 'hi', langName: 'Hindi' },
     };
 
-    const { lang, suffixes } = countryLanguage[regionCode] || { lang: 'en', suffixes: ['viral', 'tips', 'trending'] };
+    const { lang, langName } = countryLang[regionCode] || { lang: 'en', langName: 'English' };
+
+    // Translate the search topic to the target language using AI
+    let translatedTopic = topic;
+    if (lang !== 'en') {
+      try {
+        const OpenAI = (await import('openai')).default;
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const translation = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          max_tokens: 50,
+          temperature: 0,
+          messages: [{
+            role: 'user',
+            content: `Translate this YouTube search term to ${langName}. Return ONLY the translated term, nothing else.\n\nSearch term: ${topic}`
+          }]
+        });
+        translatedTopic = translation.choices[0]?.message?.content?.trim() || topic;
+        console.log(`[CustomSearch] Translated "${topic}" → "${translatedTopic}" (${langName})`);
+      } catch (err: any) {
+        console.log(`[CustomSearch] Translation failed, using original: ${err.message}`);
+      }
+    }
 
     // Use YouTube collector with custom params
     const { YouTubeCollector } = await import('./services/youtube-collector');
     const collector = new YouTubeCollector();
 
-    // Search YouTube with localized query suffixes
-    const searchQueries = suffixes.map(s => `${topic} ${s}`);
+    // Localized suffixes
+    const suffixMap: Record<string, string[]> = {
+      'pt': ['viral', 'dicas', 'tendências'],
+      'es': ['viral', 'consejos', 'tendencias'],
+      'de': ['viral', 'Tipps', 'Trends'],
+      'fr': ['viral', 'conseils', 'tendances'],
+      'hi': ['viral', 'tips', 'trending'],
+      'en': ['viral', 'tips', 'trending'],
+    };
+    const suffixes = suffixMap[lang] || suffixMap['en'];
+
+    // Build fully localized search queries
+    const searchQueries = suffixes.map(s => `${translatedTopic} ${s}`);
 
     const allVideos: any[] = [];
     for (const query of searchQueries) {
