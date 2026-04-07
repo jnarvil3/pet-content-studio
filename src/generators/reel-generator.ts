@@ -31,6 +31,8 @@ export class ReelGenerator {
   private outputDir: string;
   private hasDrawtext: boolean = false;
   private hasXfade: boolean = false;
+  private fontPath: string = '';
+  private fontBoldPath: string = '';
 
   constructor(
     brand: BrandConfig,
@@ -48,8 +50,43 @@ export class ReelGenerator {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    // Check FFmpeg capabilities
+    // Detect fonts and FFmpeg capabilities
+    this.detectFonts();
     this.checkFFmpegCapabilities();
+  }
+
+  /**
+   * Auto-detect available font paths (macOS vs Linux/Docker)
+   */
+  private detectFonts(): void {
+    // Priority: env var > platform-specific paths
+    const fontCandidates = [
+      process.env.FFMPEG_FONT,
+      // Linux / Docker (Debian/Ubuntu with fonts-liberation)
+      '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+      '/usr/share/fonts/truetype/freefont/FreeSans.ttf',
+      '/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf',
+      // macOS
+      '/System/Library/Fonts/Supplemental/Arial.ttf',
+      '/System/Library/Fonts/Helvetica.ttc',
+    ].filter(Boolean) as string[];
+
+    const boldCandidates = [
+      process.env.FFMPEG_FONT_BOLD,
+      '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+      '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf',
+      '/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf',
+      '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
+    ].filter(Boolean) as string[];
+
+    this.fontPath = fontCandidates.find(f => fs.existsSync(f)) || '';
+    this.fontBoldPath = boldCandidates.find(f => fs.existsSync(f)) || this.fontPath;
+
+    if (this.fontPath) {
+      console.log(`[ReelGenerator] Font: ${this.fontPath}`);
+    } else {
+      console.warn('[ReelGenerator] ⚠️ No fonts found — text overlays may fail');
+    }
   }
 
   /**
@@ -57,17 +94,14 @@ export class ReelGenerator {
    */
   private async checkFFmpegCapabilities(): Promise<void> {
     try {
-      // Check for drawtext filter
       const { stdout: drawtextCheck } = await execAsync('ffmpeg -filters 2>&1 | grep drawtext || true');
       this.hasDrawtext = drawtextCheck.includes('drawtext');
 
-      // Check for xfade filter
       const { stdout: xfadeCheck } = await execAsync('ffmpeg -filters 2>&1 | grep xfade || true');
       this.hasXfade = xfadeCheck.includes('xfade');
 
       if (!this.hasDrawtext) {
         console.warn('[ReelGenerator] ⚠️  FFmpeg missing drawtext filter - text overlays disabled');
-        console.warn('[ReelGenerator] To enable: brew reinstall ffmpeg');
       }
       if (!this.hasXfade) {
         console.warn('[ReelGenerator] ⚠️  FFmpeg missing xfade filter - transitions disabled');
@@ -266,7 +300,7 @@ export class ReelGenerator {
         if (this.hasDrawtext && i === 0 && script.scenes[0].narration) {
           const hookText = this.escapeFFmpegText(script.scenes[0].narration);
           // Animated text: fade in at 0.2s, stay for 2.5s, fade out at 2.7s
-          videoFilter += `,drawtext=fontfile=${process.env.FFMPEG_FONT_BOLD || '/System/Library/Fonts/Supplemental/Arial Bold.ttf'}:text='${hookText}':fontcolor=white:fontsize=64:` +
+          videoFilter += `,drawtext=fontfile=${this.fontBoldPath}:text='${hookText}':fontcolor=white:fontsize=64:` +
             `box=1:boxcolor=black@0.6:boxborderw=20:x=(w-text_w)/2:y=(h-text_h)/2-200:` +
             `enable='between(t,0.2,2.9)':alpha='if(lt(t,0.4),(t-0.2)*5,if(gt(t,2.7),(2.9-t)*5,1))'`;
         }
@@ -274,7 +308,7 @@ export class ReelGenerator {
         // Add subtitle captions matching narration (all scenes, bottom of screen) - if drawtext available
         if (this.hasDrawtext && script.scenes[i].narration) {
           const captionText = this.escapeFFmpegText(script.scenes[i].narration);
-          videoFilter += `,drawtext=fontfile=${process.env.FFMPEG_FONT || '/System/Library/Fonts/Supplemental/Arial.ttf'}:text='${captionText}':fontcolor=white:fontsize=48:` +
+          videoFilter += `,drawtext=fontfile=${this.fontPath}:text='${captionText}':fontcolor=white:fontsize=48:` +
             `box=1:boxcolor=black@0.7:boxborderw=15:x=(w-text_w)/2:y=h-150`;
         }
 
@@ -420,7 +454,7 @@ export class ReelGenerator {
         // Add text overlay with narration text (since there's no audio)
         if (this.hasDrawtext && script.scenes[i].narration) {
           const captionText = this.escapeFFmpegText(script.scenes[i].narration);
-          videoFilter += `,drawtext=fontfile=${process.env.FFMPEG_FONT || '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'}:text='${captionText}':fontcolor=white:fontsize=48:` +
+          videoFilter += `,drawtext=fontfile=${this.fontPath}:text='${captionText}':fontcolor=white:fontsize=48:` +
             `box=1:boxcolor=black@0.7:boxborderw=15:x=(w-text_w)/2:y=h-150`;
         }
 
@@ -592,7 +626,7 @@ export class ReelGenerator {
     const brandHandle = this.brand.handle || '@surestepautomation';
     const escapedHandle = this.escapeFFmpegText(brandHandle);
 
-    return `drawtext=fontfile=${process.env.FFMPEG_FONT || '/System/Library/Fonts/Supplemental/Arial.ttf'}:text='${escapedHandle}':` +
+    return `drawtext=fontfile=${this.fontPath}:text='${escapedHandle}':` +
       `fontcolor=white@0.6:fontsize=24:x=W-tw-20:y=H-th-20`;
   }
 
