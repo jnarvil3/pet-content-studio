@@ -1398,62 +1398,46 @@ Elefanten Dokumentation beliebt`
       return true;
     });
 
-    // Step 3: Deterministic language filter using defaultAudioLanguage
-    // No AI call needed — uses metadata YouTube already provides
-    const confirmed: any[] = [];
-    const maybes: any[] = [];
+    // Step 3: Language filter using AI on ALL results
+    // YouTube's language tags are unreliable (creators set channel language, not video language)
+    // so we always use Haiku to classify by actual title language. Cost: ~$0.001 per search.
+    let filtered = deduped;
 
-    for (const v of deduped) {
-      if (v.language) {
-        const videoLang = v.language.toLowerCase().split('-')[0];
-        if (videoLang === lang) {
-          confirmed.push(v); // Language tag matches — keep
-        }
-        // Language tag doesn't match — discard (don't even put in maybes)
-      } else {
-        maybes.push(v); // No language tag — uncertain
-      }
-    }
-
-    // If we have enough confirmed results (8+), skip AI filtering of maybes
-    // Otherwise, use Claude Haiku to classify the uncertain ones
-    let filtered = [...confirmed];
-
-    if (confirmed.length < 8 && maybes.length > 0) {
+    if (deduped.length > 0 && lang !== 'en') {
       try {
         const Anthropic = (await import('@anthropic-ai/sdk')).default;
         const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-        const titles = maybes.map((v: any, i: number) => `${i}: ${v.title || ''}`).join('\n');
+        const titles = deduped.map((v: any, i: number) => `${i}: ${v.title || ''}`).join('\n');
 
         const result = await anthropic.messages.create({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 200,
+          max_tokens: 300,
           temperature: 0,
           messages: [{
             role: 'user',
-            content: `For each numbered video title, respond with ONLY the index numbers of titles that are in ${langName}. Comma-separated numbers only. If none match, respond "none".\n\n${titles}`
+            content: `I searched YouTube in ${langName} for "${topic}". Which video titles are in ${langName}? Also include titles that are language-neutral (mostly emojis, hashtags, proper nouns, or universal words like "viral"). Respond with ONLY the index numbers, comma-separated. If none match, respond "none".\n\n${titles}`
           }]
         });
 
         const aiResponse = (result.content[0] as any).text?.trim() || '';
-        console.log(`[CustomSearch] Fallback AI filter on ${maybes.length} uncertain videos: "${aiResponse}"`);
+        console.log(`[CustomSearch] AI language filter (${langName}): "${aiResponse}"`);
 
-        if (aiResponse.toLowerCase() !== 'none') {
+        if (aiResponse.toLowerCase() === 'none') {
+          filtered = [];
+        } else {
           const validIndices = new Set(
             aiResponse.split(',').map((s: string) => parseInt(s.trim())).filter((n: number) => !isNaN(n))
           );
-          filtered.push(...maybes.filter((_: any, i: number) => validIndices.has(i)));
+          filtered = deduped.filter((_: any, i: number) => validIndices.has(i));
         }
       } catch (err: any) {
-        console.log(`[CustomSearch] Fallback AI filter failed: ${err.message}`);
-        // Don't add uncertain videos if we can't verify
+        console.log(`[CustomSearch] AI filter failed, returning all: ${err.message}`);
+        filtered = deduped; // Fail open
       }
-    } else if (confirmed.length >= 8) {
-      console.log(`[CustomSearch] ${confirmed.length} confirmed results — skipping AI filter (saved ~$0.001)`);
     }
 
-    console.log(`[CustomSearch] Results: ${deduped.length} total → ${confirmed.length} confirmed + ${filtered.length - confirmed.length} AI-verified = ${filtered.length} final`);
+    console.log(`[CustomSearch] Final: ${deduped.length} total → ${filtered.length} after filtering`);
 
     // Sort by views
     filtered.sort((a: any, b: any) => (b.view_count || 0) - (a.view_count || 0));
