@@ -1222,7 +1222,7 @@ async function displayReviewContent(filter) {
           ` : ''}
 
           ${item.content_type === 'reel' && item.reel_video_path ? (() => {
-            const videoSrc = item.reel_video_path.replace('./output', '/output').replace('output/', '/output/');
+            const videoSrc = '/' + item.reel_video_path.replace(/^\.?\/?(data\/)?/, '').replace(/^output/, 'output');
             const posterSrc = videoSrc.replace(/\/[^/]+$/, '/thumbnail.jpg');
             return `
             <div style="margin-bottom: 1rem;">

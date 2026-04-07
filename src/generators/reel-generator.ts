@@ -198,7 +198,7 @@ export class ReelGenerator {
         content_type: 'reel',
         status: 'pending',
         reel_script: script,
-        reel_video_path: finalVideoPath,
+        reel_video_path: path.relative(process.cwd(), finalVideoPath),
         source_url: signal.url,
         generated_at: new Date().toISOString()
       };
