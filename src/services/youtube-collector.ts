@@ -114,17 +114,17 @@ export class YouTubeCollector {
   /**
    * Public search: custom query + region code
    */
-  async searchVideos(query: string, regionCode: string = 'BR', maxResults: number = 10): Promise<any[]> {
+  async searchVideos(query: string, regionCode: string = 'BR', maxResults: number = 10, relevanceLanguage?: string): Promise<any[]> {
     if (!this.isEnabled()) throw new Error('YOUTUBE_API_KEY not configured');
-    return this.searchAndEnrich(query, regionCode, maxResults);
+    return this.searchAndEnrich(query, regionCode, maxResults, relevanceLanguage);
   }
 
-  private async searchAndEnrich(query: string, regionCode: string = 'US', maxResults: number = 10): Promise<YouTubeVideo[]> {
+  private async searchAndEnrich(query: string, regionCode: string = 'US', maxResults: number = 10, relevanceLanguage?: string): Promise<YouTubeVideo[]> {
     // Step 1: Search — no category filter (too restrictive), 30 day window
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const searchParams = new URLSearchParams({
+    const params: Record<string, string> = {
       key: this.apiKey,
       part: 'snippet',
       type: 'video',
@@ -133,7 +133,14 @@ export class YouTubeCollector {
       publishedAfter: thirtyDaysAgo.toISOString(),
       maxResults: String(maxResults),
       regionCode
-    });
+    };
+
+    // Filter results by language relevance when specified
+    if (relevanceLanguage) {
+      params.relevanceLanguage = relevanceLanguage;
+    }
+
+    const searchParams = new URLSearchParams(params);
 
     const searchUrl = `${YOUTUBE_API}/search?${searchParams}`;
     const searchRes = await fetch(searchUrl);

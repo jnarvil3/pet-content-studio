@@ -1316,21 +1316,35 @@ app.post('/api/trending/custom-search', async (req, res) => {
 
     const regionCode = country || 'BR';
 
+    // Map country to language for localized search queries
+    const countryLanguage: Record<string, { lang: string; suffixes: string[] }> = {
+      'BR': { lang: 'pt', suffixes: ['viral', 'dicas', 'tendências'] },
+      'PT': { lang: 'pt', suffixes: ['viral', 'dicas', 'tendências'] },
+      'US': { lang: 'en', suffixes: ['viral', 'tips', 'trending'] },
+      'GB': { lang: 'en', suffixes: ['viral', 'tips', 'trending'] },
+      'MX': { lang: 'es', suffixes: ['viral', 'consejos', 'tendencias'] },
+      'AR': { lang: 'es', suffixes: ['viral', 'consejos', 'tendencias'] },
+      'CO': { lang: 'es', suffixes: ['viral', 'consejos', 'tendencias'] },
+      'CL': { lang: 'es', suffixes: ['viral', 'consejos', 'tendencias'] },
+      'ES': { lang: 'es', suffixes: ['viral', 'consejos', 'tendencias'] },
+      'DE': { lang: 'de', suffixes: ['viral', 'Tipps', 'Trends'] },
+      'FR': { lang: 'fr', suffixes: ['viral', 'conseils', 'tendances'] },
+      'IN': { lang: 'hi', suffixes: ['viral', 'tips', 'trending'] },
+    };
+
+    const { lang, suffixes } = countryLanguage[regionCode] || { lang: 'en', suffixes: ['viral', 'tips', 'trending'] };
+
     // Use YouTube collector with custom params
     const { YouTubeCollector } = await import('./services/youtube-collector');
     const collector = new YouTubeCollector();
 
-    // Search YouTube for the custom topic in the specified region
-    const searchQueries = [
-      `${topic} viral`,
-      `${topic} tips`,
-      `${topic} trending`
-    ];
+    // Search YouTube with localized query suffixes
+    const searchQueries = suffixes.map(s => `${topic} ${s}`);
 
     const allVideos: any[] = [];
     for (const query of searchQueries) {
       try {
-        const videos = await collector.searchVideos(query, regionCode, 5);
+        const videos = await collector.searchVideos(query, regionCode, 5, lang);
         allVideos.push(...videos);
       } catch (err: any) {
         console.log(`[CustomSearch] Query "${query}" failed: ${err.message}`);
