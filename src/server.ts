@@ -1380,12 +1380,14 @@ Elefanten Dokumentation beliebt`
     const collector = new YouTubeCollector();
 
     const allVideos: any[] = [];
+    let quotaExhausted = false;
     for (const query of searchQueries) {
       try {
         const videos = await collector.searchVideos(query, regionCode, 15, lang);
         allVideos.push(...videos);
       } catch (err: any) {
         console.log(`[CustomSearch] Query "${query}" failed: ${err.message}`);
+        if (err.message?.includes('quota')) quotaExhausted = true;
       }
     }
 
@@ -1416,7 +1418,18 @@ Elefanten Dokumentation beliebt`
           temperature: 0,
           messages: [{
             role: 'user',
-            content: `I searched YouTube in ${langName} for "${topic}". Which video titles are in ${langName}? Also include titles that are language-neutral (mostly emojis, hashtags, proper nouns, or universal words like "viral"). Respond with ONLY the index numbers, comma-separated. If none match, respond "none".\n\n${titles}`
+            content: `I searched YouTube in ${langName} for "${topic}". Which video titles are PRIMARILY written in ${langName}?
+
+Rules:
+- A title qualifies ONLY if its main words (ignoring hashtags) are in ${langName}
+- Hashtags (#funny, #viral, #shorts, #viralshort) do NOT count as ${langName} — ignore them
+- Emojis do NOT make a title qualify — ignore them
+- English titles with emojis and hashtags are still English, NOT ${langName}
+- If the actual spoken/written words in the title are in English, exclude it
+
+Respond with ONLY the index numbers (comma-separated). If none match, respond "none".
+
+${titles}`
           }]
         });
 
@@ -1442,6 +1455,14 @@ Elefanten Dokumentation beliebt`
     // Sort by views
     filtered.sort((a: any, b: any) => (b.view_count || 0) - (a.view_count || 0));
 
+    // Limit per channel to ensure diversity (max 3 per channel)
+    const channelCount: Record<string, number> = {};
+    filtered = filtered.filter((v: any) => {
+      const ch = v.channel_name || 'unknown';
+      channelCount[ch] = (channelCount[ch] || 0) + 1;
+      return channelCount[ch] <= 3;
+    });
+
     // Map to frontend format
     const mapped = filtered.slice(0, 15).map((v: any) => ({
       id: v.video_id || v.id,
@@ -1454,12 +1475,144 @@ Elefanten Dokumentation beliebt`
       content_angle: v.emotional_trigger || topic
     }));
 
-    const cost = `YouTube: ~${searchQueries.length * 100} unidades · IA: ~$0.001`;
+    // Step 4: GPT-score top videos as real content signals
+    let signals: any[] = [];
+    const signalCandidates = mapped.slice(0, 8);
+    if (signalCandidates.length > 0) {
+      try {
+        const OpenAI = (await import('openai')).default;
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+        const videoList = signalCandidates.map((v: any, i: number) =>
+          `${i}. "${v.title}" — ${v.channel} — ${(v.views || 0).toLocaleString()} views — ${((v.engagement_rate || 0) * 100).toFixed(1)}% engagement`
+        ).join('\n');
+
+        const signalResult = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          max_tokens: 800,
+          temperature: 0.3,
+          messages: [{
+            role: 'user',
+            content: `You are a social media content strategist. Analyze these viral YouTube videos found for the topic "${topic}" in ${langName} and score each as a content creation signal.
+
+For each video, assess:
+- score (0-100): How strong is this as inspiration for original social media content? High = unique angle, trending topic, replicable format, high engagement. Low = one-off humor, no replicable pattern, too generic.
+- opportunity: 1-2 sentences in ${langName} explaining what original content to create inspired by this signal.
+- format: Best content format — "carousel", "reel", or "post"
+
+Videos:
+${videoList}
+
+Respond ONLY with a JSON array. Example: [{"index":0,"score":85,"opportunity":"...","format":"carousel"}]`
+          }]
+        });
+
+        const raw = signalResult.choices[0]?.message?.content?.trim() || '[]';
+        // Extract JSON from potential markdown code block
+        const jsonMatch = raw.match(/\[[\s\S]*\]/);
+        const parsed = JSON.parse(jsonMatch?.[0] || '[]');
+
+        signals = parsed.map((s: any) => {
+          const video = signalCandidates[s.index];
+          if (!video) return null;
+          return {
+            title: video.title,
+            channel: video.channel,
+            views: video.views,
+            url: `https://www.youtube.com/watch?v=${video.id}`,
+            thumbnail: video.thumbnail,
+            score: Math.min(100, Math.max(0, s.score || 0)),
+            opportunity: s.opportunity || '',
+            format: s.format || 'carousel',
+            hook_formula: video.hook_formula,
+            video_id: video.id
+          };
+        }).filter(Boolean).sort((a: any, b: any) => b.score - a.score);
+
+        console.log(`[CustomSearch] Scored ${signals.length} content signals`);
+      } catch (err: any) {
+        console.log(`[CustomSearch] Signal scoring failed: ${err.message}`);
+        // Fall back to unsorted videos without GPT scores
+      }
+    }
+
+    // Step 5: Search for matching articles from two sources:
+    // A) Local signals.db (pre-collected pet industry feeds)
+    // B) Google News RSS (live search — works for ANY topic)
+    const topicWords = topic.split(/\s+/).filter((w: string) => w.length >= 3);
+    const rssKeywords = [topic, ...topicWords];
+    const seenUrls = new Set<string>();
+    let rssSignals: any[] = [];
+
+    // A) Local signals database
+    for (const kw of rssKeywords) {
+      const matches = intelConnector.searchByKeyword(kw, 5);
+      for (const m of matches) {
+        if (m.url && !seenUrls.has(m.url)) {
+          seenUrls.add(m.url);
+          rssSignals.push({
+            title: m.title,
+            description: (m.description || '').substring(0, 200),
+            source: m.source,
+            url: m.url,
+            score: m.relevance_score || 0,
+            collected_at: m.collected_at
+          });
+        }
+      }
+    }
+
+    // B) Google News RSS — live search for any topic
+    const googleLangMap: Record<string, string> = {
+      'BR': 'pt-BR', 'PT': 'pt-PT', 'US': 'en-US', 'GB': 'en-GB',
+      'MX': 'es-MX', 'AR': 'es-AR', 'CO': 'es-CO', 'CL': 'es-CL',
+      'ES': 'es-ES', 'DE': 'de-DE', 'FR': 'fr-FR', 'IN': 'hi-IN',
+    };
+    const googleHl = googleLangMap[regionCode] || 'en-US';
+    const googleGl = regionCode;
+
+    try {
+      const { parseRSSItems } = await import('./services/signal-collector');
+      const newsQuery = encodeURIComponent(topic);
+      const newsUrl = `https://news.google.com/rss/search?q=${newsQuery}&hl=${googleHl}&gl=${googleGl}&ceid=${googleGl}:${googleHl.split('-')[0]}`;
+      const newsRes = await fetch(newsUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PetContentStudio/1.0)' }
+      });
+      if (newsRes.ok) {
+        const xml = await newsRes.text();
+        const items = parseRSSItems(xml);
+        for (const item of items.slice(0, 8)) {
+          if (item.link && !seenUrls.has(item.link)) {
+            seenUrls.add(item.link);
+            rssSignals.push({
+              title: item.title,
+              description: (item.description || '').substring(0, 200),
+              source: 'Google News',
+              url: item.link,
+              score: 75,
+              collected_at: item.pubDate || new Date().toISOString()
+            });
+          }
+        }
+      }
+      console.log(`[CustomSearch] Google News RSS: fetched articles for "${topic}"`);
+    } catch (err: any) {
+      console.log(`[CustomSearch] Google News RSS failed: ${err.message}`);
+    }
+
+    rssSignals = rssSignals.sort((a, b) => b.score - a.score).slice(0, 8);
+    console.log(`[CustomSearch] Found ${rssSignals.length} total RSS signals`);
+
+    const aiCost = signals.length > 0 ? '~$0.003' : '~$0.001';
+    const cost = `YouTube: ~${searchQueries.length * 100} unidades · IA: ${aiCost}`;
 
     res.json({
       success: true,
       videos: mapped,
+      signals,
+      rssSignals,
       cost,
+      quotaExhausted,
       country: regionCode,
       topic,
       queries_used: searchQueries

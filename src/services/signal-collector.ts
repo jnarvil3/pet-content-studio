@@ -122,7 +122,7 @@ function stripHtml(html: string): string {
     .replace(/&nbsp;/g, ' ').trim();
 }
 
-function parseRSSItems(xml: string): RSSItem[] {
+export function parseRSSItems(xml: string): RSSItem[] {
   const items: RSSItem[] = [];
 
   // Match <item>...</item> blocks

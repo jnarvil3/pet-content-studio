@@ -81,6 +81,48 @@ export class IntelConnector {
   }
 
   /**
+   * Search signals by keyword (title or description)
+   * Uses word-boundary-aware patterns to avoid substring false positives
+   * (e.g. "cat" should not match "locations")
+   */
+  searchByKeyword(keyword: string, limit: number = 10): Signal[] {
+    this.tryConnect();
+    if (!this.db) return [];
+
+    // For multi-word phrases, simple substring match is fine (specific enough)
+    // For single words, use word-boundary patterns to avoid false positives
+    const isPhrase = keyword.includes(' ');
+    if (isPhrase) {
+      const pattern = `%${keyword}%`;
+      const rows = this.db.prepare(`
+        SELECT * FROM signals
+        WHERE (title LIKE ? OR description LIKE ?)
+        AND scored_at IS NOT NULL
+        AND relevance_score >= 50
+        ORDER BY relevance_score DESC, collected_at DESC
+        LIMIT ?
+      `).all(pattern, pattern, limit) as any[];
+      return rows.map(row => this.parseSignal(row));
+    }
+
+    // Single word: only search titles (descriptions are too noisy) with word-boundary patterns
+    const startPattern = `${keyword} %`;
+    const midPattern = `% ${keyword} %`;
+    const endPattern = `% ${keyword}`;
+    const exactPattern = keyword;
+    const rows = this.db.prepare(`
+      SELECT * FROM signals
+      WHERE (title LIKE ? OR title LIKE ? OR title LIKE ? OR title = ?)
+      AND scored_at IS NOT NULL
+      AND relevance_score >= 50
+      ORDER BY relevance_score DESC, collected_at DESC
+      LIMIT ?
+    `).all(startPattern, midPattern, endPattern, exactPattern, limit) as any[];
+
+    return rows.map(row => this.parseSignal(row));
+  }
+
+  /**
    * Get signals by source
    */
   getSignalsBySource(source: string, limit: number = 20): Signal[] {

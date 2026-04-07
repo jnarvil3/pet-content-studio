@@ -116,10 +116,13 @@ export class YouTubeCollector {
    */
   async searchVideos(query: string, regionCode: string = 'BR', maxResults: number = 10, relevanceLanguage?: string): Promise<any[]> {
     if (!this.isEnabled()) throw new Error('YOUTUBE_API_KEY not configured');
-    return this.searchAndEnrich(query, regionCode, maxResults, relevanceLanguage);
+    // Use 'relevance' order for language-specific searches so YouTube
+    // returns content in the target language instead of globally popular English videos
+    const order = relevanceLanguage ? 'relevance' : 'viewCount';
+    return this.searchAndEnrich(query, regionCode, maxResults, relevanceLanguage, order);
   }
 
-  private async searchAndEnrich(query: string, regionCode: string = 'US', maxResults: number = 10, relevanceLanguage?: string): Promise<YouTubeVideo[]> {
+  private async searchAndEnrich(query: string, regionCode: string = 'US', maxResults: number = 10, relevanceLanguage?: string, order: string = 'viewCount'): Promise<YouTubeVideo[]> {
     // Step 1: Search — no category filter (too restrictive), 30 day window
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -129,7 +132,7 @@ export class YouTubeCollector {
       part: 'snippet',
       type: 'video',
       q: query,
-      order: 'viewCount',
+      order,
       publishedAfter: thirtyDaysAgo.toISOString(),
       maxResults: String(maxResults),
       regionCode

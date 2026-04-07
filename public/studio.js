@@ -328,6 +328,37 @@ async function loadSignalsList() {
 let allVideos = [];
 let videoFilters = { hook: 'all', emotion: 'all', status: 'analyzed' };
 
+function renderRssSignals(rssSignals) {
+  if (!rssSignals || rssSignals.length === 0) return '';
+  return `
+    <details open style="margin-bottom: 1rem;">
+      <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">📰 Artigos Relacionados (${rssSignals.length})</summary>
+      <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Conteúdo de fontes especializadas que combina com sua pesquisa:</p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.75rem;">
+        ${rssSignals.map((s, i) => `
+          <div style="border: 2px solid #e0e0e0; border-radius: 12px; padding: 1rem; ${i === 0 ? 'background: rgba(102,126,234,0.03);' : ''}">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+              <div style="font-size: 1.5rem; font-weight: 700; color: ${s.score >= 90 ? '#16a34a' : s.score >= 70 ? '#ca8a04' : '#666'};">${s.score}</div>
+              <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.7rem; font-weight: 600;">📰 RSS</div>
+            </div>
+            <div style="font-weight: 600; margin-bottom: 0.5rem; color: #333; font-size: 0.85rem; line-height: 1.3;">${s.title || ''}</div>
+            <div style="font-size: 0.8rem; color: #555; line-height: 1.4; margin-bottom: 0.75rem;">${s.description || ''}</div>
+            <div style="font-size: 0.75rem; color: #999; margin-bottom: 0.75rem; padding-top: 0.5rem; border-top: 1px solid #eee;">
+              📰 ${s.source || 'RSS'} · ${s.collected_at ? new Date(s.collected_at).toLocaleDateString('pt-BR') : ''}
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              ${s.url ? `<a href="${s.url}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex: 1; padding: 0.5rem; text-align: center; text-decoration: none; font-size: 0.8rem;">🔗 Ler Artigo</a>` : ''}
+              <button class="btn btn-primary" style="flex: 1; padding: 0.5rem; font-size: 0.8rem;" onclick="createFromSignal(${s.id})">
+                ✨ Criar a partir deste
+              </button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </details>
+  `;
+}
+
 /**
  * Custom Search — user-defined country + topic
  */
@@ -409,36 +440,56 @@ async function runCustomSearch() {
         </details>
         ` : ''}
 
-        <!-- Content signals section -->
-        <details style="margin-bottom: 1rem;">
-          <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">📡 Sinais de Conteúdo (${Math.min(data.videos.length, 5)})</summary>
-          <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Temas validados pelo engajamento real — prontos para virar carrossel, reel ou post:</p>
-          ${data.videos.slice(0, 5).map((v, i) => {
-            const score = Math.min(100, Math.round((v.engagement_rate || 0) * 100 * 10 + (v.views > 1000000 ? 20 : v.views > 100000 ? 10 : 0)));
-            return `
-            <div style="display: flex; gap: 0.75rem; padding: 0.75rem; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.5rem; align-items: center; ${i === 0 ? 'background: rgba(102,126,234,0.04); border-color: rgba(102,126,234,0.2);' : ''}">
-              <div style="text-align: center; flex-shrink: 0; width: 45px;">
-                <div style="font-size: 1.1rem; font-weight: 700; color: ${score >= 80 ? '#16a34a' : score >= 50 ? '#ca8a04' : '#666'};">${score}</div>
-                <div style="font-size: 0.6rem; color: #999;">score</div>
-              </div>
-              <div style="flex: 1; min-width: 0;">
-                <div style="font-weight: 600; font-size: 0.85rem;">${v.title || ''}</div>
-                <div style="font-size: 0.75rem; color: #999; margin-top: 0.2rem;">
-                  ${v.views ? Number(v.views).toLocaleString() + ' views' : ''} · ${v.channel || ''}
-                  ${v.hook_formula && v.hook_formula !== 'unknown' ? ` · <span style="color: #4a5abb;">${hookLabel(v.hook_formula)}</span>` : ''}
+        <!-- Content signals section (GPT-scored) -->
+        ${data.signals && data.signals.length > 0 ? `
+        <details open style="margin-bottom: 1rem;">
+          <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">📡 Sinais de Conteúdo (${data.signals.length})</summary>
+          <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Oportunidades de conteúdo avaliadas por IA — baseadas nos vídeos virais acima:</p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.75rem;">
+            ${data.signals.map((s, i) => {
+              const formatIcon = s.format === 'reel' ? '🎬' : s.format === 'post' ? '📝' : '🎠';
+              const formatLabel = s.format === 'reel' ? 'Reel' : s.format === 'post' ? 'Post' : 'Carrossel';
+              return `
+              <div style="border: 2px solid ${s.score >= 80 ? '#16a34a40' : s.score >= 60 ? '#ca8a0440' : '#e0e0e0'}; border-radius: 12px; padding: 1rem; transition: all 0.2s; ${i === 0 ? 'background: rgba(102,126,234,0.03);' : ''}">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                  <div style="font-size: 1.5rem; font-weight: 700; color: ${s.score >= 80 ? '#16a34a' : s.score >= 60 ? '#ca8a04' : '#666'};">${s.score}</div>
+                  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.7rem; font-weight: 600;">${formatIcon} ${formatLabel}</div>
                 </div>
-              </div>
-              <div style="display: flex; gap: 0.4rem; flex-shrink: 0;">
-                <button class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="document.getElementById('custom-topic-title').value='${(v.title || '').replace(/'/g, "\\'")}'; switchPage('create-page'); showToast('Tema preenchido! Escolha o tipo de conteúdo.', 'info');">
-                  ✨ Criar
-                </button>
-              </div>
-            </div>`;
-          }).join('')}
+                <div style="font-weight: 600; margin-bottom: 0.5rem; color: #333; font-size: 0.85rem; line-height: 1.3;">${s.title || ''}</div>
+                <div style="font-size: 0.8rem; color: #555; line-height: 1.4; margin-bottom: 0.75rem; background: #f8f9fa; padding: 0.5rem 0.6rem; border-radius: 6px;">${s.opportunity || ''}</div>
+                <div style="font-size: 0.75rem; color: #999; margin-bottom: 0.75rem; padding-top: 0.5rem; border-top: 1px solid #eee;">
+                  📺 ${s.channel || ''} · ${s.views ? Number(s.views).toLocaleString() + ' views' : ''}
+                  ${s.hook_formula && s.hook_formula !== 'unknown' ? ` · <span style="color: #4a5abb;">${hookLabel(s.hook_formula)}</span>` : ''}
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                  ${s.url ? `<a href="${s.url}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex: 1; padding: 0.5rem; text-align: center; text-decoration: none; font-size: 0.8rem;">🔗 Ver Vídeo</a>` : ''}
+                  <button class="btn btn-primary" style="flex: 1; padding: 0.5rem; font-size: 0.8rem;" onclick="createFromVideo('${s.video_id || ''}', '${(s.hook_formula || '').replace(/'/g, "\\'")}', '${(s.title || '').replace(/'/g, "\\'")}', '${(s.opportunity || '').replace(/'/g, "\\'")}')">
+                    ✨ Criar a partir deste
+                  </button>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
         </details>
+        ` : ''}
+
+        ${renderRssSignals(data.rssSignals)}
       `;
     } else {
-      resultsDiv.innerHTML = `<p style="color: #999; text-align: center; padding: 1rem;">Nenhum resultado encontrado para "${topic}" neste país. Tente outro termo.</p>`;
+      let html = '';
+      if (data.quotaExhausted) {
+        html += `<div style="text-align: center; padding: 1.5rem;">
+          <p style="color: #ca8a04; font-weight: 600; margin-bottom: 0.5rem;">⚠️ Cota do YouTube API esgotada</p>
+          <p style="color: #666; font-size: 0.85rem;">O limite diário de 10.000 unidades foi atingido. A cota renova à meia-noite (horário do Pacífico).</p>
+        </div>`;
+      } else {
+        html += `<p style="color: #999; text-align: center; padding: 1rem;">Nenhum vídeo encontrado para "${topic}" neste país.</p>`;
+      }
+      html += renderRssSignals(data.rssSignals);
+      if (!data.rssSignals?.length && !data.quotaExhausted) {
+        html = `<p style="color: #999; text-align: center; padding: 1rem;">Nenhum resultado encontrado para "${topic}". Tente outro termo.</p>`;
+      }
+      resultsDiv.innerHTML = html;
     }
   } catch (err) {
     resultsDiv.innerHTML = `<p style="color: #ef4444; padding: 1rem;">Erro na pesquisa: ${err.message}</p>`;
