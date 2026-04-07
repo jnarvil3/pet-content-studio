@@ -560,7 +560,14 @@
             <div style="flex: 2; min-width: 200px;">
               <label style="display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.85rem;">Tema / Palavra-chave</label>
               <input type="text" id="custom-search-topic" style="width: 100%; padding: 0.6rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.95rem;" placeholder="Ex: dog training, recursos humanos, marketing digital" value="pets">
-              <span style="font-size: 0.75rem; color: #999; display: block; margin-top: 0.25rem;">Uma palavra ou frase por pesquisa. Exemplos: <em>pet grooming</em>, <em>recursos humanos</em>, <em>marketing digital</em>, <em>receitas fitness</em></span>
+              <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.35rem;">
+                <span style="font-size: 0.75rem; color: #999;">Exemplos:</span>
+                <button type="button" onclick="document.getElementById('custom-search-topic').value='pet grooming'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">pet grooming</button>
+                <button type="button" onclick="document.getElementById('custom-search-topic').value='recursos humanos'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">recursos humanos</button>
+                <button type="button" onclick="document.getElementById('custom-search-topic').value='marketing digital'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">marketing digital</button>
+                <button type="button" onclick="document.getElementById('custom-search-topic').value='receitas fitness'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">receitas fitness</button>
+                <button type="button" onclick="document.getElementById('custom-search-topic').value='dog training'" style="font-size: 0.75rem; background: #f0f4ff; color: #4a5abb; border: 1px solid #dde3f7; border-radius: 12px; padding: 2px 8px; cursor: pointer;">dog training</button>
+              </div>
             </div>
             <div>
               <button class="btn btn-primary" onclick="runCustomSearch()" id="custom-search-btn" style="padding: 0.6rem 1.5rem;">
@@ -568,8 +575,8 @@
               </button>
             </div>
           </div>
-          <div style="margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: rgba(251,191,36,0.1); border-radius: 6px; font-size: 0.8rem; color: #92400e;">
-            💰 <strong>Custo estimado por pesquisa:</strong> YouTube API = ~300 unidades (limite diário: 10.000) · Custo monetário: ~$0.00 (APIs gratuitas dentro dos limites)
+          <div style="margin-top: 0.5rem; font-size: 0.75rem; color: #999;">
+            <span style="cursor: help;" title="YouTube API = ~300 unidades (limite diário: 10.000). Custo monetário: ~$0.00 (APIs gratuitas dentro dos limites)">💰 Custo: gratuito dentro dos limites · <u>ver detalhes</u></span>
           </div>
           <div id="custom-search-results" style="margin-top: 1rem; display: none;"></div>
         </div>

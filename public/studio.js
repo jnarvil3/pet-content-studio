@@ -60,28 +60,39 @@ function showConfirm(message, { showInput = false, inputPlaceholder = '', okText
 
 // Hook formula display labels (PT-BR, descriptive)
 const HOOK_LABELS = {
-  curiosity_gap: '🤔 Fato curioso que prende atenção',
-  contrarian: '🚫 Opinião contrária ao senso comum',
-  emotional: '❤️ Conexão emocional com o pet',
-  humor: '😂 Humor e entretenimento',
-  shocking_fact: '😲 Dado surpreendente',
-  tutorial: '📚 Tutorial passo a passo',
-  question_hook: '❓ Pergunta que gera curiosidade',
-  question: '❓ Pergunta que gera curiosidade',
-  mistake_hook: '⚠️ Erro comum que donos cometem',
-  personal: '🗣️ História pessoal com o pet',
-  personal_story: '🗣️ História pessoal com o pet',
-  number_outcome: '🔢 Lista com resultado específico',
-  curiosity: '🤔 Fato curioso que prende atenção',
-  transformation: '✨ Antes e depois / transformação',
-  before_after: '✨ Antes e depois / transformação',
-  challenge: '🏆 Desafio ou teste',
-  listicle: '📋 Lista de dicas',
-  story: '📖 Narrativa envolvente'
+  curiosity_gap: 'Lacuna de Curiosidade',
+  pov_scenario: 'POV / Cenário em 1ª Pessoa',
+  authority_reveal: 'Revelação de Autoridade',
+  quick_hack: 'Dica Rápida / Hack',
+  contrarian: 'Opinião Contrária',
+  emotional_hook: 'Gancho Emocional',
+  emotional: 'Gancho Emocional',
+  list_tease: 'Lista / Contagem',
+  before_after: 'Antes e Depois',
+  challenge: 'Desafio',
+  question_hook: 'Pergunta Provocativa',
+  question: 'Pergunta Provocativa',
+  shock_value: 'Valor de Choque',
+  shocking_fact: 'Valor de Choque',
+  story_hook: 'Início de História',
+  story: 'Início de História',
+  social_proof: 'Prova Social',
+  urgency: 'Urgência',
+  myth_bust: 'Derrubando Mitos',
+  unknown: 'Outros',
+  humor: 'Humor e Entretenimento',
+  tutorial: 'Tutorial Passo a Passo',
+  mistake_hook: 'Erro Comum',
+  personal: 'História Pessoal',
+  personal_story: 'História Pessoal',
+  number_outcome: 'Lista com Resultado',
+  curiosity: 'Lacuna de Curiosidade',
+  transformation: 'Antes e Depois',
+  listicle: 'Lista de Dicas'
 };
 
 function hookLabel(formula) {
-  return HOOK_LABELS[formula] || formula;
+  return HOOK_LABELS[formula] || formula.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 // Status labels (PT-BR)
@@ -375,10 +386,10 @@ async function runCustomSearch() {
               <div style="flex: 1; min-width: 0;">
                 <div style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.title || 'Sem título'}</div>
                 <div style="font-size: 0.8rem; color: #666;">${v.channel || ''} · ${v.views ? Number(v.views).toLocaleString() + ' views' : ''} · ${v.engagement_rate ? (v.engagement_rate * 100).toFixed(1) + '% eng.' : ''}</div>
-                ${v.hook_formula && v.hook_formula !== 'unknown' ? `<span style="font-size: 0.7rem; background: #f0f4ff; color: #4a5abb; padding: 2px 6px; border-radius: 4px;">🎣 ${v.hook_formula}</span>` : ''}
+                ${v.hook_formula && v.hook_formula !== 'unknown' ? `<span style="font-size: 0.7rem; background: #f0f4ff; color: #4a5abb; padding: 2px 6px; border-radius: 4px;">🎣 ${hookLabel(v.hook_formula)}</span>` : ''}
               </div>
               <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; white-space: nowrap;" onclick="createFromVideo('${v.id}', '${(v.hook_formula || '').replace(/'/g, "\\'")}', '${(v.title || '').replace(/'/g, "\\'")}', '${(v.content_angle || topic).replace(/'/g, "\\'")}')">
-                Usar
+                ✨ Criar Conteúdo
               </button>
             </div>
           `).join('')}
@@ -390,7 +401,7 @@ async function runCustomSearch() {
           <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">🎣 Ganchos Virais Encontrados (${hookList.length})</summary>
           ${hookList.map(h => `
             <div style="padding: 0.75rem; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.5rem;">
-              <div style="font-weight: 600; font-size: 0.9rem; color: #4a5abb;">${h.formula}</div>
+              <div style="font-weight: 600; font-size: 0.9rem; color: #4a5abb;">${hookLabel(h.formula)}</div>
               <div style="font-size: 0.8rem; color: #666; margin-top: 0.25rem;">${h.count} vídeo(s) · ${Number(h.totalViews).toLocaleString()} views total</div>
               <div style="font-size: 0.8rem; color: #999; margin-top: 0.25rem; font-style: italic;">Ex: "${h.examples[0]?.substring(0, 80) || ''}"</div>
             </div>
@@ -584,7 +595,7 @@ function renderVideoFilters() {
         <div>
           <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333;">Hook Formula</label>
           <select id="filter-hook" style="width: 100%; padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.875rem;">
-            ${hookFormulas.map(h => `<option value="${h}" ${videoFilters.hook === h ? 'selected' : ''}>${h === 'all' ? 'Todos os Ganchos' : h}</option>`).join('')}
+            ${hookFormulas.map(h => `<option value="${h}" ${videoFilters.hook === h ? 'selected' : ''}>${h === 'all' ? 'Todos os Ganchos' : hookLabel(h)}</option>`).join('')}
           </select>
         </div>
         <div>
@@ -1775,7 +1786,7 @@ function renderHooksGrid(hooks) {
               `).join('')}
             </div>
           ` : ''}
-          <button class="btn btn-primary" style="width: 100%; margin-top: 1rem; padding: 0.625rem;" onclick="selectHook('${(hook.hook_formula || '').replace(/'/g, "\\'")}')">✨ Usar este Gancho</button>
+          <button class="btn btn-primary" style="width: 100%; margin-top: 1rem; padding: 0.625rem;" onclick="selectHook('${(hook.hook_formula || '').replace(/'/g, "\\'")}')">✨ Usar Gancho</button>
         </div>
       `).join('')}
     </div>
