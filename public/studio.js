@@ -1252,6 +1252,17 @@ async function displayReviewContent(filter) {
               <div style="font-size: 0.875rem; color: #666; line-height: 1.5;">${item.reel_script.caption}</div>
               <div style="font-size: 0.8rem; color: #4a5abb; margin-top: 0.5rem;">${item.reel_script.hashtags.map(h => h.startsWith('#') ? h : '#'+h).join(' ')}</div>
             </div>
+            <div style="background: #fefce8; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; border-left: 4px solid #eab308;">
+              <div style="font-size: 0.8rem; font-weight: 600; color: #854d0e; margin-bottom: 0.75rem;">🎙️ Roteiro para Narração</div>
+              ${(item.reel_script.scenes || []).map((scene, idx) => `
+                <div style="margin-bottom: 0.75rem; padding-bottom: 0.75rem; ${idx < item.reel_script.scenes.length - 1 ? 'border-bottom: 1px solid #fde68a;' : ''}">
+                  <div style="font-size: 0.75rem; font-weight: 600; color: #92400e; margin-bottom: 0.25rem;">Cena ${scene.sceneNumber || idx + 1} — ${scene.durationEstimate || '?'}s</div>
+                  <div style="font-size: 0.875rem; color: #713f12; line-height: 1.5;">${scene.narration || ''}</div>
+                  ${scene.visualDescription ? `<div style="font-size: 0.75rem; color: #a16207; margin-top: 0.25rem; font-style: italic;">📷 ${scene.visualDescription}</div>` : ''}
+                </div>
+              `).join('')}
+              <button class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;" onclick="copyReelScript(${item.id})">📋 Copiar Roteiro</button>
+            </div>
           ` : ''}
 
           ${item.linkedin_content ? `
@@ -1403,6 +1414,18 @@ function copyLinkedIn(id) {
   if (!item?.linkedin_content) return;
   const text = item.linkedin_content.headline + '\n\n' + item.linkedin_content.body + '\n\n' + (item.linkedin_content.hashtags || []).map(h => '#' + h).join(' ');
   navigator.clipboard.writeText(text);
+  showToast('Texto copiado!', 'success');
+}
+
+function copyReelScript(id) {
+  const item = allContent.find(c => c.id === id);
+  if (!item?.reel_script?.scenes) return;
+  const lines = item.reel_script.scenes.map((scene, idx) =>
+    `Cena ${scene.sceneNumber || idx + 1} (${scene.durationEstimate || '?'}s):\n${scene.narration || ''}`
+  );
+  const text = `ROTEIRO — ${item.reel_script.scenes.length} cenas\n\n` + lines.join('\n\n');
+  navigator.clipboard.writeText(text);
+  showToast('Roteiro copiado!', 'success');
 }
 
 async function approveContent(id) {
