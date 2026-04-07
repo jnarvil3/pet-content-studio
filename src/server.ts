@@ -1309,6 +1309,7 @@ app.get('/api/trending/hooks', async (req, res) => {
 });
 
 // Custom search — user-defined country + topic
+// Architecture: Smart native query generation → YouTube search → deterministic language filter
 app.post('/api/trending/custom-search', async (req, res) => {
   try {
     const { country, topic } = req.body;
@@ -1316,7 +1317,6 @@ app.post('/api/trending/custom-search', async (req, res) => {
 
     const regionCode = country || 'BR';
 
-    // Map country to language code
     const countryLang: Record<string, { lang: string; langName: string }> = {
       'BR': { lang: 'pt', langName: 'Brazilian Portuguese' },
       'PT': { lang: 'pt', langName: 'European Portuguese' },
@@ -1334,51 +1334,55 @@ app.post('/api/trending/custom-search', async (req, res) => {
 
     const { lang, langName } = countryLang[regionCode] || { lang: 'en', langName: 'English' };
 
-    // Translate the search topic to the target language using AI
-    let translatedTopic = topic;
-    if (lang !== 'en') {
-      try {
-        const OpenAI = (await import('openai')).default;
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-        const translation = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          max_tokens: 50,
-          temperature: 0,
-          messages: [{
-            role: 'user',
-            content: `Translate this YouTube search term to ${langName}. Return ONLY the translated term, nothing else.\n\nSearch term: ${topic}`
-          }]
-        });
-        translatedTopic = translation.choices[0]?.message?.content?.trim() || topic;
-        console.log(`[CustomSearch] Translated "${topic}" → "${translatedTopic}" (${langName})`);
-      } catch (err: any) {
-        console.log(`[CustomSearch] Translation failed, using original: ${err.message}`);
-      }
+    // Step 1: Single AI call — generate culturally native search queries
+    // This replaces the old translate + append suffixes approach
+    let searchQueries: string[] = [];
+    try {
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      const queryGen = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        max_tokens: 150,
+        temperature: 0.3,
+        messages: [{
+          role: 'user',
+          content: `Generate exactly 3 YouTube search queries in ${langName} for finding viral videos about: "${topic}"
+
+Rules:
+- All queries must be ENTIRELY in ${langName} (no English words unless they are commonly used in that language)
+- Include at least one query with the key term in quotes to force language matching
+- Use phrasing a native ${langName} speaker would naturally search for
+- Include viral/trending indicators natural to that language
+- Each query on its own line, nothing else
+
+Example for "elephants" in German:
+"Elefanten" erstaunliche Fakten
+Elefanten Pflege Tipps viral
+Elefanten Dokumentation beliebt`
+        }]
+      });
+
+      const rawQueries = queryGen.choices[0]?.message?.content?.trim() || '';
+      searchQueries = rawQueries.split('\n').map(q => q.trim()).filter(q => q.length > 0).slice(0, 3);
+      console.log(`[CustomSearch] AI-generated queries for "${topic}" (${langName}):`, searchQueries);
+    } catch (err: any) {
+      console.log(`[CustomSearch] Query generation failed, using fallback: ${err.message}`);
     }
 
-    // Use YouTube collector with custom params
+    // Fallback: basic translated query if AI fails
+    if (searchQueries.length === 0) {
+      searchQueries = [`"${topic}" viral`, `${topic} trending`, `${topic} tips`];
+    }
+
+    // Step 2: YouTube search with native queries
     const { YouTubeCollector } = await import('./services/youtube-collector');
     const collector = new YouTubeCollector();
-
-    // Localized suffixes
-    const suffixMap: Record<string, string[]> = {
-      'pt': ['viral', 'dicas', 'tendências'],
-      'es': ['viral', 'consejos', 'tendencias'],
-      'de': ['viral', 'Tipps', 'Trends'],
-      'fr': ['viral', 'conseils', 'tendances'],
-      'hi': ['viral', 'tips', 'trending'],
-      'en': ['viral', 'tips', 'trending'],
-    };
-    const suffixes = suffixMap[lang] || suffixMap['en'];
-
-    // Build fully localized search queries
-    const searchQueries = suffixes.map(s => `${translatedTopic} ${s}`);
 
     const allVideos: any[] = [];
     for (const query of searchQueries) {
       try {
-        // Fetch more results to have enough after language filtering
-        const videos = await collector.searchVideos(query, regionCode, 10, lang);
+        const videos = await collector.searchVideos(query, regionCode, 15, lang);
         allVideos.push(...videos);
       } catch (err: any) {
         console.log(`[CustomSearch] Query "${query}" failed: ${err.message}`);
@@ -1394,16 +1398,33 @@ app.post('/api/trending/custom-search', async (req, res) => {
       return true;
     });
 
-    // Filter by language using AI — regex heuristics don't scale
-    // Send all titles to Claude Haiku in one batch to classify language
-    let filtered = deduped;
-    if (lang !== 'en' || regionCode !== 'US') {
+    // Step 3: Deterministic language filter using defaultAudioLanguage
+    // No AI call needed — uses metadata YouTube already provides
+    const confirmed: any[] = [];
+    const maybes: any[] = [];
+
+    for (const v of deduped) {
+      if (v.language) {
+        const videoLang = v.language.toLowerCase().split('-')[0];
+        if (videoLang === lang) {
+          confirmed.push(v); // Language tag matches — keep
+        }
+        // Language tag doesn't match — discard (don't even put in maybes)
+      } else {
+        maybes.push(v); // No language tag — uncertain
+      }
+    }
+
+    // If we have enough confirmed results (8+), skip AI filtering of maybes
+    // Otherwise, use Claude Haiku to classify the uncertain ones
+    let filtered = [...confirmed];
+
+    if (confirmed.length < 8 && maybes.length > 0) {
       try {
         const Anthropic = (await import('@anthropic-ai/sdk')).default;
         const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-        const titles = deduped.map((v: any, i: number) => `${i}: ${v.title || ''}`).join('\n');
-        const targetLangName = langName;
+        const titles = maybes.map((v: any, i: number) => `${i}: ${v.title || ''}`).join('\n');
 
         const result = await anthropic.messages.create({
           model: 'claude-haiku-4-5-20251001',
@@ -1411,37 +1432,34 @@ app.post('/api/trending/custom-search', async (req, res) => {
           temperature: 0,
           messages: [{
             role: 'user',
-            content: `For each numbered video title, respond with ONLY the index numbers of titles that are in ${targetLangName}. Respond as comma-separated numbers only. If none match, respond "none".\n\n${titles}`
+            content: `For each numbered video title, respond with ONLY the index numbers of titles that are in ${langName}. Comma-separated numbers only. If none match, respond "none".\n\n${titles}`
           }]
         });
 
         const aiResponse = (result.content[0] as any).text?.trim() || '';
-        console.log(`[CustomSearch] AI language filter response: "${aiResponse}"`);
+        console.log(`[CustomSearch] Fallback AI filter on ${maybes.length} uncertain videos: "${aiResponse}"`);
 
-        if (aiResponse.toLowerCase() === 'none') {
-          filtered = [];
-        } else {
+        if (aiResponse.toLowerCase() !== 'none') {
           const validIndices = new Set(
             aiResponse.split(',').map((s: string) => parseInt(s.trim())).filter((n: number) => !isNaN(n))
           );
-          filtered = deduped.filter((_: any, i: number) => validIndices.has(i));
+          filtered.push(...maybes.filter((_: any, i: number) => validIndices.has(i)));
         }
-
-        console.log(`[CustomSearch] AI language filter (${targetLangName}): ${deduped.length} → ${filtered.length} videos`);
       } catch (err: any) {
-        console.log(`[CustomSearch] AI language filter failed, using all results: ${err.message}`);
-        filtered = deduped;
+        console.log(`[CustomSearch] Fallback AI filter failed: ${err.message}`);
+        // Don't add uncertain videos if we can't verify
       }
+    } else if (confirmed.length >= 8) {
+      console.log(`[CustomSearch] ${confirmed.length} confirmed results — skipping AI filter (saved ~$0.001)`);
     }
 
-    console.log(`[CustomSearch] Language filter (${lang}): ${deduped.length} → ${filtered.length} videos`);
+    console.log(`[CustomSearch] Results: ${deduped.length} total → ${confirmed.length} confirmed + ${filtered.length - confirmed.length} AI-verified = ${filtered.length} final`);
 
     // Sort by views
     filtered.sort((a: any, b: any) => (b.view_count || 0) - (a.view_count || 0));
-    const unique = filtered;
 
-    // Map to consistent format for the frontend
-    const mapped = unique.slice(0, 15).map((v: any) => ({
+    // Map to frontend format
+    const mapped = filtered.slice(0, 15).map((v: any) => ({
       id: v.video_id || v.id,
       title: v.title,
       channel: v.channel_name,
@@ -1452,15 +1470,15 @@ app.post('/api/trending/custom-search', async (req, res) => {
       content_angle: v.emotional_trigger || topic
     }));
 
-    // Cost info
-    const cost = `YouTube: ~${searchQueries.length * 100} unidades (de 10.000/dia)`;
+    const cost = `YouTube: ~${searchQueries.length * 100} unidades · IA: ~$0.001`;
 
     res.json({
       success: true,
       videos: mapped,
       cost,
       country: regionCode,
-      topic
+      topic,
+      queries_used: searchQueries
     });
   } catch (error: any) {
     console.error('[CustomSearch] Error:', error.message);
