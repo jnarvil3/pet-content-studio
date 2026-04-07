@@ -547,7 +547,7 @@
           <div class="card">
             <h2 class="card-title" style="margin-bottom: 0.25rem;">🔍 Pesquisa Personalizada</h2>
             <p style="color: #666; margin-bottom: 1rem;">Busque vídeos virais, ganchos e sinais de conteúdo por país e tema.</p>
-            <div style="display: grid; grid-template-columns: 200px 1fr auto; gap: 1rem; align-items: end;">
+            <div style="display: grid; grid-template-columns: 200px 1fr auto; gap: 1rem; align-items: start;">
               <div>
                 <label style="display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.85rem;">País / Região</label>
                 <select id="custom-search-country" style="width: 100%; padding: 0.6rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.95rem;">
@@ -567,10 +567,10 @@
               </div>
               <div>
                 <label style="display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.85rem;">Tema / Palavra-chave</label>
-                <input type="text" id="custom-search-topic" style="width: 100%; padding: 0.6rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.95rem;" placeholder="Ex: dog training, recursos humanos, marketing digital" value="pets">
+                <input type="text" id="custom-search-topic" style="width: 100%; padding: 0.6rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.95rem; box-sizing: border-box;" placeholder="Ex: dog training, recursos humanos, marketing digital" value="pets">
                 <span style="font-size: 0.7rem; color: #999; display: block; margin-top: 0.2rem;">🌐 O termo será traduzido automaticamente para o idioma do país selecionado</span>
               </div>
-              <div>
+              <div style="padding-top: 1.35rem;">
                 <button class="btn btn-primary" onclick="runCustomSearch()" id="custom-search-btn" style="padding: 0.6rem 1.5rem;">
                   🔍 Pesquisar
                 </button>
