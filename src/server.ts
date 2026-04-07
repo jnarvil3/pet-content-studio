@@ -106,6 +106,10 @@ app.get('/api/signals', (req, res) => {
 
     let signals = intelConnector.getTopSignals(minScore, limit * 3); // fetch extra to filter
 
+    // Filter out promotional/ad content
+    const promoPatterns = /garanta sua vaga|inscreva-se|último[s]? dia[s]?|lote|desconto|cupom|promoção|oferta especial|compre agora|buy now|sign up|limited time|free trial|use code|% off/i;
+    signals = signals.filter(s => !promoPatterns.test(s.title || '') && !promoPatterns.test((s.description || '').substring(0, 100)));
+
     if (region === 'br') {
       signals = signals.filter(s => /\.com\.br|\.br\//.test(s.url || ''));
     } else if (region === 'global') {
