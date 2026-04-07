@@ -111,7 +111,15 @@ export class YouTubeCollector {
   /**
    * Search YouTube and enrich with stats
    */
-  private async searchAndEnrich(query: string): Promise<YouTubeVideo[]> {
+  /**
+   * Public search: custom query + region code
+   */
+  async searchVideos(query: string, regionCode: string = 'BR', maxResults: number = 10): Promise<any[]> {
+    if (!this.isEnabled()) throw new Error('YOUTUBE_API_KEY not configured');
+    return this.searchAndEnrich(query, regionCode, maxResults);
+  }
+
+  private async searchAndEnrich(query: string, regionCode: string = 'US', maxResults: number = 10): Promise<YouTubeVideo[]> {
     // Step 1: Search — no category filter (too restrictive), 30 day window
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -123,8 +131,8 @@ export class YouTubeCollector {
       q: query,
       order: 'viewCount',
       publishedAfter: thirtyDaysAgo.toISOString(),
-      maxResults: '10',
-      regionCode: 'US'
+      maxResults: String(maxResults),
+      regionCode
     });
 
     const searchUrl = `${YOUTUBE_API}/search?${searchParams}`;

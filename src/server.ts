@@ -1306,6 +1306,75 @@ app.get('/api/trending/hooks', async (req, res) => {
   }
 });
 
+// Custom search — user-defined country + topic
+app.post('/api/trending/custom-search', async (req, res) => {
+  try {
+    const { country, topic } = req.body;
+    if (!topic) return res.status(400).json({ error: 'Topic is required' });
+
+    const regionCode = country || 'BR';
+
+    // Use YouTube collector with custom params
+    const { YouTubeCollector } = await import('./services/youtube-collector');
+    const collector = new YouTubeCollector();
+
+    // Search YouTube for the custom topic in the specified region
+    const searchQueries = [
+      `${topic} viral`,
+      `${topic} tips`,
+      `${topic} trending`
+    ];
+
+    const allVideos: any[] = [];
+    for (const query of searchQueries) {
+      try {
+        const videos = await collector.searchVideos(query, regionCode, 5);
+        allVideos.push(...videos);
+      } catch (err: any) {
+        console.log(`[CustomSearch] Query "${query}" failed: ${err.message}`);
+      }
+    }
+
+    // Deduplicate by video ID
+    const seen = new Set<string>();
+    const unique = allVideos.filter(v => {
+      const vid = v.video_id || v.id;
+      if (seen.has(vid)) return false;
+      seen.add(vid);
+      return true;
+    });
+
+    // Sort by views
+    unique.sort((a: any, b: any) => (b.view_count || 0) - (a.view_count || 0));
+
+    // Map to consistent format for the frontend
+    const mapped = unique.slice(0, 15).map((v: any) => ({
+      id: v.video_id || v.id,
+      title: v.title,
+      channel: v.channel_name,
+      views: v.view_count,
+      thumbnail: v.thumbnail_url,
+      engagement_rate: v.engagement_rate ? v.engagement_rate / 100 : 0,
+      hook_formula: v.hook_formula,
+      content_angle: v.emotional_trigger || topic
+    }));
+
+    // Cost info
+    const cost = `YouTube: ~${searchQueries.length * 100} unidades (de 10.000/dia)`;
+
+    res.json({
+      success: true,
+      videos: mapped,
+      cost,
+      country: regionCode,
+      topic
+    });
+  } catch (error: any) {
+    console.error('[CustomSearch] Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Seed trending data with realistic demo content (for client demos / empty databases)
 app.post('/api/trending/collect', async (req, res) => {
   try {

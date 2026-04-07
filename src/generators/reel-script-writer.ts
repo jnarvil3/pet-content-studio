@@ -201,7 +201,7 @@ ${this.modelPreference === 'claude-sonnet-4' ? '🎯 MODO PRECISO: Siga instruç
 `;
     }
 
-    const brandContext = buildBrandContext(brand);
+    const brandContext = buildBrandContext(brand, 'instagram');
 
     return `You are a Reel scriptwriter. Your job is to turn a topic card into a 30–45 second Instagram Reel script.
 ${feedbackContext}

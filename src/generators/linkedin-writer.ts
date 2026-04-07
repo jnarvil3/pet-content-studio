@@ -89,7 +89,7 @@ ${preciseMode ? '🎯 MODO PRECISO: Siga instruções LITERALMENTE. Texto entre 
 `;
     }
 
-    const brandContext = buildBrandContext(brand);
+    const brandContext = buildBrandContext(brand, 'linkedin');
 
     return `You are a LinkedIn content strategist.
 ${feedbackContext}

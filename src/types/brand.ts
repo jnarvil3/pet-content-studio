@@ -30,7 +30,9 @@ export interface BrandConfig {
 
   // Content Voice
   voice: {
-    tone: string[]; // e.g., ['friendly', 'educational', 'trustworthy']
+    tone: string[]; // legacy / fallback
+    tone_linkedin: string[]; // tone for LinkedIn posts
+    tone_instagram: string[]; // tone for Instagram carousels & captions
     forbidden_words: string[];
     forbidden_claims: string[]; // e.g., 'guaranteed', 'miracle', 'cure'
   };
@@ -97,6 +99,8 @@ export const defaultBrandConfig: BrandConfig = {
 
   voice: {
     tone: ['amigável', 'educativo', 'confiável', 'acolhedor'],
+    tone_linkedin: ['profissional', 'educativo', 'confiável', 'autoritário'],
+    tone_instagram: ['amigável', 'divertido', 'acolhedor', 'inspirador'],
     forbidden_words: ['miracle', 'cure', 'guaranteed', 'always', 'never'],
     forbidden_claims: [
       'guaranteed results',

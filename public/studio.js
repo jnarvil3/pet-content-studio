@@ -317,6 +317,64 @@ async function loadSignalsList() {
 let allVideos = [];
 let videoFilters = { hook: 'all', emotion: 'all', status: 'analyzed' };
 
+/**
+ * Custom Search — user-defined country + topic
+ */
+async function runCustomSearch() {
+  const country = document.getElementById('custom-search-country').value;
+  const topic = document.getElementById('custom-search-topic').value.trim();
+  const btn = document.getElementById('custom-search-btn');
+  const resultsDiv = document.getElementById('custom-search-results');
+
+  if (!topic) {
+    showToast('Digite um tema para pesquisar', 'warning');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Pesquisando...';
+  resultsDiv.style.display = 'block';
+  resultsDiv.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #4a5abb;"></div><p style="color: #666;">Buscando vídeos virais sobre "' + topic + '"...</p></div>';
+
+  try {
+    const response = await fetch('/api/trending/custom-search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ country, topic })
+    });
+    const data = await response.json();
+
+    if (data.success && data.videos && data.videos.length > 0) {
+      const countryFlag = document.getElementById('custom-search-country').selectedOptions[0].textContent;
+      resultsDiv.innerHTML = `
+        <div style="margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+          <strong>${data.videos.length} resultados para "${topic}" em ${countryFlag}</strong>
+          <span style="font-size: 0.8rem; color: #666;">Custo: ${data.cost || 'YouTube: ~100 unidades'}</span>
+        </div>
+        ${data.videos.map((v, i) => `
+          <div style="display: flex; gap: 1rem; padding: 0.75rem; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.5rem; align-items: center; ${i < 3 ? 'background: rgba(102,126,234,0.03);' : ''}">
+            ${v.thumbnail ? `<img src="${v.thumbnail}" style="width: 120px; height: 68px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" onerror="this.style.display='none'">` : ''}
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.title || 'Sem título'}</div>
+              <div style="font-size: 0.8rem; color: #666;">${v.channel || ''} · ${v.views ? Number(v.views).toLocaleString() + ' views' : ''} · ${v.engagement_rate ? (v.engagement_rate * 100).toFixed(1) + '% eng.' : ''}</div>
+            </div>
+            <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; white-space: nowrap;" onclick="createFromVideo('${v.id}', '${(v.hook_formula || '').replace(/'/g, "\\'")}', '${(v.title || '').replace(/'/g, "\\'")}', '${(v.content_angle || topic).replace(/'/g, "\\'")}')">
+              Usar
+            </button>
+          </div>
+        `).join('')}
+      `;
+    } else {
+      resultsDiv.innerHTML = `<p style="color: #999; text-align: center; padding: 1rem;">Nenhum resultado encontrado para "${topic}" neste país. Tente outro termo.</p>`;
+    }
+  } catch (err) {
+    resultsDiv.innerHTML = `<p style="color: #ef4444; padding: 1rem;">Erro na pesquisa: ${err.message}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 Pesquisar';
+  }
+}
+
 function setVideoFilter(filter) {
   videoPetFilter = filter;
   document.getElementById('video-filter-pet').classList.toggle('active', filter === 'pet');
@@ -2059,7 +2117,8 @@ async function loadBrandConfig() {
       document.getElementById('brand-color-primary').value = brand.colors?.primary || '#667eea';
       document.getElementById('brand-color-secondary').value = brand.colors?.secondary || '#764ba2';
       document.getElementById('brand-color-accent').value = brand.colors?.accent || '#4caf50';
-      document.getElementById('brand-tone').value = (brand.voice?.tone || []).join(', ');
+      document.getElementById('brand-tone-linkedin').value = (brand.voice?.tone_linkedin || brand.voice?.tone || []).join(', ');
+      document.getElementById('brand-tone-instagram').value = (brand.voice?.tone_instagram || brand.voice?.tone || []).join(', ');
       document.getElementById('brand-services').value = (brand.services || []).join(', ');
     }
   } catch (e) {
@@ -2086,7 +2145,8 @@ async function saveBrandConfig() {
       accent: document.getElementById('brand-color-accent').value
     },
     voice: {
-      tone: document.getElementById('brand-tone').value.split(',').map(s => s.trim()).filter(Boolean)
+      tone_linkedin: document.getElementById('brand-tone-linkedin').value.split(',').map(s => s.trim()).filter(Boolean),
+      tone_instagram: document.getElementById('brand-tone-instagram').value.split(',').map(s => s.trim()).filter(Boolean)
     },
     services: document.getElementById('brand-services').value.split(',').map(s => s.trim()).filter(Boolean)
   };

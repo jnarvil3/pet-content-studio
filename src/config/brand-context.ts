@@ -12,31 +12,50 @@ import { BrandExtractor } from '../services/brand-extractor';
  * Build brand context string for AI prompts
  * Uses extracted profile if available, falls back to basic brand config
  */
-export function buildBrandContext(brand: BrandConfig): string {
+export type ContentChannel = 'linkedin' | 'instagram' | 'general';
+
+export function buildBrandContext(brand: BrandConfig, channel: ContentChannel = 'general'): string {
   const profile = brand.profile || BrandExtractor.loadProfile();
 
   if (profile) {
-    return buildRichBrandContext(brand, profile);
+    return buildRichBrandContext(brand, profile, channel);
   }
 
-  return buildBasicBrandContext(brand);
+  return buildBasicBrandContext(brand, channel);
+}
+
+/**
+ * Get the tone array for a specific channel, with fallbacks
+ */
+function getToneForChannel(brand: BrandConfig, channel: ContentChannel): string[] {
+  if (channel === 'linkedin' && brand.voice.tone_linkedin?.length > 0) {
+    return brand.voice.tone_linkedin;
+  }
+  if (channel === 'instagram' && brand.voice.tone_instagram?.length > 0) {
+    return brand.voice.tone_instagram;
+  }
+  return brand.voice.tone?.length > 0 ? brand.voice.tone : ['amigável', 'educativo', 'confiável'];
 }
 
 /**
  * Rich brand context from extracted profile
  */
-function buildRichBrandContext(brand: BrandConfig, profile: BrandProfile): string {
+function buildRichBrandContext(brand: BrandConfig, profile: BrandProfile, channel: ContentChannel = 'general'): string {
   const sections: string[] = [];
+  const channelTone = getToneForChannel(brand, channel);
+  const channelLabel = channel === 'linkedin' ? 'LinkedIn' : channel === 'instagram' ? 'Instagram' : 'geral';
 
   sections.push(`CONTEXTO DA MARCA — SIGA ESTAS REGRAS RIGOROSAMENTE:
 
 Marca: ${brand.name} (${brand.handle})
-${brand.tagline ? `Tagline: "${brand.tagline}"` : ''}`);
+${brand.tagline ? `Tagline: "${brand.tagline}"` : ''}
+Canal: ${channelLabel}`);
 
-  // Voice & Tone
+  // Voice & Tone — use channel-specific tone
   if (profile.voice) {
-    sections.push(`VOZ E TOM:
-- Tom da marca: ${profile.voice.tone_adjectives.join(', ')}
+    sections.push(`VOZ E TOM (${channelLabel}):
+- Tom para este canal: ${channelTone.join(', ')}
+- Tom do perfil da marca: ${profile.voice.tone_adjectives.join(', ')}
 - Estilo de escrita: ${profile.voice.writing_style}
 ${profile.voice.example_phrases.length > 0 ? `- Frases de exemplo que capturam esta voz:\n${profile.voice.example_phrases.map(p => `  "${p}"`).join('\n')}` : ''}
 - IMPORTANTE: Escreva como se fosse a própria marca falando. Use o tom e estilo acima em cada frase.`);
@@ -77,19 +96,18 @@ ${profile.brand_story}`);
 /**
  * Basic brand context from config only (no extracted profile)
  */
-function buildBasicBrandContext(brand: BrandConfig): string {
-  const tone = brand.voice.tone.length > 0
-    ? `Tom: ${brand.voice.tone.join(', ')}`
-    : 'Tom: amigável, educativo, confiável';
+function buildBasicBrandContext(brand: BrandConfig, channel: ContentChannel = 'general'): string {
+  const channelTone = getToneForChannel(brand, channel);
+  const channelLabel = channel === 'linkedin' ? 'LinkedIn' : channel === 'instagram' ? 'Instagram' : 'geral';
 
-  return `CONTEXTO DA MARCA:
+  return `CONTEXTO DA MARCA (${channelLabel}):
 Marca: ${brand.name} (${brand.handle})
 ${brand.tagline ? `Tagline: "${brand.tagline}"` : ''}
-${tone}
+Tom (${channelLabel}): ${channelTone.join(', ')}
 Serviços: ${brand.services.join(', ')}
 ${brand.voice.forbidden_words.length > 0 ? `Palavras proibidas: ${brand.voice.forbidden_words.join(', ')}` : ''}
 
-Escreva como um especialista em pets conversando com um amigo — natural, específico, opinativo. Não como livro-texto ou agência de marketing.`;
+Escreva como um especialista conversando com um amigo — natural, específico, opinativo. Não como livro-texto ou agência de marketing.`;
 }
 
 /**

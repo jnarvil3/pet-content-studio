@@ -208,7 +208,7 @@ ${preciseMode ? `🎯 MODO PRECISO: Siga as instruções LITERALMENTE. Texto ent
 `;
     }
 
-    const brandContext = buildBrandContext(brand);
+    const brandContext = buildBrandContext(brand, 'instagram');
 
     return `You are an Instagram carousel copywriter.
 ${viralContext}${feedbackContext}
