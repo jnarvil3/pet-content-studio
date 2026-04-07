@@ -284,26 +284,43 @@ async function loadDiscoverData() {
   ]);
 }
 
+let signalsRegion = 'all';
+
+function setSignalsRegion(region) {
+  signalsRegion = region;
+  document.getElementById('signals-filter-all').classList.toggle('active', region === 'all');
+  document.getElementById('signals-filter-br').classList.toggle('active', region === 'br');
+  document.getElementById('signals-filter-global').classList.toggle('active', region === 'global');
+  loadSignalsList();
+}
+
 async function loadSignalsList() {
   try {
-    const response = await fetch('/api/signals?limit=20&minScore=70');
+    const response = await fetch(`/api/signals?limit=20&minScore=70&region=${signalsRegion}`);
     const data = await response.json();
     allSignals = data.signals || [];
 
     const signalsList = document.getElementById('signals-list');
 
     if (allSignals.length === 0) {
-      signalsList.innerHTML = '<p style="color: #999;">Nenhum sinal disponível. Execute o coletor de inteligência.</p>';
+      signalsList.innerHTML = '<p style="color: #999;">Nenhum sinal disponível para esta região. Execute o coletor de inteligência.</p>';
       return;
     }
 
     signalsList.innerHTML = `
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1rem;">
-        ${allSignals.map(signal => `
+        ${allSignals.map(signal => {
+          const regionBadge = signal.region === 'br'
+            ? '<span style="background: #16a34a; color: white; padding: 0.15rem 0.5rem; border-radius: 8px; font-size: 0.65rem; font-weight: 600;">🇧🇷 BR</span>'
+            : '<span style="background: #2563eb; color: white; padding: 0.15rem 0.5rem; border-radius: 8px; font-size: 0.65rem; font-weight: 600;">🌐 Global</span>';
+          return `
           <div style="border: 2px solid #e0e0e0; border-radius: 12px; padding: 1.5rem; transition: all 0.2s;">
             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
               <div style="font-size: 1.5rem; font-weight: 700; color: #4a5abb;">${signal.relevance_score}</div>
-              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">📄 ${signal.sourceType || 'RSS'}</div>
+              <div style="display: flex; gap: 0.4rem; align-items: center;">
+                ${regionBadge}
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">📄 RSS</div>
+              </div>
             </div>
             <div style="font-weight: 600; margin-bottom: 0.5rem; color: #333;">${signal.title}</div>
             <div style="font-size: 0.875rem; color: #666; line-height: 1.4; margin-bottom: 1rem;">${(signal.description || '').substring(0, 150)}...</div>
@@ -314,8 +331,8 @@ async function loadSignalsList() {
               ${signal.url ? `<a href="${signal.url}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex: 1; padding: 0.75rem; text-align: center; text-decoration: none;">🔗 Ler Artigo</a>` : ''}
               <button class="btn btn-primary" style="flex: 1; padding: 0.75rem;" onclick="createFromSignal(${signal.id})">✨ Criar a partir deste</button>
             </div>
-          </div>
-        `).join('')}
+          </div>`;
+        }).join('')}
       </div>
     `;
   } catch (error) {

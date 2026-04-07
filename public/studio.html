@@ -594,7 +594,7 @@
         <!-- Signals Tab -->
         <div class="tab-content" id="signals-tab">
           <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
               <div>
                 <h2 class="card-title" style="margin-bottom: 0.25rem;">Sinais de Conteúdo</h2>
                 <p style="color: #666;">Classificados por pontuação de relevância e potencial viral</p>
@@ -603,6 +603,11 @@
                 <div id="refresh-status" style="display: none; font-size: 0.875rem; color: #4a5abb;"></div>
                 <button class="btn btn-primary" id="refresh-signals-btn" onclick="triggerCollection()" style="white-space: nowrap;">🔄 Atualizar Tendências</button>
               </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
+              <button class="btn active" id="signals-filter-all" onclick="setSignalsRegion('all')" style="padding: 0.4rem 1rem; font-size: 0.85rem;">🌍 Todos</button>
+              <button class="btn" id="signals-filter-br" onclick="setSignalsRegion('br')" style="padding: 0.4rem 1rem; font-size: 0.85rem;">🇧🇷 Brasil</button>
+              <button class="btn" id="signals-filter-global" onclick="setSignalsRegion('global')" style="padding: 0.4rem 1rem; font-size: 0.85rem;">🌐 Global</button>
             </div>
             <div id="collection-progress" style="display: none; margin-bottom: 1.5rem; padding: 1rem; background: rgba(102,126,234,0.05); border-radius: 8px;">
               <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">

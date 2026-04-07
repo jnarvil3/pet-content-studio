@@ -102,8 +102,17 @@ app.get('/api/signals', (req, res) => {
   try {
     const limit = parseInt(req.query.limit as string) || 20;
     const minScore = parseInt(req.query.minScore as string) || 70;
+    const region = req.query.region as string || 'all'; // 'br', 'global', 'all'
 
-    const signals = intelConnector.getTopSignals(minScore, limit);
+    let signals = intelConnector.getTopSignals(minScore, limit * 3); // fetch extra to filter
+
+    if (region === 'br') {
+      signals = signals.filter(s => /\.com\.br|\.br\//.test(s.url || ''));
+    } else if (region === 'global') {
+      signals = signals.filter(s => !/\.com\.br|\.br\//.test(s.url || ''));
+    }
+
+    signals = signals.slice(0, limit);
 
     res.json({
       count: signals.length,
@@ -112,8 +121,9 @@ app.get('/api/signals', (req, res) => {
         title: signal.title,
         description: signal.description,
         source: signal.source,
-        sourceType: 'RSS', // All current signals are RSS-based from pet-intel-collector
+        sourceType: 'RSS',
         url: signal.url,
+        region: /\.com\.br|\.br\//.test(signal.url || '') ? 'br' : 'global',
         relevance_score: signal.relevance_score,
         relevance_reason: signal.relevance_reason,
         collected_at: signal.collected_at,
