@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-04-07 — Separate Tone of Voice, Custom Search, Reel Fixes
+
+### New Features
+
+- **Separate tone of voice for LinkedIn and Instagram** — Two independent tone fields in brand settings. LinkedIn posts use professional tone, Instagram carousels/captions/reels use a friendlier tone. Each flows into the respective content generator via `buildBrandContext(brand, channel)`.
+- **Custom viral search** — New search panel in the Videos tab. Choose any country (12 options) and any topic (not limited to pets). Shows cost estimate per search (YouTube API units). Results display with thumbnails, view counts, engagement rates, and a "Usar" button to create content from any result.
+
+### Bug Fixes
+
+- **Reels failing silently** — FFmpeg `drawtext` filter not available on Homebrew installs. Watermark function returned empty string instead of null, causing FFmpeg to crash with "Filter not found". Now returns null and falls through to no-watermark composition.
+- **Reel video not playing in UI** — Generator saved absolute filesystem paths (`/Users/.../reel-final.mp4`) to the database instead of relative paths. Frontend couldn't convert to a valid URL. Now stores relative paths and the frontend handles all path formats.
+- **Auto-detect fonts across macOS and Linux/Docker** — Replaced hardcoded OS-specific font paths with runtime detection. Checks Linux paths first (Liberation, FreeFonts, Noto) then macOS. Works on Railway's Docker and local macOS without env vars.
+
+### Files Changed
+
+- `src/types/brand.ts` — Added `tone_linkedin` and `tone_instagram` to voice interface and defaults
+- `src/config/brand-context.ts` — New `ContentChannel` type, `getToneForChannel()` helper, channel-aware context building
+- `src/generators/linkedin-writer.ts` — Passes `'linkedin'` channel to brand context
+- `src/generators/content-writer.ts` — Passes `'instagram'` channel to brand context
+- `src/generators/reel-script-writer.ts` — Passes `'instagram'` channel to brand context
+- `src/generators/reel-generator.ts` — Font auto-detection, drawtext null fix, relative video path fix
+- `src/services/youtube-collector.ts` — Public `searchVideos()` method with configurable region and maxResults
+- `src/server.ts` — New `POST /api/trending/custom-search` endpoint
+- `public/studio.html` — Two tone fields, custom search panel with country/topic/cost
+- `public/studio.js` — Load/save both tones, custom search UI, video path fix
+
+---
+
 ## 2026-03-30 — QA Fixes + Precise Edit Mode
 
 ### Bug Fixes (QA 16/16)
