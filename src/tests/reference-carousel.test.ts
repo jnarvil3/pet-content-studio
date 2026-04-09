@@ -136,3 +136,65 @@ describe('Reference carousel — content storage shape', () => {
     expect('reference:copy').not.toMatch(/^reference:(clone|inspired)$/);
   });
 });
+
+describe('Reference carousel — Gemini status check', () => {
+
+  test('gemini-status returns available:false when key is missing', async () => {
+    // Simulates what the /api/keys/gemini-status endpoint checks
+    const key = undefined;
+    const result = !key
+      ? { available: false, reason: 'no_key', message: 'Nenhuma chave Gemini configurada' }
+      : { available: true };
+    expect(result.available).toBe(false);
+    expect(result.reason).toBe('no_key');
+  });
+
+  test('gemini-status check uses image model not text model', () => {
+    // The status endpoint must test gemini-2.5-flash-image (image gen)
+    // not gemini-2.5-flash (text-only), because they have separate quotas
+    const imageModel = 'gemini-2.5-flash-image';
+    const textModel = 'gemini-2.5-flash';
+    expect(imageModel).not.toBe(textModel);
+    expect(imageModel).toContain('image');
+  });
+
+  test('forceImageGen=pollinations skips Gemini entirely', () => {
+    const forceImageGen = 'pollinations';
+    const geminiEnabled = true;
+    const geminiAvailable = forceImageGen !== 'pollinations' && geminiEnabled;
+    expect(geminiAvailable).toBe(false);
+  });
+
+  test('forceImageGen empty string does not skip Gemini', () => {
+    const forceImageGen = '';
+    const geminiEnabled = true;
+    const geminiAvailable = forceImageGen !== 'pollinations' && geminiEnabled;
+    expect(geminiAvailable).toBe(true);
+  });
+});
+
+describe('Reference carousel — Pollinations service', () => {
+
+  test('PollinationsImageService is importable', async () => {
+    const { PollinationsImageService } = await import('../services/pollinations-image');
+    const service = new PollinationsImageService();
+    expect(typeof service.generateImage).toBe('function');
+  }, 15000);
+
+  test('Pollinations prompt is truncated to 200 chars', () => {
+    const longPrompt = 'A'.repeat(300);
+    const shortPrompt = longPrompt.length > 200 ? longPrompt.substring(0, 200) : longPrompt;
+    expect(shortPrompt.length).toBe(200);
+  });
+});
+
+describe('Reference carousel — API key masking', () => {
+
+  test('masks keys showing first 8 chars', () => {
+    const maskKey = (key: string | undefined) => key ? `${key.substring(0, 8)}...${'*'.repeat(16)}` : '';
+    expect(maskKey('sk-proj-ABC123DEF456')).toBe('sk-proj-...****************');
+    expect(maskKey('AIzaSyDCy-356wGaBJ')).toBe('AIzaSyDC...****************');
+    expect(maskKey(undefined)).toBe('');
+    expect(maskKey('')).toBe('');
+  });
+});

@@ -953,11 +953,13 @@ app.get('/api/keys/gemini-status', async (req, res) => {
     return res.json({ available: false, reason: 'no_key', message: 'Nenhuma chave Gemini configurada' });
   }
   try {
+    // Test image generation specifically — text-only calls have separate quotas
     const { GoogleGenAI } = await import('@google/genai');
     const ai = new GoogleGenAI({ apiKey: key });
     await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: 'Reply OK',
+      model: 'gemini-2.5-flash-image',
+      contents: 'Generate a 1x1 pixel solid blue square',
+      config: { responseModalities: ['IMAGE', 'TEXT'] },
     });
     res.json({ available: true });
   } catch (err: any) {
