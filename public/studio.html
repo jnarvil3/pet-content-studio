@@ -878,18 +878,27 @@
             </div>
             <div style="margin-bottom: 1.5rem;">
               <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="settings.brand_colors">Cores</label>
-              <div style="display: flex; gap: 1rem; align-items: center;">
+              <div style="display: flex; gap: 1.5rem; align-items: end; flex-wrap: wrap;">
                 <div>
                   <label style="font-size: 0.8rem; color: #666;" data-i18n="settings.brand_primary">Primaria</label>
-                  <input type="color" id="brand-color-primary" value="#667eea" style="width: 60px; height: 40px; border: none; cursor: pointer;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <input type="color" id="brand-color-primary" value="#667eea" style="width: 40px; height: 36px; border: none; cursor: pointer; padding: 0;" oninput="document.getElementById('brand-color-primary-hex').value=this.value">
+                    <input type="text" id="brand-color-primary-hex" value="#667eea" style="width: 90px; padding: 0.4rem 0.5rem; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.85rem; font-family: monospace;" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('brand-color-primary').value=this.value">
+                  </div>
                 </div>
                 <div>
                   <label style="font-size: 0.8rem; color: #666;" data-i18n="settings.brand_secondary">Secundaria</label>
-                  <input type="color" id="brand-color-secondary" value="#764ba2" style="width: 60px; height: 40px; border: none; cursor: pointer;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <input type="color" id="brand-color-secondary" value="#764ba2" style="width: 40px; height: 36px; border: none; cursor: pointer; padding: 0;" oninput="document.getElementById('brand-color-secondary-hex').value=this.value">
+                    <input type="text" id="brand-color-secondary-hex" value="#764ba2" style="width: 90px; padding: 0.4rem 0.5rem; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.85rem; font-family: monospace;" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('brand-color-secondary').value=this.value">
+                  </div>
                 </div>
                 <div>
                   <label style="font-size: 0.8rem; color: #666;" data-i18n="settings.brand_accent">Destaque</label>
-                  <input type="color" id="brand-color-accent" value="#4caf50" style="width: 60px; height: 40px; border: none; cursor: pointer;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <input type="color" id="brand-color-accent" value="#4caf50" style="width: 40px; height: 36px; border: none; cursor: pointer; padding: 0;" oninput="document.getElementById('brand-color-accent-hex').value=this.value">
+                    <input type="text" id="brand-color-accent-hex" value="#4caf50" style="width: 90px; padding: 0.4rem 0.5rem; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.85rem; font-family: monospace;" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('brand-color-accent').value=this.value">
+                  </div>
                 </div>
               </div>
             </div>
