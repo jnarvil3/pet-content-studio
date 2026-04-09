@@ -1432,14 +1432,16 @@ app.post('/api/generate-from-reference', referenceUpload.array('images', 5), asy
 
         const brandDirective = `Brand: "${brand.name}" (${brand.handle}). Colors: primary ${brand.colors.primary}, secondary ${brand.colors.secondary}. Apply the brand colors subtly.`;
 
-        // Step 1: Generate complete slide images with Gemini
+        // Step 1: Generate complete slide images
         const carouselDir = path.join(process.cwd(), 'data', 'output', 'carousels', `reference-${Date.now()}`);
         const carouselImages: string[] = [];
+        let usedFallback = false;
 
+        // Try Gemini first (can use reference images directly)
+        let geminiAvailable = geminiImg.isEnabled();
         for (let i = 0; i < slideCount; i++) {
           progressMap.set(progressKey, { step: 1, totalSteps: 3, message: `Gerando slide ${i + 1}/${slideCount} (${modeLabel})...` });
 
-          // Send the matching reference image (or all if fewer refs than slides)
           const refImages = i < uploadedImages.length ? [uploadedImages[i]] : uploadedImages;
 
           const slidePrompt = `Generate a complete Instagram carousel slide image (1080x1350 portrait).
@@ -1459,16 +1461,45 @@ IMPORTANT:
 - Match the visual style, typography weight, color mood, and composition of the reference image(s)
 - The slide should look like a professional Instagram carousel slide ready to publish`;
 
+          // Try Gemini (sends reference images directly for style matching)
+          if (geminiAvailable) {
+            try {
+              const imgPath = await geminiImg.generateFromReference(slidePrompt, refImages, path.join(carouselDir, `ref-carousel-${i + 1}.png`));
+              carouselImages.push(imgPath);
+              continue;
+            } catch (err: any) {
+              console.log(`[Server] ⚠️ Gemini slide ${i + 1} failed: ${err.message}`);
+              if (err.status === 429 || err.message?.includes('quota')) {
+                geminiAvailable = false; // Stop trying Gemini for remaining slides
+                console.log('[Server] Gemini quota exhausted — switching to Pollinations fallback');
+              }
+            }
+          }
+
+          // Fallback: Pollinations (text-only, no reference image input)
           try {
-            const imgPath = await geminiImg.generateFromReference(slidePrompt, refImages, path.join(carouselDir, `ref-carousel-${i + 1}.png`));
+            if (!usedFallback) {
+              usedFallback = true;
+              progressMap.set(progressKey, { step: 1, totalSteps: 3, message: `⚠️ Gemini sem créditos — usando Pollinations (sem referência visual). Slide ${i + 1}/${slideCount}...` });
+            } else {
+              progressMap.set(progressKey, { step: 1, totalSteps: 3, message: `Pollinations: slide ${i + 1}/${slideCount}...` });
+            }
+            const { PollinationsImageService } = await import('./services/pollinations-image');
+            const pollinations = new PollinationsImageService();
+            const fallbackPrompt = `Professional Instagram carousel slide. ${i === 0 ? 'Bold hook slide' : i === slideCount - 1 ? 'CTA slide' : 'Content slide'}. Topic: ${title || instructions || 'pet care'}. Brand colors: ${brand.colors.primary}, ${brand.colors.secondary}. Clean modern design, text overlay ready, pet industry, portrait orientation.`;
+            const imgPath = await pollinations.generateImage(fallbackPrompt, path.join(carouselDir, `ref-carousel-${i + 1}.png`));
             carouselImages.push(imgPath);
-          } catch (err: any) {
-            console.log(`[Server] ⚠️ Gemini slide ${i + 1} failed: ${err.message}`);
+          } catch (fallbackErr: any) {
+            console.log(`[Server] ⚠️ Pollinations slide ${i + 1} also failed: ${fallbackErr.message}`);
           }
         }
 
         if (carouselImages.length === 0) {
-          throw new Error('Nenhum slide foi gerado — Gemini não retornou imagens');
+          throw new Error('Nenhum slide foi gerado — Gemini sem créditos e Pollinations falhou. Ative o faturamento do Gemini em https://ai.google.dev');
+        }
+
+        if (usedFallback) {
+          console.log(`[Server] ⚠️ Used Pollinations fallback — images are text-prompt-only (no visual style matching from reference)`);
         }
 
         // Step 2: Generate caption + hashtags
@@ -2262,39 +2293,45 @@ app.get('/api/help/info', (req, res) => {
 // These are hooks that are actually performing well on Instagram Reels right now.
 // Sources are scraped weekly. The endpoint also links to live source pages for freshest data.
 app.get('/api/instagram-hooks', (req, res) => {
+  const SOURCE_URLS: Record<string, string> = {
+    'SocialBee': 'https://socialbee.com/blog/instagram-trends/',
+    'SocialPilot': 'https://www.socialpilot.co/blog/instagram-reels-trends',
+    'Taggbox': 'https://taggbox.com/blog/best-instagram-hooks/',
+  };
+
   // Section 1: THIS WEEK's trending hooks (from SocialBee weekly updates)
   const trendingThisWeek = [
-    { hook: 'When people your age start having kids', category: 'Relatable Humor', why: 'Generational humor about aging and watching peers hit major life milestones — massively shareable', source: 'SocialBee' },
-    { hook: '"Everything looks good in here" — customer says it, you act like they meant YOU', category: 'Self-Aware Humor', why: 'Transforms mundane moment into flirty humor — universal for any service business', source: 'SocialBee' },
-    { hook: '"I really wanna go home" — "It\'s only 9:02"', category: 'Workplace Relatability', why: 'Universal office exhaustion; exaggerates the struggle — drives massive comments', source: 'SocialBee' },
-    { hook: '"Are you not going crazy?" — then reveal you actually ARE losing it', category: 'Subverted Expectation', why: 'Builds tension then subverts with self-aware punchline', source: 'SocialBee' },
-    { hook: 'Born to {preference}… Forced to {adult reality}', category: 'Contrast Meme', why: 'Contrasts desire vs. responsibility; resonates with corporate frustration', source: 'SocialBee' },
-    { hook: '"Nobody saw me {hardship}" — "because I don\'t do any of that"', category: 'Anti-Hustle', why: 'Critiques hustle culture through self-deprecating humor — very shareable', source: 'SocialBee' },
-    { hook: '"Do what your heart tells you" → montage of chaotic indulgence', category: 'Subverted Motivation', why: 'Subverts motivational advice with humorous contradiction', source: 'SocialBee' },
+    { hook: 'Quando as pessoas da sua idade começam a ter filhos', category: 'Humor Relatable', why: 'Humor geracional sobre envelhecer e ver colegas atingindo marcos — extremamente compartilhável', source: 'SocialBee', sourceUrl: SOURCE_URLS['SocialBee'] },
+    { hook: '"Tá tudo bonito aqui dentro" — o cliente fala e você finge que era sobre VOCÊ', category: 'Humor Autoconsciente', why: 'Transforma momento comum em humor — universal para qualquer negócio de serviço', source: 'SocialBee', sourceUrl: SOURCE_URLS['SocialBee'] },
+    { hook: '"Quero muito ir pra casa" — "São só 9:02"', category: 'Dia a Dia no Trabalho', why: 'Exaustão universal no trabalho; exagera a luta — gera muitos comentários', source: 'SocialBee', sourceUrl: SOURCE_URLS['SocialBee'] },
+    { hook: '"Você não tá ficando louco?" — e aí revela que SIM, tá pirando', category: 'Expectativa Invertida', why: 'Cria tensão e depois subverte com punchline autoconsciente', source: 'SocialBee', sourceUrl: SOURCE_URLS['SocialBee'] },
+    { hook: 'Nascido pra {preferência}… Forçado a {realidade adulta}', category: 'Meme de Contraste', why: 'Contrasta desejo vs. responsabilidade; ressoa com frustração corporativa', source: 'SocialBee', sourceUrl: SOURCE_URLS['SocialBee'] },
+    { hook: '"Ninguém me viu {dificuldade}" — "porque eu não faço nada disso"', category: 'Anti-Hustle', why: 'Critica a cultura de produtividade com humor autodepreciativo — muito compartilhável', source: 'SocialBee', sourceUrl: SOURCE_URLS['SocialBee'] },
+    { hook: '"Faça o que seu coração manda" → montagem de indulgência caótica', category: 'Motivação Invertida', why: 'Subverte conselho motivacional com contradição humorística', source: 'SocialBee', sourceUrl: SOURCE_URLS['SocialBee'] },
   ];
 
   // Section 2: Proven high-engagement formulas (from SocialPilot + Taggbox)
   const provenFormulas = [
-    { hook: 'Stop scrolling if you want to…', category: 'Direct CTA', why: 'Interrupts scrolling with conditional value promise — 3-second hold rate booster', source: 'Taggbox' },
-    { hook: 'This one mistake is costing you…', category: 'Problem Awareness', why: 'Identifies hidden pain point — viewers watch to check if they\'re guilty', source: 'Taggbox' },
-    { hook: 'The secret nobody talks about…', category: 'Exclusivity', why: 'Positions content as insider knowledge — drives saves and shares', source: 'Taggbox' },
-    { hook: 'I wish someone told me this sooner…', category: 'Regret/FOMO', why: 'Creates FOMO by implying missed knowledge — high save rate', source: 'Taggbox' },
-    { hook: 'Everyone is wrong about…', category: 'Controversy', why: 'Challenges assumed knowledge, demands explanation — drives comments', source: 'Taggbox' },
-    { hook: 'Only 1% of people know this…', category: 'Scarcity', why: 'Rare knowledge positioning increases perceived value — high share rate', source: 'Taggbox' },
-    { hook: 'POV: You just discovered…', category: 'Immersive POV', why: 'Perspective shift increases viewer investment in content', source: 'Taggbox' },
-    { hook: 'The face I make when someone says…', category: 'Reaction/Opinion', why: 'Eye-roll reactions create shareable relatability — works for any niche', source: 'SocialPilot' },
-    { hook: 'If you are {target audience}…', category: 'Direct Address', why: 'Speaks directly to ideal customer pain point — conversion-focused', source: 'SocialPilot' },
-    { hook: 'This changed everything for me…', category: 'Transformation', why: 'Solution-driven positioning — triggers curiosity about what shifted', source: 'SocialPilot' },
-    { hook: 'Wait for it…', category: 'Anticipation', why: 'Boosts watch-through rates by promising payoff — algorithm loves retention', source: 'SocialPilot' },
-    { hook: 'You\'re still doing {X} manually?', category: 'Pain Point', why: 'Opens with relatability, immediately positions solution — high conversion', source: 'SocialPilot' },
-    { hook: 'Where I started vs. where I am now', category: 'Progress Journey', why: 'Demonstrates transformation — aspirational yet relatable', source: 'SocialPilot' },
-    { hook: 'I used to hate {thing} until…', category: 'Before-After', why: 'Transformation journey viewers recognize in themselves', source: 'Taggbox' },
-    { hook: 'My biggest mistake was…', category: 'Vulnerability', why: 'Creates connection through honest struggle — builds trust', source: 'Taggbox' },
-    { hook: '3 mistakes you\'re making with…', category: 'Numbered List', why: 'Numbers promise structured, digestible value — high save rate', source: 'Taggbox' },
-    { hook: 'How to get {result} fast…', category: 'Quick Win', why: 'Speed + outcome combo appeals to efficiency-seekers', source: 'Taggbox' },
-    { hook: 'Real talk…', category: 'Authenticity', why: 'Signals honest, unfiltered content — builds parasocial trust', source: 'Taggbox' },
-    { hook: 'Bet you can\'t do this…', category: 'Challenge', why: 'Triggers ego-driven engagement — high comment rate', source: 'Taggbox' },
-    { hook: 'If you\'ve ever felt…', category: 'Shared Experience', why: 'Instant audience identification and validation — drives emotional shares', source: 'Taggbox' },
+    { hook: 'Para de rolar se você quer…', category: 'CTA Direto', why: 'Interrompe a rolagem com promessa de valor condicional — aumenta retenção de 3 segundos', source: 'Taggbox', sourceUrl: SOURCE_URLS['Taggbox'] },
+    { hook: 'Esse erro tá te custando…', category: 'Consciência do Problema', why: 'Identifica dor oculta — espectadores assistem pra ver se são culpados', source: 'Taggbox', sourceUrl: SOURCE_URLS['Taggbox'] },
+    { hook: 'O segredo que ninguém fala sobre…', category: 'Exclusividade', why: 'Posiciona conteúdo como conhecimento insider — gera salvamentos e compartilhamentos', source: 'Taggbox', sourceUrl: SOURCE_URLS['Taggbox'] },
+    { hook: 'Eu queria que alguém tivesse me falado isso antes…', category: 'Arrependimento/FOMO', why: 'Cria FOMO ao implicar conhecimento perdido — alta taxa de salvamento', source: 'Taggbox', sourceUrl: SOURCE_URLS['Taggbox'] },
+    { hook: 'Todo mundo tá errado sobre…', category: 'Controvérsia', why: 'Desafia conhecimento assumido, exige explicação — gera comentários', source: 'Taggbox', sourceUrl: SOURCE_URLS['Taggbox'] },
+    { hook: 'Só 1% das pessoas sabem disso…', category: 'Escassez', why: 'Posicionamento de conhecimento raro aumenta valor percebido — alta taxa de compartilhamento', source: 'Taggbox', sourceUrl: SOURCE_URLS['Taggbox'] },
+    { hook: 'POV: Você acabou de descobrir…', category: 'POV Imersivo', why: 'Mudança de perspectiva aumenta investimento do espectador no conteúdo', source: 'Taggbox', sourceUrl: SOURCE_URLS['Taggbox'] },
+    { hook: 'A cara que eu faço quando alguém fala…', category: 'Reação/Opinião', why: 'Reações de revirar os olhos criam identificação compartilhável — funciona pra qualquer nicho', source: 'SocialPilot', sourceUrl: SOURCE_URLS['SocialPilot'] },
+    { hook: 'Se você é {público-alvo}…', category: 'Endereço Direto', why: 'Fala direto com a dor do cliente ideal — foco em conversão', source: 'SocialPilot', sourceUrl: SOURCE_URLS['SocialPilot'] },
+    { hook: 'Isso mudou tudo pra mim…', category: 'Transformação', why: 'Posicionamento baseado em solução — dispara curiosidade sobre o que mudou', source: 'SocialPilot', sourceUrl: SOURCE_URLS['SocialPilot'] },
+    { hook: 'Espera até o final…', category: 'Antecipação', why: 'Aumenta taxa de visualização completa ao prometer recompensa — algoritmo ama retenção', source: 'SocialPilot', sourceUrl: SOURCE_URLS['SocialPilot'] },
+    { hook: 'Você ainda faz {X} manualmente?', category: 'Ponto de Dor', why: 'Abre com identificação, posiciona solução imediatamente — alta conversão', source: 'SocialPilot', sourceUrl: SOURCE_URLS['SocialPilot'] },
+    { hook: 'Onde eu comecei vs. onde estou agora', category: 'Jornada de Progresso', why: 'Demonstra transformação — aspiracional e relatable ao mesmo tempo', source: 'SocialPilot', sourceUrl: SOURCE_URLS['SocialPilot'] },
+    { hook: 'Eu odiava {coisa} até…', category: 'Antes e Depois', why: 'Jornada de transformação que espectadores reconhecem em si mesmos', source: 'Taggbox', sourceUrl: SOURCE_URLS['Taggbox'] },
+    { hook: 'Meu maior erro foi…', category: 'Vulnerabilidade', why: 'Cria conexão através de luta honesta — constrói confiança', source: 'Taggbox', sourceUrl: SOURCE_URLS['Taggbox'] },
+    { hook: '3 erros que você tá cometendo com…', category: 'Lista Numerada', why: 'Números prometem valor estruturado e fácil de digerir — alta taxa de salvamento', source: 'Taggbox', sourceUrl: SOURCE_URLS['Taggbox'] },
+    { hook: 'Como conseguir {resultado} rápido…', category: 'Vitória Rápida', why: 'Combo velocidade + resultado atrai quem busca eficiência', source: 'Taggbox', sourceUrl: SOURCE_URLS['Taggbox'] },
+    { hook: 'Papo reto…', category: 'Autenticidade', why: 'Sinaliza conteúdo honesto e sem filtro — constrói confiança parasocial', source: 'Taggbox', sourceUrl: SOURCE_URLS['Taggbox'] },
+    { hook: 'Aposto que você não consegue fazer isso…', category: 'Desafio', why: 'Aciona engajamento por ego — alta taxa de comentários', source: 'Taggbox', sourceUrl: SOURCE_URLS['Taggbox'] },
+    { hook: 'Se você já sentiu…', category: 'Experiência Compartilhada', why: 'Identificação e validação instantânea do público — gera compartilhamentos emocionais', source: 'Taggbox', sourceUrl: SOURCE_URLS['Taggbox'] },
   ];
 
   // Live source pages the user can visit for the freshest hooks

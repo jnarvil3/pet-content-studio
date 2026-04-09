@@ -2313,7 +2313,7 @@ async function loadInstagramHooks() {
               <div style="font-weight: 700; font-size: 0.95rem; color: #333; margin-bottom: 0.5rem; line-height: 1.3;">"${h.hook}"</div>
               <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
                 <span style="background: rgba(102,126,234,0.1); color: #4a5abb; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600;">${h.category}</span>
-                <span style="color: #999; font-size: 0.7rem;">${h.source}</span>
+                ${h.sourceUrl ? `<a href="${h.sourceUrl}" target="_blank" rel="noopener noreferrer" style="color: #999; font-size: 0.7rem; text-decoration: none; border-bottom: 1px dotted #ccc;">🔗 ${h.source}</a>` : `<span style="color: #999; font-size: 0.7rem;">${h.source}</span>`}
               </div>
               <div style="font-size: 0.8rem; color: #666; line-height: 1.4;">${h.why}</div>
             </div>
@@ -2330,7 +2330,7 @@ async function loadInstagramHooks() {
               <div style="font-weight: 600; font-size: 0.9rem; color: #333; margin-bottom: 0.35rem;">"${h.hook}"</div>
               <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.35rem;">
                 <span style="background: #f0f4ff; color: #4a5abb; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">${h.category}</span>
-                <span style="color: #ccc; font-size: 0.65rem;">${h.source}</span>
+                ${h.sourceUrl ? `<a href="${h.sourceUrl}" target="_blank" rel="noopener noreferrer" style="color: #ccc; font-size: 0.65rem; text-decoration: none; border-bottom: 1px dotted #ddd;">🔗 ${h.source}</a>` : `<span style="color: #ccc; font-size: 0.65rem;">${h.source}</span>`}
               </div>
               <div style="font-size: 0.78rem; color: #888; line-height: 1.3;">${h.why}</div>
             </div>
