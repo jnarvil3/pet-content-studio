@@ -1222,10 +1222,14 @@ async function generateFromReference() {
   } catch (e) { /* network error, proceed anyway */ }
 
   const confirmed = await showConfirm(
-    `Gerar Carrossel por Referência?\n\nModo: ${modeLabel}\nImagens: ${referenceFiles.length}\nLegenda IA: ${aiQuality}` +
-    (forceImageGen === 'pollinations' ? '\nImagens: Pollinations (sem referência visual)' : '\nImagens: Gemini (analisa referência visual)') +
-    `\nIsso vai consumir créditos da API.`,
-    { okText: 'Gerar', cancelText: 'Cancelar' }
+    `Gerar Carrossel por Referência?\n\n` +
+    `Modo: ${modeLabel}\n` +
+    `Imagens de referência: ${referenceFiles.length}\n` +
+    `Legenda: ${aiQuality}\n` +
+    (forceImageGen === 'pollinations'
+      ? `Geração de imagens: Pollinations (sem referência visual)`
+      : `Geração de imagens: Gemini (copia estilo da referência)`),
+    { okText: '🚀 Gerar', cancelText: 'Cancelar' }
   );
   if (!confirmed) return;
 
