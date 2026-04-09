@@ -34,7 +34,7 @@ export class GeminiImageService {
     console.log(`[GeminiImage] Generating image for: "${prompt.substring(0, 60)}..."`);
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-2.5-flash-preview-04-17',
       contents: prompt,
       config: {
         responseModalities: ['IMAGE', 'TEXT'],
