@@ -1208,11 +1208,13 @@ async function generateFromReference() {
     const geminiStatus = await geminiCheck.json();
     if (!geminiStatus.available) {
       const userChoice = await showConfirm(
-        `⚠️ Gemini indisponível: ${geminiStatus.message}\n\n` +
-        `Opções:\n` +
-        `• Ative o faturamento Gemini em aistudio.google.com/apikey, ou atualize sua chave em Config → Chaves de API\n\n` +
-        `• Ou continue com Pollinations (gratuito, mas gera imagens apenas por descrição de texto — NÃO analisa as imagens de referência para copiar o estilo visual)`,
-        { okText: 'Continuar com Pollinations', cancelText: 'Cancelar' }
+        `⚠️ Gemini sem créditos\n\n` +
+        `O Gemini é o gerador de imagens principal. Ele recebe suas screenshots de referência e cria slides novos que copiam o estilo visual, cores e composição do original.\n\n` +
+        `Para reativar: vá em Config → Chaves de API e atualize sua chave, ou ative o faturamento em aistudio.google.com/apikey.\n\n` +
+        `Alternativa gratuita: Pollinations\n` +
+        `Gera imagens a partir de uma descrição de texto. Não consegue "ver" suas screenshots de referência — então as imagens geradas não vão copiar o estilo visual do carrossel original.\n\n` +
+        `Deseja continuar sem Gemini?`,
+        { okText: 'Sim, usar Pollinations', cancelText: 'Não, vou ativar o Gemini' }
       );
       if (!userChoice) return;
       forceImageGen = 'pollinations';
@@ -2893,10 +2895,9 @@ async function loadApiKeys() {
     const res = await fetch('/api/keys');
     if (res.ok) {
       const keys = await res.json();
-      const geminiInput = document.getElementById('api-key-gemini');
-      if (geminiInput && keys.gemini) {
-        geminiInput.placeholder = keys.gemini;
-      }
+      if (keys.openai) document.getElementById('api-key-openai').placeholder = keys.openai;
+      if (keys.anthropic) document.getElementById('api-key-anthropic').placeholder = keys.anthropic;
+      if (keys.gemini) document.getElementById('api-key-gemini').placeholder = keys.gemini;
     }
   } catch (e) { console.error('Failed to load API keys:', e); }
 }
@@ -2908,17 +2909,25 @@ function toggleKeyVisibility(inputId, btn) {
 }
 
 async function saveApiKeys() {
+  const body = {};
+  const openaiKey = document.getElementById('api-key-openai').value.trim();
+  const anthropicKey = document.getElementById('api-key-anthropic').value.trim();
   const geminiKey = document.getElementById('api-key-gemini').value.trim();
-  if (!geminiKey) { showToast('Insira uma chave para salvar', 'warning'); return; }
+  if (openaiKey) body.openai = openaiKey;
+  if (anthropicKey) body.anthropic = anthropicKey;
+  if (geminiKey) body.gemini = geminiKey;
+  if (Object.keys(body).length === 0) { showToast('Insira pelo menos uma chave para salvar', 'warning'); return; }
   try {
     const res = await fetch('/api/keys', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gemini: geminiKey })
+      body: JSON.stringify(body)
     });
     const data = await res.json();
     if (data.success) {
-      showToast('Chave Gemini salva com sucesso', 'success');
+      showToast(data.message, 'success');
+      document.getElementById('api-key-openai').value = '';
+      document.getElementById('api-key-anthropic').value = '';
       document.getElementById('api-key-gemini').value = '';
       loadApiKeys();
     } else {

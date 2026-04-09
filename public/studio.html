@@ -920,6 +920,26 @@
           <p style="color: #666; font-size: 0.875rem; margin-bottom: 1.5rem;">Chaves personalizadas sobrescrevem as padrões do sistema. Necessárias para funcionalidades premium.</p>
 
           <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">OpenAI — Geração de Texto (Carrosseis, Legendas)</label>
+            <div style="display: flex; gap: 0.75rem; align-items: center;">
+              <input type="password" id="api-key-openai" style="flex: 1; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; font-family: monospace;" placeholder="sk-proj-...">
+              <button class="btn btn-secondary" onclick="toggleKeyVisibility('api-key-openai', this)" style="padding: 0.5rem 0.75rem; font-size: 0.85rem;">👁️</button>
+            </div>
+            <div id="openai-key-status" style="margin-top: 0.5rem; font-size: 0.85rem;"></div>
+            <p style="color: #999; font-size: 0.8rem; margin-top: 0.5rem;">Usado pelo modo Rápido (GPT-4o-mini). Obtenha em <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style="color: #4a5abb;">platform.openai.com/api-keys</a></p>
+          </div>
+
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Anthropic (Claude) — Geração de Texto Premium (Reels, Legendas)</label>
+            <div style="display: flex; gap: 0.75rem; align-items: center;">
+              <input type="password" id="api-key-anthropic" style="flex: 1; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; font-family: monospace;" placeholder="sk-ant-...">
+              <button class="btn btn-secondary" onclick="toggleKeyVisibility('api-key-anthropic', this)" style="padding: 0.5rem 0.75rem; font-size: 0.85rem;">👁️</button>
+            </div>
+            <div id="anthropic-key-status" style="margin-top: 0.5rem; font-size: 0.85rem;"></div>
+            <p style="color: #999; font-size: 0.8rem; margin-top: 0.5rem;">Usado pelo modo Premium (Claude Sonnet 4). Obtenha em <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" style="color: #4a5abb;">console.anthropic.com/settings/keys</a></p>
+          </div>
+
+          <div style="margin-bottom: 1.5rem;">
             <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Google AI (Gemini) — Geração de Imagens</label>
             <div style="display: flex; gap: 0.75rem; align-items: center;">
               <input type="password" id="api-key-gemini" style="flex: 1; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; font-family: monospace;" placeholder="AIzaSy...">
@@ -927,7 +947,7 @@
               <button class="btn btn-primary" onclick="testGeminiKey()" style="padding: 0.5rem 1rem; font-size: 0.85rem;">Testar</button>
             </div>
             <div id="gemini-key-status" style="margin-top: 0.5rem; font-size: 0.85rem;"></div>
-            <p style="color: #999; font-size: 0.8rem; margin-top: 0.5rem;">Obtenha em <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style="color: #4a5abb;">aistudio.google.com/apikey</a>. Necessário faturamento ativo para geração de imagens.</p>
+            <p style="color: #999; font-size: 0.8rem; margin-top: 0.5rem;">Usado para Carrossel por Referência. Obtenha em <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style="color: #4a5abb;">aistudio.google.com/apikey</a>. Necessário faturamento ativo para geração de imagens.</p>
           </div>
 
           <div style="display: flex; gap: 1rem;">

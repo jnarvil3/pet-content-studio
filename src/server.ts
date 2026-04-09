@@ -880,22 +880,39 @@ app.put('/api/brand', async (req, res) => {
 });
 
 // API Key management — custom keys override env defaults
+const maskKey = (key: string | undefined) => key ? `${key.substring(0, 8)}...${'*'.repeat(16)}` : '';
+
 app.get('/api/keys', (req, res) => {
-  const geminiKey = process.env.GOOGLE_AI_API_KEY || '';
   res.json({
-    gemini: geminiKey ? `${geminiKey.substring(0, 8)}...${'*'.repeat(20)}` : ''
+    openai: maskKey(process.env.OPENAI_API_KEY),
+    anthropic: maskKey(process.env.ANTHROPIC_API_KEY),
+    gemini: maskKey(process.env.GOOGLE_AI_API_KEY),
   });
 });
 
 app.put('/api/keys', (req, res) => {
-  const { gemini } = req.body;
+  const { openai, anthropic, gemini } = req.body;
+  const updated: string[] = [];
+
+  if (openai && typeof openai === 'string' && openai.trim().length > 10) {
+    process.env.OPENAI_API_KEY = openai.trim();
+    updated.push('OpenAI');
+  }
+  if (anthropic && typeof anthropic === 'string' && anthropic.trim().length > 10) {
+    process.env.ANTHROPIC_API_KEY = anthropic.trim();
+    updated.push('Anthropic');
+  }
   if (gemini && typeof gemini === 'string' && gemini.trim().length > 10) {
     process.env.GOOGLE_AI_API_KEY = gemini.trim();
-    console.log(`[Server] ✅ Custom Gemini API key set (${gemini.substring(0, 8)}...)`);
-    res.json({ success: true, message: 'Chave Gemini atualizada' });
-  } else {
-    res.status(400).json({ error: 'Chave inválida' });
+    updated.push('Gemini');
   }
+
+  if (updated.length === 0) {
+    return res.status(400).json({ error: 'Nenhuma chave válida fornecida' });
+  }
+
+  console.log(`[Server] ✅ API keys updated: ${updated.join(', ')}`);
+  res.json({ success: true, message: `Chaves atualizadas: ${updated.join(', ')}` });
 });
 
 app.post('/api/keys/test-gemini', async (req, res) => {
