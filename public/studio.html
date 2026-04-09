@@ -604,10 +604,22 @@
                 <button class="btn btn-primary" id="refresh-signals-btn" onclick="triggerCollection()" style="white-space: nowrap;">🔄 Atualizar Tendências</button>
               </div>
             </div>
-            <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; align-items: center; flex-wrap: wrap;">
               <button class="btn active" id="signals-filter-all" onclick="setSignalsRegion('all')" style="padding: 0.4rem 1rem; font-size: 0.85rem;">🌍 Todos</button>
               <button class="btn" id="signals-filter-br" onclick="setSignalsRegion('br')" style="padding: 0.4rem 1rem; font-size: 0.85rem;">🇧🇷 Brasil</button>
               <button class="btn" id="signals-filter-global" onclick="setSignalsRegion('global')" style="padding: 0.4rem 1rem; font-size: 0.85rem;">🌐 Global</button>
+              <span style="color: #ccc; margin: 0 0.25rem;">|</span>
+              <select id="signals-region-select" onchange="setSignalsRegion(this.value)" style="padding: 0.4rem 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.85rem; color: #666;">
+                <option value="" disabled selected>Mais regiões...</option>
+                <option value="US">🇺🇸 EUA</option>
+                <option value="MX">🇲🇽 México</option>
+                <option value="AR">🇦🇷 Argentina</option>
+                <option value="PT">🇵🇹 Portugal</option>
+                <option value="ES">🇪🇸 Espanha</option>
+                <option value="DE">🇩🇪 Alemanha</option>
+                <option value="FR">🇫🇷 França</option>
+                <option value="GB">🇬🇧 Reino Unido</option>
+              </select>
             </div>
             <div id="collection-progress" style="display: none; margin-bottom: 1.5rem; padding: 1rem; background: rgba(102,126,234,0.05); border-radius: 8px;">
               <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
@@ -627,15 +639,31 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
               <div>
                 <h2 class="card-title" style="margin-bottom: 0.25rem;">🔥 Vídeos Mais Virais</h2>
-                <p style="color: #666;">Ordenados por engajamento — YouTube e TikTok Brasil</p>
+                <p style="color: #666;">YouTube e TikTok — ordenados por <span id="video-sort-label">engajamento</span></p>
               </div>
-              <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                 <div style="display: flex; gap: 0.5rem;">
                   <button class="btn toggle-btn active" id="video-filter-pet" onclick="setVideoFilter('pet')">🐾 Pet</button>
                   <button class="btn toggle-btn" id="video-filter-all" onclick="setVideoFilter('all')">🌐 Geral</button>
                 </div>
+                <select id="video-region-select" onchange="setVideoRegion(this.value)" style="padding: 0.4rem 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.85rem; color: #666;">
+                  <option value="all">🌍 Todas Regiões</option>
+                  <option value="BR" selected>🇧🇷 Brasil</option>
+                  <option value="US">🇺🇸 EUA</option>
+                  <option value="MX">🇲🇽 México</option>
+                  <option value="AR">🇦🇷 Argentina</option>
+                  <option value="PT">🇵🇹 Portugal</option>
+                  <option value="ES">🇪🇸 Espanha</option>
+                  <option value="DE">🇩🇪 Alemanha</option>
+                  <option value="FR">🇫🇷 França</option>
+                  <option value="GB">🇬🇧 Reino Unido</option>
+                </select>
                 <button class="btn btn-primary" style="padding: 0.5rem 1rem;" onclick="refreshTrending().then(loadVideosList)">🔄</button>
               </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+              <button class="btn active" id="video-sort-engagement" onclick="setVideoSort('engagement')" style="padding: 0.4rem 1rem; font-size: 0.85rem;">📊 Maior Engajamento</button>
+              <button class="btn" id="video-sort-views" onclick="setVideoSort('views')" style="padding: 0.4rem 1rem; font-size: 0.85rem;">👁️ Mais Vistos</button>
             </div>
             <div id="videos-list">Carregando...</div>
           </div>
@@ -649,15 +677,39 @@
                 <h2 class="card-title" style="margin-bottom: 0.25rem;">🎣 Padrões Virais</h2>
                 <p style="color: #666;">Estratégias de gancho com maior engajamento</p>
               </div>
-              <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                 <div style="display: flex; gap: 0.5rem;">
                   <button class="btn toggle-btn active" id="hook-filter-pet" onclick="setHookFilter('pet')">🐾 Pet</button>
                   <button class="btn toggle-btn" id="hook-filter-all" onclick="setHookFilter('all')">🌐 Geral</button>
                 </div>
+                <select id="hook-region-select" onchange="setHookRegion(this.value)" style="padding: 0.4rem 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.85rem; color: #666;">
+                  <option value="all">🌍 Todas Regiões</option>
+                  <option value="BR" selected>🇧🇷 Brasil</option>
+                  <option value="US">🇺🇸 EUA</option>
+                  <option value="MX">🇲🇽 México</option>
+                  <option value="AR">🇦🇷 Argentina</option>
+                  <option value="PT">🇵🇹 Portugal</option>
+                  <option value="ES">🇪🇸 Espanha</option>
+                  <option value="DE">🇩🇪 Alemanha</option>
+                  <option value="FR">🇫🇷 França</option>
+                  <option value="GB">🇬🇧 Reino Unido</option>
+                </select>
                 <button class="btn btn-primary" style="padding: 0.5rem 1rem;" onclick="refreshTrending().then(loadHooksList)">🔄</button>
               </div>
             </div>
             <div id="hooks-grid">Carregando...</div>
+
+            <!-- Instagram Hook Formulas Section — auto-loaded from real-world sources -->
+            <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid #e0e0e0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div>
+                  <h3 style="font-size: 1.1rem; font-weight: 700; color: #333; margin-bottom: 0.25rem;">📱 Ganchos Virais do Instagram — Esta Semana</h3>
+                  <p style="color: #666; font-size: 0.85rem;">Coletados de SocialBee, SocialPilot e Taggbox — atualizado semanalmente</p>
+                </div>
+                <button class="btn btn-secondary" onclick="loadInstagramHooks()" style="padding: 0.4rem 1rem; font-size: 0.85rem;">🔄</button>
+              </div>
+              <div id="instagram-hooks-section">Carregando ganchos virais...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -903,32 +955,106 @@
     </div>
   </div>
 
-  <!-- Slide Image Edit Modal -->
+  <!-- Slide Edit Modal (Text + Photo) -->
   <div id="slide-edit-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1500; justify-content:center; align-items:center;">
-    <div style="background:white; border-radius:15px; padding:2rem; max-width:480px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-      <h3 style="margin-bottom:0.25rem; color:#333;">📷 Trocar Foto do Slide <span id="slide-edit-num"></span></h3>
-      <p style="color:#888; font-size:0.85rem; margin-bottom:1.25rem;">Descreva a foto que você quer ver neste slide. A busca será feita no Pexels.</p>
+    <div style="background:white; border-radius:15px; padding:2rem; max-width:540px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.3); max-height:90vh; overflow-y:auto;">
+      <h3 style="margin-bottom:0.25rem; color:#333;">✏️ Editar Slide <span id="slide-edit-num"></span></h3>
+      <p style="color:#888; font-size:0.85rem; margin-bottom:1rem;">Edite o texto ou troque a foto deste slide.</p>
       <input type="hidden" id="slide-edit-content-id">
       <input type="hidden" id="slide-edit-slide-num">
-      <div style="margin-bottom:1rem;">
-        <input type="text" id="slide-edit-query" placeholder="Ex: dog agility course, golden retriever beach" style="width:100%; padding:0.75rem; border:2px solid #e0e0e0; border-radius:8px; font-size:1rem; font-family:inherit; box-sizing:border-box;">
+
+      <!-- Mode tabs -->
+      <div style="display:flex; gap:0.5rem; margin-bottom:1.25rem;">
+        <button class="btn active" id="slide-mode-text" onclick="setSlideEditMode('text')" style="flex:1; padding:0.4rem; font-size:0.8rem;">📝 Texto</button>
+        <button class="btn" id="slide-mode-photo" onclick="setSlideEditMode('photo')" style="flex:1; padding:0.4rem; font-size:0.8rem;">📷 Foto</button>
+        <button class="btn" id="slide-mode-ai" onclick="setSlideEditMode('ai')" style="flex:1; padding:0.4rem; font-size:0.8rem;">🎨 IA</button>
+        <button class="btn" id="slide-mode-upload" onclick="setSlideEditMode('upload')" style="flex:1; padding:0.4rem; font-size:0.8rem;">📤 Upload</button>
       </div>
-      <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1.25rem;">
-        <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='happy dog playing outdoors'">🐕 Cachorro feliz</button>
-        <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='cat relaxing cozy home'">🐱 Gato relaxando</button>
-        <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='dog agility training course'">🏃 Agility</button>
-        <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='veterinarian examining pet'">🩺 Veterinário</button>
-        <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='dog grooming salon'">✂️ Banho e tosa</button>
-        <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='pet owner walking dog park'">🌳 Passeio no parque</button>
+
+      <!-- Text editing mode -->
+      <div id="slide-edit-text-mode">
+        <div style="margin-bottom:1rem;">
+          <label style="display:block; font-weight:600; font-size:0.85rem; margin-bottom:0.35rem; color:#555;">Título</label>
+          <input type="text" id="slide-edit-title" placeholder="Título do slide" style="width:100%; padding:0.65rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.95rem; font-family:inherit; box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:1rem;">
+          <label style="display:block; font-weight:600; font-size:0.85rem; margin-bottom:0.35rem; color:#555;">Corpo do texto</label>
+          <textarea id="slide-edit-body" placeholder="Texto principal do slide" style="width:100%; padding:0.65rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.95rem; font-family:inherit; box-sizing:border-box; min-height:80px; resize:vertical;"></textarea>
+        </div>
+        <div id="slide-edit-stat-section" style="display:none; margin-bottom:1rem; padding:1rem; background:#f8f9fa; border-radius:8px;">
+          <label style="display:block; font-weight:600; font-size:0.85rem; margin-bottom:0.35rem; color:#555;">Estatística</label>
+          <div style="display:flex; gap:0.5rem;">
+            <input type="text" id="slide-edit-stat-number" placeholder="Ex: 20%" style="flex:1; padding:0.65rem; border:2px solid #e0e0e0; border-radius:8px; font-size:1.1rem; font-weight:700; font-family:inherit; box-sizing:border-box; text-align:center;">
+            <input type="text" id="slide-edit-stat-context" placeholder="Contexto da estatística" style="flex:2; padding:0.65rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.95rem; font-family:inherit; box-sizing:border-box;">
+          </div>
+        </div>
+        <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+          <button class="btn btn-secondary" onclick="closeSlideEditModal()">Cancelar</button>
+          <button class="btn btn-primary" id="slide-edit-text-submit" onclick="submitSlideTextEdit()">💾 Salvar Texto</button>
+        </div>
       </div>
-      <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
-        <button class="btn btn-secondary" onclick="closeSlideEditModal()">Cancelar</button>
-        <button class="btn btn-primary" id="slide-edit-submit" onclick="submitSlideEdit()">Trocar Foto</button>
+
+      <!-- Photo editing mode (Pexels stock) -->
+      <div id="slide-edit-photo-mode" style="display:none;">
+        <div style="margin-bottom:1rem;">
+          <input type="text" id="slide-edit-query" placeholder="Ex: dog agility course, golden retriever beach" style="width:100%; padding:0.75rem; border:2px solid #e0e0e0; border-radius:8px; font-size:1rem; font-family:inherit; box-sizing:border-box;">
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1.25rem;">
+          <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='happy dog playing outdoors'">🐕 Cachorro feliz</button>
+          <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='cat relaxing cozy home'">🐱 Gato relaxando</button>
+          <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='dog agility training course'">🏃 Agility</button>
+          <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='veterinarian examining pet'">🩺 Veterinário</button>
+          <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='dog grooming salon'">✂️ Banho e tosa</button>
+          <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-query').value='pet owner walking dog park'">🌳 Passeio no parque</button>
+        </div>
+        <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+          <button class="btn btn-secondary" onclick="closeSlideEditModal()">Cancelar</button>
+          <button class="btn btn-primary" id="slide-edit-submit" onclick="submitSlideEdit()">📷 Trocar Foto</button>
+        </div>
+      </div>
+
+      <!-- AI image generation mode (Gemini/Imagen) -->
+      <div id="slide-edit-ai-mode" style="display:none;">
+        <p style="color:#666; font-size:0.85rem; margin-bottom:1rem;">Descreva a imagem que a IA deve gerar para este slide. Quanto mais detalhado, melhor o resultado.</p>
+        <div style="margin-bottom:1rem;">
+          <textarea id="slide-edit-ai-prompt" placeholder="Ex: Cachorro golden retriever sorrindo em um parque ensolarado, com grama verde e árvores ao fundo, foto profissional, iluminação natural" style="width:100%; padding:0.75rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.95rem; font-family:inherit; box-sizing:border-box; min-height:90px; resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1.25rem;">
+          <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-ai-prompt').value='Cachorro golden retriever sorrindo em um consultório veterinário moderno, iluminação profissional, fundo clean'">🩺 No veterinário</button>
+          <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-ai-prompt').value='Gato persa branco deitado em uma almofada luxuosa, iluminação suave e quente, foto de estúdio'">🐱 Gato elegante</button>
+          <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-ai-prompt').value='Infográfico minimalista sobre nutrição pet com ícones coloridos, fundo gradiente azul e roxo, estilo moderno'">📊 Infográfico</button>
+          <button type="button" class="feedback-chip" onclick="document.getElementById('slide-edit-ai-prompt').value='Ilustração flat de um cachorro e gato juntos brincando, estilo cartoon moderno, cores vibrantes, fundo pastel'">🎨 Ilustração</button>
+        </div>
+        <div style="font-size:0.8rem; color:#999; margin-bottom:1rem;">💰 Custo estimado: ~$0.02-0.04 por imagem (Google Imagen)</div>
+        <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+          <button class="btn btn-secondary" onclick="closeSlideEditModal()">Cancelar</button>
+          <button class="btn btn-primary" id="slide-edit-ai-submit" onclick="submitSlideAIGenerate()">🎨 Gerar Imagem</button>
+        </div>
+      </div>
+
+      <!-- Image upload mode -->
+      <div id="slide-edit-upload-mode" style="display:none;">
+        <p style="color:#666; font-size:0.85rem; margin-bottom:1rem;">Faça upload de uma imagem personalizada para usar como fundo deste slide.</p>
+        <div style="margin-bottom:1.25rem;">
+          <label style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2rem; border:3px dashed #e0e0e0; border-radius:12px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.borderColor='#667eea'" onmouseout="this.style.borderColor='#e0e0e0'">
+            <span style="font-size:2rem; margin-bottom:0.5rem;">📁</span>
+            <span style="color:#666; font-size:0.9rem; font-weight:500;">Clique para selecionar ou arraste uma imagem</span>
+            <span style="color:#999; font-size:0.8rem; margin-top:0.25rem;">PNG, JPG ou WebP — máximo 10MB</span>
+            <input type="file" id="slide-edit-file" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="previewSlideUpload(this)">
+          </label>
+          <div id="slide-upload-preview" style="display:none; margin-top:1rem; text-align:center;">
+            <img id="slide-upload-preview-img" style="max-height:200px; border-radius:8px; border:2px solid #e0e0e0;">
+          </div>
+        </div>
+        <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+          <button class="btn btn-secondary" onclick="closeSlideEditModal()">Cancelar</button>
+          <button class="btn btn-primary" id="slide-edit-upload-submit" onclick="submitSlideUpload()">📤 Enviar Imagem</button>
+        </div>
       </div>
     </div>
   </div>
 
   <script src="/i18n.js"></script>
-  <script src="/studio.js?v=8"></script>
+  <script src="/studio.js?v=10"></script>
 </body>
 </html>

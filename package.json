@@ -31,6 +31,7 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@google/genai": "^1.49.0",
     "@remotion/bundler": "^4.0.294",
     "@remotion/renderer": "^4.0.294",
     "@types/multer": "^2.1.0",
@@ -53,6 +54,6 @@
     "@types/node": "^22.10.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
-    "vitest": "^4.1.0"
+    "vitest": "^2.1.9"
   }
 }

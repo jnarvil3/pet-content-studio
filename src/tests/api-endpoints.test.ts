@@ -212,6 +212,91 @@ describe('ContentStorage', () => {
   });
 });
 
+describe('Slide text editing (updateCarousel)', () => {
+  let storage: ContentStorage;
+  const SLIDE_EDIT_DB = './data/test-slide-edit.db';
+
+  beforeAll(() => {
+    storage = new ContentStorage(SLIDE_EDIT_DB);
+  });
+
+  afterAll(() => {
+    storage.close();
+    try {
+      fs.unlinkSync(SLIDE_EDIT_DB);
+      fs.unlinkSync(SLIDE_EDIT_DB + '-wal');
+      fs.unlinkSync(SLIDE_EDIT_DB + '-shm');
+    } catch (e) {}
+  });
+
+  it('saves a carousel with 5 slides', () => {
+    const id = storage.save({
+      signal_id: 100,
+      content_type: 'carousel',
+      status: 'pending',
+      carousel_content: {
+        slides: [
+          { slideNumber: 1, title: 'Hook Title', body: null, stat: null, pexelsSearchQuery: 'dog', layoutHint: 'hook' },
+          { slideNumber: 2, title: 'Problem', body: 'Problem body text', stat: null, pexelsSearchQuery: 'sad dog', layoutHint: 'problem' },
+          { slideNumber: 3, title: 'Insight', body: 'Insight body', stat: { number: '20%', context: 'dos donos' }, pexelsSearchQuery: 'vet', layoutHint: 'insight' },
+          { slideNumber: 4, title: 'Tip', body: 'Tip body text', stat: null, pexelsSearchQuery: 'happy dog', layoutHint: 'tip' },
+          { slideNumber: 5, title: 'CTA', body: 'Follow us', stat: null, pexelsSearchQuery: '', layoutHint: 'cta' },
+        ],
+        caption: 'Test caption',
+        hashtags: ['test'],
+        hookFormula: 'curiosity_gap'
+      },
+      carousel_images: ['/img/1.png', '/img/2.png', '/img/3.png', '/img/4.png', '/img/5.png'],
+      generated_at: new Date().toISOString()
+    });
+    expect(id).toBe(1);
+  });
+
+  it('updates slide title via updateCarousel', () => {
+    const content = storage.get(1)!;
+    const carousel = content.carousel_content;
+    carousel.slides[0].title = 'New Hook Title';
+    storage.updateCarousel(1, carousel, content.carousel_images as string[]);
+
+    const updated = storage.get(1)!;
+    expect(updated.carousel_content.slides[0].title).toBe('New Hook Title');
+  });
+
+  it('updates slide body text', () => {
+    const content = storage.get(1)!;
+    const carousel = content.carousel_content;
+    carousel.slides[1].body = 'Updated problem body';
+    storage.updateCarousel(1, carousel, content.carousel_images as string[]);
+
+    const updated = storage.get(1)!;
+    expect(updated.carousel_content.slides[1].body).toBe('Updated problem body');
+  });
+
+  it('updates stat number and context on insight slide', () => {
+    const content = storage.get(1)!;
+    const carousel = content.carousel_content;
+    carousel.slides[2].stat = { number: '45%', context: 'dos veterinários recomendam' };
+    storage.updateCarousel(1, carousel, content.carousel_images as string[]);
+
+    const updated = storage.get(1)!;
+    expect(updated.carousel_content.slides[2].stat!.number).toBe('45%');
+    expect(updated.carousel_content.slides[2].stat!.context).toBe('dos veterinários recomendam');
+  });
+
+  it('preserves other slides when editing one', () => {
+    const content = storage.get(1)!;
+    // Slide 4 and 5 should be untouched
+    expect(content.carousel_content.slides[3].title).toBe('Tip');
+    expect(content.carousel_content.slides[4].title).toBe('CTA');
+  });
+
+  it('preserves image paths when updating text', () => {
+    const content = storage.get(1)!;
+    expect(content.carousel_images).toHaveLength(5);
+    expect(content.carousel_images![0]).toBe('/img/1.png');
+  });
+});
+
 describe('Feedback prompt formatting', () => {
   it('formats numbered feedback items', () => {
     const feedbackItems = [

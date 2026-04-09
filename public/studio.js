@@ -11,8 +11,11 @@ let currentFilter = 'all';
 // Trending filter state
 let videoPetFilter = 'pet';
 let videoTimePeriod = 'today';
+let videoRegion = 'all';
+let videoSortBy = 'engagement'; // 'engagement' or 'views'
 let hookPetFilter = 'pet';
 let hookTimePeriod = 'today';
+let hookRegion = 'all';
 
 /**
  * Toast notification system (replaces alert())
@@ -280,7 +283,8 @@ async function loadDiscoverData() {
   await Promise.allSettled([
     loadSignalsList(),
     loadVideosList(),
-    loadHooksList()
+    loadHooksList(),
+    igHooksLoaded ? Promise.resolve() : loadInstagramHooks()
   ]);
 }
 
@@ -288,9 +292,21 @@ let signalsRegion = 'all';
 
 function setSignalsRegion(region) {
   signalsRegion = region;
+  // Update button states
+  const isPreset = ['all', 'br', 'global'].includes(region);
   document.getElementById('signals-filter-all').classList.toggle('active', region === 'all');
   document.getElementById('signals-filter-br').classList.toggle('active', region === 'br');
   document.getElementById('signals-filter-global').classList.toggle('active', region === 'global');
+  // Reset dropdown if a button was clicked
+  const dropdown = document.getElementById('signals-region-select');
+  if (isPreset) {
+    dropdown.selectedIndex = 0;
+  } else {
+    // Deactivate all preset buttons when dropdown is used
+    document.getElementById('signals-filter-all').classList.remove('active');
+    document.getElementById('signals-filter-br').classList.remove('active');
+    document.getElementById('signals-filter-global').classList.remove('active');
+  }
   loadSignalsList();
 }
 
@@ -379,6 +395,127 @@ function renderRssSignals(rssSignals) {
 /**
  * Custom Search — user-defined country + topic
  */
+let lastSearchData = null;
+let searchSortBy = 'engagement'; // 'engagement' or 'views'
+
+function setSearchSort(sortBy) {
+  searchSortBy = sortBy;
+  document.getElementById('search-sort-engagement')?.classList.toggle('active', sortBy === 'engagement');
+  document.getElementById('search-sort-views')?.classList.toggle('active', sortBy === 'views');
+  if (lastSearchData) renderSearchResults(lastSearchData);
+}
+
+function renderSearchResults(data) {
+  const resultsDiv = document.getElementById('custom-search-results');
+  const topic = data._topic || '';
+  const countryFlag = data._countryFlag || '';
+
+  // Sort videos based on user selection
+  const sortedVideos = [...(data.videos || [])];
+  if (searchSortBy === 'views') {
+    sortedVideos.sort((a, b) => (b.views || 0) - (a.views || 0));
+  } else {
+    sortedVideos.sort((a, b) => (b.engagement_rate || 0) - (a.engagement_rate || 0));
+  }
+
+  // Extract hooks
+  const hooks = sortedVideos
+    .filter(v => v.hook_formula && v.hook_formula !== 'unknown')
+    .reduce((acc, v) => {
+      const key = v.hook_formula;
+      if (!acc[key]) acc[key] = { formula: key, count: 0, examples: [], totalViews: 0 };
+      acc[key].count++;
+      acc[key].examples.push(v.title);
+      acc[key].totalViews += v.views || 0;
+      return acc;
+    }, {});
+  const hookList = Object.values(hooks).sort((a, b) => b.count - a.count);
+
+  const sortLabel = searchSortBy === 'views' ? 'visualizações' : 'engajamento';
+
+  resultsDiv.innerHTML = `
+    <div style="margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+      <strong>${sortedVideos.length} resultados para "${topic}" em ${countryFlag}</strong>
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button class="btn ${searchSortBy === 'engagement' ? 'active' : ''}" id="search-sort-engagement" onclick="setSearchSort('engagement')" style="padding: 0.3rem 0.75rem; font-size: 0.8rem;">📊 Engajamento</button>
+        <button class="btn ${searchSortBy === 'views' ? 'active' : ''}" id="search-sort-views" onclick="setSearchSort('views')" style="padding: 0.3rem 0.75rem; font-size: 0.8rem;">👁️ Views</button>
+        <span style="font-size: 0.75rem; color: #999;">${data.cost || 'YouTube: ~300 unidades'}</span>
+      </div>
+    </div>
+
+    <!-- Videos section -->
+    <details open style="margin-bottom: 1rem;">
+      <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">🔥 Vídeos ordenados por ${sortLabel} (${sortedVideos.length})</summary>
+      ${sortedVideos.map((v, i) => `
+        <div style="display: flex; gap: 1rem; padding: 0.75rem; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.5rem; align-items: center; ${i < 3 ? 'background: rgba(102,126,234,0.03);' : ''}">
+          ${v.thumbnail ? `<img src="${v.thumbnail}" style="width: 120px; height: 68px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" onerror="this.style.display='none'">` : ''}
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.title || 'Sem título'}</div>
+            <div style="font-size: 0.8rem; color: #666;">
+              ${v.channel || ''}
+              ${v.views ? ` · <strong>${Number(v.views).toLocaleString()}</strong> views` : ''}
+              ${v.engagement_rate ? ` · <strong style="color: #f5576c;">${(v.engagement_rate * 100).toFixed(1)}%</strong> eng.` : ''}
+            </div>
+            ${v.hook_formula && v.hook_formula !== 'unknown' ? `<span style="font-size: 0.7rem; background: #f0f4ff; color: #4a5abb; padding: 2px 6px; border-radius: 4px;">🎣 ${hookLabel(v.hook_formula)}</span>` : ''}
+          </div>
+          <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; white-space: nowrap;" onclick="createFromVideo('${v.id}', '${(v.hook_formula || '').replace(/'/g, "\\'")}', '${(v.title || '').replace(/'/g, "\\'")}', '${(v.content_angle || topic).replace(/'/g, "\\'")}')">
+            ✨ Criar Conteúdo
+          </button>
+        </div>
+      `).join('')}
+    </details>
+
+    <!-- Hooks section -->
+    ${hookList.length > 0 ? `
+    <details style="margin-bottom: 1rem;">
+      <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">🎣 Ganchos Virais Encontrados (${hookList.length})</summary>
+      ${hookList.map(h => `
+        <div style="padding: 0.75rem; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.5rem;">
+          <div style="font-weight: 600; font-size: 0.9rem; color: #4a5abb;">${hookLabel(h.formula)}</div>
+          <div style="font-size: 0.8rem; color: #666; margin-top: 0.25rem;">${h.count} vídeo(s) · ${Number(h.totalViews).toLocaleString()} views total</div>
+          <div style="font-size: 0.8rem; color: #999; margin-top: 0.25rem; font-style: italic;">Ex: "${h.examples[0]?.substring(0, 80) || ''}"</div>
+        </div>
+      `).join('')}
+    </details>
+    ` : ''}
+
+    <!-- Content signals section (GPT-scored) -->
+    ${data.signals && data.signals.length > 0 ? `
+    <details open style="margin-bottom: 1rem;">
+      <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">📡 Sinais de Conteúdo (${data.signals.length})</summary>
+      <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Oportunidades de conteúdo avaliadas por IA — baseadas nos vídeos virais acima:</p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.75rem;">
+        ${data.signals.map((s, i) => {
+          const formatIcon = s.format === 'reel' ? '🎬' : s.format === 'post' ? '📝' : '🎠';
+          const formatLabel = s.format === 'reel' ? 'Reel' : s.format === 'post' ? 'Post' : 'Carrossel';
+          return `
+          <div style="border: 2px solid ${s.score >= 80 ? '#16a34a40' : s.score >= 60 ? '#ca8a0440' : '#e0e0e0'}; border-radius: 12px; padding: 1rem; transition: all 0.2s; ${i === 0 ? 'background: rgba(102,126,234,0.03);' : ''}">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+              <div style="font-size: 1.5rem; font-weight: 700; color: ${s.score >= 80 ? '#16a34a' : s.score >= 60 ? '#ca8a04' : '#666'};">${s.score}</div>
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.7rem; font-weight: 600;">${formatIcon} ${formatLabel}</div>
+            </div>
+            <div style="font-weight: 600; margin-bottom: 0.5rem; color: #333; font-size: 0.85rem; line-height: 1.3;">${s.title || ''}</div>
+            <div style="font-size: 0.8rem; color: #555; line-height: 1.4; margin-bottom: 0.75rem; background: #f8f9fa; padding: 0.5rem 0.6rem; border-radius: 6px;">${s.opportunity || ''}</div>
+            <div style="font-size: 0.75rem; color: #999; margin-bottom: 0.75rem; padding-top: 0.5rem; border-top: 1px solid #eee;">
+              📺 ${s.channel || ''} · ${s.views ? Number(s.views).toLocaleString() + ' views' : ''}
+              ${s.hook_formula && s.hook_formula !== 'unknown' ? ` · <span style="color: #4a5abb;">${hookLabel(s.hook_formula)}</span>` : ''}
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              ${s.url ? `<a href="${s.url}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex: 1; padding: 0.5rem; text-align: center; text-decoration: none; font-size: 0.8rem;">🔗 Ver Vídeo</a>` : ''}
+              <button class="btn btn-primary" style="flex: 1; padding: 0.5rem; font-size: 0.8rem;" onclick="createFromVideo('${s.video_id || ''}', '${(s.hook_formula || '').replace(/'/g, "\\'")}', '${(s.title || '').replace(/'/g, "\\'")}', '${(s.opportunity || '').replace(/'/g, "\\'")}')">
+                ✨ Criar a partir deste
+              </button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </details>
+    ` : ''}
+
+    ${renderRssSignals(data.rssSignals)}
+  `;
+}
+
 async function runCustomSearch() {
   const country = document.getElementById('custom-search-country').value;
   const topic = document.getElementById('custom-search-topic').value.trim();
@@ -404,94 +541,10 @@ async function runCustomSearch() {
     const data = await response.json();
 
     if (data.success && data.videos && data.videos.length > 0) {
-      const countryFlag = document.getElementById('custom-search-country').selectedOptions[0].textContent;
-
-      // Extract hooks from video titles
-      const hooks = data.videos
-        .filter(v => v.hook_formula && v.hook_formula !== 'unknown')
-        .reduce((acc, v) => {
-          const key = v.hook_formula;
-          if (!acc[key]) acc[key] = { formula: key, count: 0, examples: [], totalViews: 0 };
-          acc[key].count++;
-          acc[key].examples.push(v.title);
-          acc[key].totalViews += v.views || 0;
-          return acc;
-        }, {});
-      const hookList = Object.values(hooks).sort((a, b) => b.count - a.count);
-
-      resultsDiv.innerHTML = `
-        <div style="margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
-          <strong>${data.videos.length} resultados para "${topic}" em ${countryFlag}</strong>
-          <span style="font-size: 0.8rem; color: #666;">Custo: ${data.cost || 'YouTube: ~300 unidades'}</span>
-        </div>
-
-        <!-- Videos section -->
-        <details open style="margin-bottom: 1rem;">
-          <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">🔥 Vídeos Mais Virais (${data.videos.length})</summary>
-          ${data.videos.map((v, i) => `
-            <div style="display: flex; gap: 1rem; padding: 0.75rem; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.5rem; align-items: center; ${i < 3 ? 'background: rgba(102,126,234,0.03);' : ''}">
-              ${v.thumbnail ? `<img src="${v.thumbnail}" style="width: 120px; height: 68px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" onerror="this.style.display='none'">` : ''}
-              <div style="flex: 1; min-width: 0;">
-                <div style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.title || 'Sem título'}</div>
-                <div style="font-size: 0.8rem; color: #666;">${v.channel || ''} · ${v.views ? Number(v.views).toLocaleString() + ' views' : ''} · ${v.engagement_rate ? (v.engagement_rate * 100).toFixed(1) + '% eng.' : ''}</div>
-                ${v.hook_formula && v.hook_formula !== 'unknown' ? `<span style="font-size: 0.7rem; background: #f0f4ff; color: #4a5abb; padding: 2px 6px; border-radius: 4px;">🎣 ${hookLabel(v.hook_formula)}</span>` : ''}
-              </div>
-              <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; white-space: nowrap;" onclick="createFromVideo('${v.id}', '${(v.hook_formula || '').replace(/'/g, "\\'")}', '${(v.title || '').replace(/'/g, "\\'")}', '${(v.content_angle || topic).replace(/'/g, "\\'")}')">
-                ✨ Criar Conteúdo
-              </button>
-            </div>
-          `).join('')}
-        </details>
-
-        <!-- Hooks section -->
-        ${hookList.length > 0 ? `
-        <details style="margin-bottom: 1rem;">
-          <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">🎣 Ganchos Virais Encontrados (${hookList.length})</summary>
-          ${hookList.map(h => `
-            <div style="padding: 0.75rem; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.5rem;">
-              <div style="font-weight: 600; font-size: 0.9rem; color: #4a5abb;">${hookLabel(h.formula)}</div>
-              <div style="font-size: 0.8rem; color: #666; margin-top: 0.25rem;">${h.count} vídeo(s) · ${Number(h.totalViews).toLocaleString()} views total</div>
-              <div style="font-size: 0.8rem; color: #999; margin-top: 0.25rem; font-style: italic;">Ex: "${h.examples[0]?.substring(0, 80) || ''}"</div>
-            </div>
-          `).join('')}
-        </details>
-        ` : ''}
-
-        <!-- Content signals section (GPT-scored) -->
-        ${data.signals && data.signals.length > 0 ? `
-        <details open style="margin-bottom: 1rem;">
-          <summary style="cursor: pointer; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">📡 Sinais de Conteúdo (${data.signals.length})</summary>
-          <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Oportunidades de conteúdo avaliadas por IA — baseadas nos vídeos virais acima:</p>
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.75rem;">
-            ${data.signals.map((s, i) => {
-              const formatIcon = s.format === 'reel' ? '🎬' : s.format === 'post' ? '📝' : '🎠';
-              const formatLabel = s.format === 'reel' ? 'Reel' : s.format === 'post' ? 'Post' : 'Carrossel';
-              return `
-              <div style="border: 2px solid ${s.score >= 80 ? '#16a34a40' : s.score >= 60 ? '#ca8a0440' : '#e0e0e0'}; border-radius: 12px; padding: 1rem; transition: all 0.2s; ${i === 0 ? 'background: rgba(102,126,234,0.03);' : ''}">
-                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
-                  <div style="font-size: 1.5rem; font-weight: 700; color: ${s.score >= 80 ? '#16a34a' : s.score >= 60 ? '#ca8a04' : '#666'};">${s.score}</div>
-                  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.7rem; font-weight: 600;">${formatIcon} ${formatLabel}</div>
-                </div>
-                <div style="font-weight: 600; margin-bottom: 0.5rem; color: #333; font-size: 0.85rem; line-height: 1.3;">${s.title || ''}</div>
-                <div style="font-size: 0.8rem; color: #555; line-height: 1.4; margin-bottom: 0.75rem; background: #f8f9fa; padding: 0.5rem 0.6rem; border-radius: 6px;">${s.opportunity || ''}</div>
-                <div style="font-size: 0.75rem; color: #999; margin-bottom: 0.75rem; padding-top: 0.5rem; border-top: 1px solid #eee;">
-                  📺 ${s.channel || ''} · ${s.views ? Number(s.views).toLocaleString() + ' views' : ''}
-                  ${s.hook_formula && s.hook_formula !== 'unknown' ? ` · <span style="color: #4a5abb;">${hookLabel(s.hook_formula)}</span>` : ''}
-                </div>
-                <div style="display: flex; gap: 0.5rem;">
-                  ${s.url ? `<a href="${s.url}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex: 1; padding: 0.5rem; text-align: center; text-decoration: none; font-size: 0.8rem;">🔗 Ver Vídeo</a>` : ''}
-                  <button class="btn btn-primary" style="flex: 1; padding: 0.5rem; font-size: 0.8rem;" onclick="createFromVideo('${s.video_id || ''}', '${(s.hook_formula || '').replace(/'/g, "\\'")}', '${(s.title || '').replace(/'/g, "\\'")}', '${(s.opportunity || '').replace(/'/g, "\\'")}')">
-                    ✨ Criar a partir deste
-                  </button>
-                </div>
-              </div>`;
-            }).join('')}
-          </div>
-        </details>
-        ` : ''}
-
-        ${renderRssSignals(data.rssSignals)}
-      `;
+      data._topic = topic;
+      data._countryFlag = document.getElementById('custom-search-country').selectedOptions[0].textContent;
+      lastSearchData = data;
+      renderSearchResults(data);
     } else {
       let html = '';
       if (data.quotaExhausted) {
@@ -523,6 +576,19 @@ function setVideoFilter(filter) {
   loadVideosList();
 }
 
+function setVideoRegion(region) {
+  videoRegion = region;
+  loadVideosList();
+}
+
+function setVideoSort(sortBy) {
+  videoSortBy = sortBy;
+  document.getElementById('video-sort-engagement').classList.toggle('active', sortBy === 'engagement');
+  document.getElementById('video-sort-views').classList.toggle('active', sortBy === 'views');
+  document.getElementById('video-sort-label').textContent = sortBy === 'views' ? 'visualizações' : 'engajamento';
+  loadVideosList();
+}
+
 function setVideoTimePeriod(period) {
   videoTimePeriod = period;
   loadVideosList();
@@ -533,11 +599,17 @@ async function loadVideosList() {
     const videosList = document.getElementById('videos-list');
     videosList.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #4a5abb;"></div><p style="color: #666;">Carregando vídeos...</p></div>';
 
-    const response = await fetch(`/api/trending/videos?period=today&petOnly=${videoPetFilter === 'pet'}`);
+    const response = await fetch(`/api/trending/videos?period=today&petOnly=${videoPetFilter === 'pet'}&region=${videoRegion}`);
     const data = await response.json();
 
     if (data.success && data.data) {
-      allVideos = (data.data.videos || []).sort((a, b) => (b.engagement_rate || 0) - (a.engagement_rate || 0));
+      allVideos = data.data.videos || [];
+      // Sort based on selected sort mode
+      if (videoSortBy === 'views') {
+        allVideos.sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
+      } else {
+        allVideos.sort((a, b) => (b.engagement_rate || 0) - (a.engagement_rate || 0));
+      }
     }
 
     if (allVideos.length === 0) {
@@ -545,9 +617,9 @@ async function loadVideosList() {
       return;
     }
 
-    // Render video grid directly — sorted by engagement
+    const sortLabel = videoSortBy === 'views' ? 'visualizações' : 'engajamento';
     videosList.innerHTML = `
-      <div style="margin-bottom: 1rem; color: #666; font-size: 0.875rem;">${allVideos.length} vídeos ordenados por engajamento</div>
+      <div style="margin-bottom: 1rem; color: #666; font-size: 0.875rem;">${allVideos.length} vídeos ordenados por ${sortLabel}</div>
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
         ${allVideos.map((video, i) => {
           const isTikTok = (video.platform || '').toLowerCase() === 'tiktok';
@@ -567,7 +639,10 @@ async function loadVideosList() {
               }
               <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.7);color:white;padding:2px 8px;border-radius:6px;font-size:0.7rem;font-weight:700;">#${i + 1}</div>
               <div style="position:absolute;top:8px;right:8px;background:${isTikTok ? '#00f2ea' : '#ff0000'};color:${isTikTok ? '#000' : '#fff'};padding:2px 8px;border-radius:6px;font-size:0.7rem;font-weight:700;">${isTikTok ? 'TikTok' : 'YouTube'}</div>
-              <div style="position:absolute;bottom:8px;left:8px;background:rgba(245,87,108,0.9);color:white;padding:4px 10px;border-radius:6px;font-size:0.8rem;font-weight:700;">${engagement}% engajamento</div>
+              <div style="position:absolute;bottom:8px;left:8px;display:flex;gap:6px;">
+                <span style="background:rgba(245,87,108,0.9);color:white;padding:4px 10px;border-radius:6px;font-size:0.8rem;font-weight:700;">${engagement}% eng.</span>
+                ${views !== '0' ? `<span style="background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:6px;font-size:0.8rem;font-weight:700;">👁 ${views}</span>` : ''}
+              </div>
             </div>
             <div style="padding: 1rem;">
               <div style="font-weight: 600; color: #333; margin-bottom: 0.5rem; font-size: 0.9rem; line-height: 1.3;">${title}</div>
@@ -1469,13 +1544,96 @@ function editSlideImage(contentId, slideNum) {
   document.getElementById('slide-edit-slide-num').value = slideNum;
   document.getElementById('slide-edit-num').textContent = slideNum;
   document.getElementById('slide-edit-query').value = '';
+
+  // Populate text fields from current slide data
+  const item = allContent.find(c => c.id === contentId);
+  if (item && item.carousel_content) {
+    const content = typeof item.carousel_content === 'string' ? JSON.parse(item.carousel_content) : item.carousel_content;
+    const slide = content.slides[slideNum - 1];
+    if (slide) {
+      document.getElementById('slide-edit-title').value = slide.title || '';
+      document.getElementById('slide-edit-body').value = slide.body || '';
+      // Show stat fields if this slide has a stat
+      const statSection = document.getElementById('slide-edit-stat-section');
+      if (slide.stat) {
+        statSection.style.display = 'block';
+        document.getElementById('slide-edit-stat-number').value = slide.stat.number || '';
+        document.getElementById('slide-edit-stat-context').value = slide.stat.context || '';
+      } else {
+        statSection.style.display = 'none';
+        document.getElementById('slide-edit-stat-number').value = '';
+        document.getElementById('slide-edit-stat-context').value = '';
+      }
+    }
+  }
+
+  // Default to text mode
+  setSlideEditMode('text');
+
   const modal = document.getElementById('slide-edit-modal');
   modal.style.display = 'flex';
-  setTimeout(() => document.getElementById('slide-edit-query').focus(), 100);
+  setTimeout(() => document.getElementById('slide-edit-title').focus(), 100);
+}
+
+function setSlideEditMode(mode) {
+  document.getElementById('slide-mode-text').classList.toggle('active', mode === 'text');
+  document.getElementById('slide-mode-photo').classList.toggle('active', mode === 'photo');
+  document.getElementById('slide-mode-ai').classList.toggle('active', mode === 'ai');
+  document.getElementById('slide-mode-upload').classList.toggle('active', mode === 'upload');
+  document.getElementById('slide-edit-text-mode').style.display = mode === 'text' ? 'block' : 'none';
+  document.getElementById('slide-edit-photo-mode').style.display = mode === 'photo' ? 'block' : 'none';
+  document.getElementById('slide-edit-ai-mode').style.display = mode === 'ai' ? 'block' : 'none';
+  document.getElementById('slide-edit-upload-mode').style.display = mode === 'upload' ? 'block' : 'none';
 }
 
 function closeSlideEditModal() {
   document.getElementById('slide-edit-modal').style.display = 'none';
+}
+
+async function submitSlideTextEdit() {
+  const contentId = document.getElementById('slide-edit-content-id').value;
+  const slideNum = document.getElementById('slide-edit-slide-num').value;
+  const title = document.getElementById('slide-edit-title').value.trim();
+  const body = document.getElementById('slide-edit-body').value.trim();
+  const statNumber = document.getElementById('slide-edit-stat-number').value.trim();
+  const statContext = document.getElementById('slide-edit-stat-context').value.trim();
+
+  if (!title && !body) {
+    showToast('Preencha pelo menos o título ou o corpo do texto', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('slide-edit-text-submit');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+
+  try {
+    const payload = { title, body };
+    if (statNumber) {
+      payload.stat = { number: statNumber, context: statContext };
+    }
+
+    const response = await fetch(`/api/content/${contentId}/edit-slide-text/${slideNum}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      showToast(`Texto do slide ${slideNum} atualizado!`, 'success');
+      closeSlideEditModal();
+      await loadReviewData();
+    } else {
+      showToast(`Erro: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    showToast('Erro ao atualizar texto do slide', 'error');
+    console.error('Edit slide text error:', error);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 Salvar Texto';
+  }
 }
 
 async function submitSlideEdit() {
@@ -1501,18 +1659,109 @@ async function submitSlideEdit() {
 
     const result = await response.json();
     if (result.success) {
-      showToast(`Slide ${slideNum} atualizado!`, 'success');
+      showToast(`Foto do slide ${slideNum} atualizada!`, 'success');
       closeSlideEditModal();
       await loadReviewData();
     } else {
       showToast(`Erro: ${result.error}`, 'error');
     }
   } catch (error) {
-    showToast('Erro ao atualizar slide', 'error');
+    showToast('Erro ao atualizar foto do slide', 'error');
     console.error('Edit slide error:', error);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Trocar Foto';
+    btn.textContent = '📷 Trocar Foto';
+  }
+}
+
+async function submitSlideAIGenerate() {
+  const contentId = document.getElementById('slide-edit-content-id').value;
+  const slideNum = document.getElementById('slide-edit-slide-num').value;
+  const prompt = document.getElementById('slide-edit-ai-prompt').value.trim();
+
+  if (!prompt) {
+    showToast('Descreva a imagem que a IA deve gerar', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('slide-edit-ai-submit');
+  btn.disabled = true;
+  btn.textContent = '⏳ Gerando imagem...';
+
+  try {
+    const response = await fetch(`/api/content/${contentId}/generate-slide-image/${slideNum}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      showToast(`Imagem gerada com IA para slide ${slideNum}!`, 'success');
+      closeSlideEditModal();
+      await loadReviewData();
+    } else {
+      showToast(`Erro: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    showToast('Erro ao gerar imagem com IA', 'error');
+    console.error('AI image generation error:', error);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🎨 Gerar Imagem';
+  }
+}
+
+function previewSlideUpload(input) {
+  const preview = document.getElementById('slide-upload-preview');
+  const img = document.getElementById('slide-upload-preview-img');
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      img.src = e.target.result;
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+async function submitSlideUpload() {
+  const contentId = document.getElementById('slide-edit-content-id').value;
+  const slideNum = document.getElementById('slide-edit-slide-num').value;
+  const fileInput = document.getElementById('slide-edit-file');
+
+  if (!fileInput.files || !fileInput.files[0]) {
+    showToast('Selecione uma imagem para upload', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('slide-edit-upload-submit');
+  btn.disabled = true;
+  btn.textContent = '⏳ Enviando...';
+
+  try {
+    const formData = new FormData();
+    formData.append('image', fileInput.files[0]);
+
+    const response = await fetch(`/api/content/${contentId}/upload-slide-image/${slideNum}`, {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      showToast(`Imagem enviada para slide ${slideNum}!`, 'success');
+      closeSlideEditModal();
+      await loadReviewData();
+    } else {
+      showToast(`Erro: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    showToast('Erro ao enviar imagem', 'error');
+    console.error('Upload error:', error);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📤 Enviar Imagem';
   }
 }
 
@@ -1777,12 +2026,89 @@ function getHookEngagement(hookFormula) {
 }
 
 /**
+ * Instagram Hook Formulas — real-world data from SocialBee, SocialPilot, Taggbox
+ */
+let igHooksLoaded = false;
+
+async function loadInstagramHooks() {
+  const section = document.getElementById('instagram-hooks-section');
+  if (!section) return;
+  section.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #4a5abb;"></div><p style="color: #666;">Carregando ganchos virais...</p></div>';
+
+  try {
+    const response = await fetch('/api/instagram-hooks');
+    const data = await response.json();
+    if (!data.success) { section.innerHTML = '<p style="color: #999;">Erro ao carregar ganchos.</p>'; return; }
+
+    const { trendingThisWeek, provenFormulas, liveSources, lastUpdated } = data.data;
+    igHooksLoaded = true;
+
+    section.innerHTML = `
+      <!-- Trending THIS WEEK -->
+      <div style="margin-bottom: 1.5rem;">
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: #f5576c; margin-bottom: 0.75rem;">🔥 Tendências desta semana <span style="font-size: 0.75rem; font-weight: 400; color: #999;">(via SocialBee — ${lastUpdated})</span></h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.75rem;">
+          ${trendingThisWeek.map((h, i) => `
+            <div style="border: 2px solid ${i < 3 ? '#f5576c40' : '#e0e0e0'}; border-radius: 12px; padding: 1rem; ${i < 3 ? 'background: rgba(245,87,108,0.03);' : ''}">
+              <div style="font-weight: 700; font-size: 0.95rem; color: #333; margin-bottom: 0.5rem; line-height: 1.3;">"${h.hook}"</div>
+              <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <span style="background: rgba(102,126,234,0.1); color: #4a5abb; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600;">${h.category}</span>
+                <span style="color: #999; font-size: 0.7rem;">${h.source}</span>
+              </div>
+              <div style="font-size: 0.8rem; color: #666; line-height: 1.4;">${h.why}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Proven Formulas -->
+      <div style="margin-bottom: 1.5rem;">
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: #4a5abb; margin-bottom: 0.75rem;">📋 Fórmulas comprovadas de alto engajamento <span style="font-size: 0.75rem; font-weight: 400; color: #999;">(${provenFormulas.length} ganchos)</span></h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.75rem;">
+          ${provenFormulas.map(h => `
+            <div style="border: 1px solid #e0e0e0; border-radius: 10px; padding: 0.85rem;">
+              <div style="font-weight: 600; font-size: 0.9rem; color: #333; margin-bottom: 0.35rem;">"${h.hook}"</div>
+              <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.35rem;">
+                <span style="background: #f0f4ff; color: #4a5abb; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">${h.category}</span>
+                <span style="color: #ccc; font-size: 0.65rem;">${h.source}</span>
+              </div>
+              <div style="font-size: 0.78rem; color: #888; line-height: 1.3;">${h.why}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Live sources -->
+      <div style="padding: 1rem; background: rgba(102,126,234,0.05); border-radius: 12px; border-left: 4px solid #667eea;">
+        <h4 style="font-size: 0.9rem; font-weight: 700; color: #333; margin-bottom: 0.5rem;">🔗 Fontes ao Vivo — Visite para ganchos mais recentes</h4>
+        <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.75rem;">Esses sites publicam ganchos virais regularmente (semanal/diário):</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+          ${liveSources.map(r => `
+            <a href="${r.url}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.75rem; background: white; border: 1px solid #dde3f7; border-radius: 8px; color: #4a5abb; font-size: 0.8rem; text-decoration: none; font-weight: 500;" title="${r.description}">
+              🌐 ${r.name}
+            </a>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Error loading Instagram hooks:', error);
+    section.innerHTML = '<p style="color: #999;">Não foi possível carregar ganchos do Instagram.</p>';
+  }
+}
+
+/**
  * Hooks Tab
  */
 function setHookFilter(filter) {
   hookPetFilter = filter;
   document.getElementById('hook-filter-pet').classList.toggle('active', filter === 'pet');
   document.getElementById('hook-filter-all').classList.toggle('active', filter === 'all');
+  loadHooksList();
+}
+
+function setHookRegion(region) {
+  hookRegion = region;
   loadHooksList();
 }
 
@@ -1806,7 +2132,7 @@ async function loadHooksList() {
   grid.innerHTML = '<div class="loading"><div class="spinner" style="border-color: rgba(0,0,0,0.1); border-top-color: #4a5abb;"></div><p style="color: #666;">Carregando padrões virais...</p></div>';
 
   try {
-    const response = await fetch(`/api/trending/hooks?period=today&petOnly=${hookPetFilter === 'pet'}`);
+    const response = await fetch(`/api/trending/hooks?period=today&petOnly=${hookPetFilter === 'pet'}&region=${hookRegion}`);
     const data = await response.json();
 
     if (!data.success) {

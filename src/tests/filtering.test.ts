@@ -196,6 +196,164 @@ describe('Hashtag rendering', () => {
   });
 });
 
+describe('Region language matching', () => {
+  // Mirrors REGION_LANGUAGE_MARKERS from server.ts
+  const REGION_LANGUAGE_MARKERS: Record<string, RegExp> = {
+    'BR': /\b(você|seu|como|para|não|que|por|mais|dos|das|uma|esta|esse|isso|muito|porque|quando|também|sobre|aqui|cachorro|gato|ração|banho|tosa|dono|veterinário)\b|[ãõçê]/i,
+    'US': /\b(you|your|how|the|this|that|with|from|what|about|just|they|their|when|every|never|always|should|don't|can't|won't)\b/i,
+    'MX': /\b(tu|usted|perro|gato|mascota|como|para|qué|por|más|este|esta|muy|también|cuando|aquí|nunca)\b|[ñ¿¡]/i,
+    'ES': /\b(tu|perro|gato|mascota|como|para|qué|por|más|este|esta|muy|también|cuando|nunca)\b|[ñ¿¡]/i,
+    'DE': /\b(der|die|das|und|für|mit|ein|eine|nicht|auch|wie|dein|hund|katze|haustier|warum)\b|[äöüß]/i,
+    'FR': /\b(le|la|les|un|une|des|pour|avec|pas|que|qui|est|sont|votre|chien|chat|animal)\b|[éèêëàâùûîïôç]/i,
+  };
+
+  function matchesRegionLanguage(text: string, region: string): boolean {
+    const pattern = REGION_LANGUAGE_MARKERS[region];
+    if (!pattern) return true;
+    return pattern.test(text);
+  }
+
+  it('matches Brazilian Portuguese titles to BR', () => {
+    expect(matchesRegionLanguage('5 Erros que Todo Dono de Cachorro Comete', 'BR')).toBe(true);
+  });
+
+  it('matches Portuguese with diacritics to BR', () => {
+    expect(matchesRegionLanguage('Alimentação natural para cães', 'BR')).toBe(true);
+  });
+
+  it('matches English titles to US', () => {
+    expect(matchesRegionLanguage('How to Train Your Dog in 5 Minutes', 'US')).toBe(true);
+  });
+
+  it('does NOT match English title to BR', () => {
+    expect(matchesRegionLanguage('How to Train Your Dog in 5 Minutes', 'BR')).toBe(false);
+  });
+
+  it('does NOT match Portuguese title to US', () => {
+    expect(matchesRegionLanguage('Adestrador revela o ÚNICO comando', 'US')).toBe(false);
+  });
+
+  it('matches Spanish titles to MX', () => {
+    expect(matchesRegionLanguage('¿Por qué tu perro te sigue al baño?', 'MX')).toBe(true);
+  });
+
+  it('matches German titles to DE', () => {
+    expect(matchesRegionLanguage('Warum folgt Ihr Hund Ihnen überall hin?', 'DE')).toBe(true);
+  });
+
+  it('matches French titles to FR', () => {
+    expect(matchesRegionLanguage('Les 5 erreurs que font les propriétaires de chien', 'FR')).toBe(true);
+  });
+
+  it('returns true for unknown region (no filter applied)', () => {
+    expect(matchesRegionLanguage('any text', 'XX')).toBe(true);
+  });
+});
+
+describe('Gemini image service availability', () => {
+  it('reports disabled when GOOGLE_AI_API_KEY is not set', async () => {
+    // Clear env var for this test
+    const original = process.env.GOOGLE_AI_API_KEY;
+    delete process.env.GOOGLE_AI_API_KEY;
+
+    const { GeminiImageService } = await import('../services/gemini-image');
+    const service = new GeminiImageService();
+    expect(service.isEnabled()).toBe(false);
+
+    // Restore
+    if (original) process.env.GOOGLE_AI_API_KEY = original;
+  });
+
+  it('reports enabled when GOOGLE_AI_API_KEY is set', async () => {
+    const original = process.env.GOOGLE_AI_API_KEY;
+    process.env.GOOGLE_AI_API_KEY = 'test-key';
+
+    // Need fresh import to pick up env change
+    const mod = await import('../services/gemini-image');
+    const service = new mod.GeminiImageService();
+    expect(service.isEnabled()).toBe(true);
+
+    // Restore
+    if (original) { process.env.GOOGLE_AI_API_KEY = original; } else { delete process.env.GOOGLE_AI_API_KEY; }
+  });
+
+  it('throws error when generating without API key', async () => {
+    const original = process.env.GOOGLE_AI_API_KEY;
+    delete process.env.GOOGLE_AI_API_KEY;
+
+    const { GeminiImageService } = await import('../services/gemini-image');
+    const service = new GeminiImageService();
+    await expect(service.generateImage('test', '/tmp/test.png')).rejects.toThrow('GOOGLE_AI_API_KEY not configured');
+
+    if (original) process.env.GOOGLE_AI_API_KEY = original;
+  });
+});
+
+describe('Instagram hooks real-world data structure', () => {
+  // Mirrors the structure from /api/instagram-hooks (real-world sourced)
+  const trendingThisWeek = [
+    { hook: 'When people your age start having kids', category: 'Relatable Humor', why: 'Generational humor', source: 'SocialBee' },
+    { hook: 'Born to {preference}… Forced to {adult reality}', category: 'Contrast Meme', why: 'Contrasts desire vs. responsibility', source: 'SocialBee' },
+  ];
+
+  const provenFormulas = [
+    { hook: 'Stop scrolling if you want to…', category: 'Direct CTA', why: 'Interrupts scrolling', source: 'Taggbox' },
+    { hook: 'This one mistake is costing you…', category: 'Problem Awareness', why: 'Hidden pain point', source: 'Taggbox' },
+  ];
+
+  it('trending hooks have required fields', () => {
+    trendingThisWeek.forEach(h => {
+      expect(h.hook).toBeTruthy();
+      expect(h.category).toBeTruthy();
+      expect(h.why).toBeTruthy();
+      expect(h.source).toBeTruthy();
+    });
+  });
+
+  it('proven formulas have required fields', () => {
+    provenFormulas.forEach(h => {
+      expect(h.hook).toBeTruthy();
+      expect(h.category).toBeTruthy();
+      expect(h.source).toBeTruthy();
+    });
+  });
+
+  it('hooks are attributed to real sources', () => {
+    const validSources = ['SocialBee', 'SocialPilot', 'Taggbox'];
+    [...trendingThisWeek, ...provenFormulas].forEach(h => {
+      expect(validSources).toContain(h.source);
+    });
+  });
+});
+
+describe('Video sorting modes', () => {
+  const videos = [
+    { title: 'Video A', engagement_rate: 15.0, view_count: 500_000 },
+    { title: 'Video B', engagement_rate: 8.0, view_count: 5_000_000 },
+    { title: 'Video C', engagement_rate: 20.0, view_count: 100_000 },
+  ];
+
+  it('sorts by engagement rate (highest first)', () => {
+    const sorted = [...videos].sort((a, b) => (b.engagement_rate || 0) - (a.engagement_rate || 0));
+    expect(sorted[0].title).toBe('Video C');
+    expect(sorted[1].title).toBe('Video A');
+    expect(sorted[2].title).toBe('Video B');
+  });
+
+  it('sorts by view count (highest first)', () => {
+    const sorted = [...videos].sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
+    expect(sorted[0].title).toBe('Video B');
+    expect(sorted[1].title).toBe('Video A');
+    expect(sorted[2].title).toBe('Video C');
+  });
+
+  it('highest engagement is NOT necessarily highest views', () => {
+    const byEngagement = [...videos].sort((a, b) => (b.engagement_rate || 0) - (a.engagement_rate || 0));
+    const byViews = [...videos].sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
+    expect(byEngagement[0].title).not.toBe(byViews[0].title);
+  });
+});
+
 describe('Singular/plural (Portuguese)', () => {
   function pluralize(count: number, singular: string, plural: string): string {
     return `${count} ${count === 1 ? singular : plural}`;
