@@ -50,8 +50,9 @@ describe('Viral Insights API', () => {
     expect(response.status).toBe(200);
 
     const data = await response.json();
-    expect(data).toHaveProperty('topHooks');
-    expect(data).toHaveProperty('trendingThemes');
+    expect(data.success).toBe(true);
+    expect(data.data).toHaveProperty('topHooks');
+    expect(data.data).toHaveProperty('trendingThemes');
   });
 });
 
