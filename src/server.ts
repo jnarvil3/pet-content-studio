@@ -1049,19 +1049,37 @@ app.post('/api/brand/upload', brandUpload.single('file'), async (req, res) => {
           console.log(`[Brand Upload] Brand profile extracted and saved`);
 
         } else if (['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
-          console.log(`[Brand Upload] Extracting colors from image...`);
+          console.log(`[Brand Upload] Analyzing brand image with AI (${tier})...`);
+
+          // AI vision analysis — extracts visual style, mood, tone, typography
+          const partialProfile = await extractor.extractFromImage(newPath, tier as any);
+
+          // Also extract exact colors with colorthief (more accurate than AI hex guesses)
           const colors = await extractor.extractColors(newPath);
 
           const { getBrandConfig, saveBrandConfig } = await import('./config/brand-config');
           const brand = getBrandConfig();
-          brand.colors.primary = colors.primary;
-          brand.colors.secondary = colors.secondary;
+          brand.colors.primary = partialProfile.visual?.primary_color || colors.primary;
+          brand.colors.secondary = partialProfile.visual?.secondary_color || colors.secondary;
           if (colors.accent) brand.colors.accent = colors.accent;
           brand.logo = { path: newPath, position: 'bottom-right' };
+
+          // Merge partial profile into existing profile (image adds visual info, doesn't replace text info)
+          const existingProfile = BrandExtractor.loadProfile();
+          const mergedProfile = {
+            ...(existingProfile || {}),
+            visual: { ...(existingProfile?.visual || {}), ...(partialProfile.visual || {}) },
+            voice: { ...(existingProfile?.voice || {}), ...(partialProfile.voice || {}) },
+            extracted_at: new Date().toISOString(),
+            extraction_model: tier
+          };
+          extractor.saveProfile(mergedProfile as any);
+          brand.profile = mergedProfile as any;
+
           saveBrandConfig(brand);
           clearBrandCache();
 
-          console.log(`[Brand Upload] Colors extracted: ${colors.primary}, ${colors.secondary}`);
+          console.log(`[Brand Upload] Image analyzed — visual style + colors extracted`);
         }
       } catch (error: any) {
         console.error('[Brand Upload] Processing failed:', error.message);
