@@ -1,6 +1,7 @@
 /**
  * Gemini Image Generation Service
- * Uses Google's Imagen model via @google/genai to generate custom images for carousel slides.
+ * Uses Gemini's native image generation (generateContent with image output)
+ * via @google/genai. This replaces the Imagen API which sunsets June 24, 2026.
  * Requires GOOGLE_AI_API_KEY env var.
  */
 
@@ -19,7 +20,7 @@ export class GeminiImageService {
   }
 
   /**
-   * Generate an image from a text prompt using Imagen via Gemini API.
+   * Generate an image from a text prompt using Gemini's native image generation.
    * Returns the file path of the saved PNG image.
    */
   async generateImage(prompt: string, outputPath: string): Promise<string> {
@@ -32,21 +33,25 @@ export class GeminiImageService {
 
     console.log(`[GeminiImage] Generating image for: "${prompt.substring(0, 60)}..."`);
 
-    const response = await ai.models.generateImages({
-      model: 'imagen-4.0-generate-001',
-      prompt,
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash-exp',
+      contents: prompt,
       config: {
-        numberOfImages: 1,
+        responseModalities: ['IMAGE', 'TEXT'],
       },
     });
 
-    if (!response.generatedImages || response.generatedImages.length === 0) {
-      throw new Error('No image generated');
+    // Extract image from response parts
+    let imageData: string | undefined;
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData?.data) {
+        imageData = part.inlineData.data;
+        break;
+      }
     }
 
-    const imgBytes = response.generatedImages[0].image?.imageBytes;
-    if (!imgBytes) {
-      throw new Error('Image bytes not found in response');
+    if (!imageData) {
+      throw new Error('No image generated — model returned text only');
     }
 
     // Ensure output directory exists
@@ -55,7 +60,7 @@ export class GeminiImageService {
       fs.mkdirSync(dir, { recursive: true });
     }
 
-    const buffer = Buffer.from(imgBytes, 'base64');
+    const buffer = Buffer.from(imageData, 'base64');
     fs.writeFileSync(outputPath, buffer);
 
     console.log(`[GeminiImage] ✅ Image saved to ${outputPath} (${(buffer.length / 1024).toFixed(0)} KB)`);
