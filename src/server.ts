@@ -879,6 +879,79 @@ app.put('/api/brand', async (req, res) => {
   }
 });
 
+// API Key management — custom keys override env defaults
+app.get('/api/keys', (req, res) => {
+  const geminiKey = process.env.GOOGLE_AI_API_KEY || '';
+  res.json({
+    gemini: geminiKey ? `${geminiKey.substring(0, 8)}...${'*'.repeat(20)}` : ''
+  });
+});
+
+app.put('/api/keys', (req, res) => {
+  const { gemini } = req.body;
+  if (gemini && typeof gemini === 'string' && gemini.trim().length > 10) {
+    process.env.GOOGLE_AI_API_KEY = gemini.trim();
+    console.log(`[Server] ✅ Custom Gemini API key set (${gemini.substring(0, 8)}...)`);
+    res.json({ success: true, message: 'Chave Gemini atualizada' });
+  } else {
+    res.status(400).json({ error: 'Chave inválida' });
+  }
+});
+
+app.post('/api/keys/test-gemini', async (req, res) => {
+  try {
+    const key = req.body.key || process.env.GOOGLE_AI_API_KEY;
+    if (!key) {
+      return res.json({ success: false, error: 'Nenhuma chave Gemini configurada' });
+    }
+    const { GoogleGenAI } = await import('@google/genai');
+    const ai = new GoogleGenAI({ apiKey: key });
+    // Light test: text-only call to verify the key works
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: 'Reply with only the word OK',
+    });
+    const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (text) {
+      res.json({ success: true, message: 'Chave Gemini válida' });
+    } else {
+      res.json({ success: false, error: 'Chave aceita mas sem resposta' });
+    }
+  } catch (err: any) {
+    const msg = err.message || '';
+    if (msg.includes('quota') || err.status === 429) {
+      res.json({ success: false, error: 'Chave válida mas sem créditos — ative o faturamento em https://ai.google.dev' });
+    } else if (msg.includes('API_KEY_INVALID') || err.status === 400) {
+      res.json({ success: false, error: 'Chave inválida' });
+    } else {
+      res.json({ success: false, error: `Erro: ${msg.substring(0, 100)}` });
+    }
+  }
+});
+
+// Pre-check: can Gemini generate images right now?
+app.get('/api/keys/gemini-status', async (req, res) => {
+  const key = process.env.GOOGLE_AI_API_KEY;
+  if (!key) {
+    return res.json({ available: false, reason: 'no_key', message: 'Nenhuma chave Gemini configurada' });
+  }
+  try {
+    const { GoogleGenAI } = await import('@google/genai');
+    const ai = new GoogleGenAI({ apiKey: key });
+    await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: 'Reply OK',
+    });
+    res.json({ available: true });
+  } catch (err: any) {
+    if (err.status === 429 || err.message?.includes('quota')) {
+      res.json({ available: false, reason: 'quota', message: 'Créditos Gemini esgotados — ative o faturamento' });
+    } else {
+      res.json({ available: false, reason: 'error', message: err.message?.substring(0, 100) || 'Erro desconhecido' });
+    }
+  }
+});
+
 app.post('/api/brand/reset', async (req, res) => {
   try {
     const { saveBrandConfig, clearBrandCache } = await import('./config/brand-config');
@@ -1394,6 +1467,7 @@ app.post('/api/generate-from-reference', referenceUpload.array('images', 5), asy
     const instructions = req.body.instructions || '';
     const title = req.body.title || '';
     const aiModel = (req.body.aiModel as 'claude-sonnet-4' | 'gpt-4o-mini') || 'gpt-4o-mini';
+    const forceImageGen = req.body.imageGen as string || ''; // 'pollinations' to skip Gemini
 
     // Prevent duplicate generation
     const genKey = `reference-${Date.now()}`;
@@ -1437,8 +1511,12 @@ app.post('/api/generate-from-reference', referenceUpload.array('images', 5), asy
         const carouselImages: string[] = [];
         let usedFallback = false;
 
-        // Try Gemini first (can use reference images directly)
-        let geminiAvailable = geminiImg.isEnabled();
+        // Try Gemini first (can use reference images directly), unless user chose Pollinations
+        let geminiAvailable = forceImageGen !== 'pollinations' && geminiImg.isEnabled();
+        if (forceImageGen === 'pollinations') {
+          console.log('[Server] User chose Pollinations — skipping Gemini');
+          usedFallback = true;
+        }
         for (let i = 0; i < slideCount; i++) {
           progressMap.set(progressKey, { step: 1, totalSteps: 3, message: `Gerando slide ${i + 1}/${slideCount} (${modeLabel})...` });
 

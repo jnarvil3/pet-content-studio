@@ -1200,7 +1200,31 @@ async function generateFromReference() {
 
   const modeLabel = referenceMode === 'clone' ? '🔄 Clone' : '✨ Inspirado';
   const aiQuality = selectedAIModel === 'claude-sonnet-4' ? 'Premium (~$0.20)' : 'Rápido (~$0.01)';
-  const confirmed = await showConfirm(`Gerar Carrossel por Referência?\n\nModo: ${modeLabel}\nImagens: ${referenceFiles.length}\nLegenda IA: ${aiQuality}\nIsso vai consumir créditos da API.`, { okText: 'Gerar', cancelText: 'Cancelar' });
+
+  // Pre-check Gemini availability
+  let forceImageGen = '';
+  try {
+    const geminiCheck = await fetch('/api/keys/gemini-status');
+    const geminiStatus = await geminiCheck.json();
+    if (!geminiStatus.available) {
+      const userChoice = await showConfirm(
+        `⚠️ Gemini indisponível: ${geminiStatus.message}\n\n` +
+        `Opções:\n` +
+        `• Ative o faturamento Gemini em aistudio.google.com/apikey, ou atualize sua chave em Config → Chaves de API\n\n` +
+        `• Ou continue com Pollinations (gratuito, mas gera imagens apenas por descrição de texto — NÃO analisa as imagens de referência para copiar o estilo visual)`,
+        { okText: 'Continuar com Pollinations', cancelText: 'Cancelar' }
+      );
+      if (!userChoice) return;
+      forceImageGen = 'pollinations';
+    }
+  } catch (e) { /* network error, proceed anyway */ }
+
+  const confirmed = await showConfirm(
+    `Gerar Carrossel por Referência?\n\nModo: ${modeLabel}\nImagens: ${referenceFiles.length}\nLegenda IA: ${aiQuality}` +
+    (forceImageGen === 'pollinations' ? '\nImagens: Pollinations (sem referência visual)' : '\nImagens: Gemini (analisa referência visual)') +
+    `\nIsso vai consumir créditos da API.`,
+    { okText: 'Gerar', cancelText: 'Cancelar' }
+  );
   if (!confirmed) return;
 
   isGenerating = true;
@@ -1224,6 +1248,7 @@ async function generateFromReference() {
     formData.append('mode', referenceMode);
     formData.append('instructions', instructions);
     formData.append('aiModel', selectedAIModel);
+    if (forceImageGen) formData.append('imageGen', forceImageGen);
 
     const customTitle = document.getElementById('custom-topic-title').value.trim();
     if (customTitle) formData.append('title', customTitle);
@@ -2125,9 +2150,10 @@ async function publishContent(id) {
  * Settings Page
  */
 async function loadSettingsData() {
-  // Load brand config and profile
+  // Load brand config, profile, and API keys
   loadBrandConfig();
   loadBrandProfile();
+  loadApiKeys();
 
   try {
     const response = await fetch('/api/stats');
@@ -2859,6 +2885,69 @@ function trackRegenProgress(contentId) {
 /**
  * Brand Configuration
  */
+/**
+ * API Key Management
+ */
+async function loadApiKeys() {
+  try {
+    const res = await fetch('/api/keys');
+    if (res.ok) {
+      const keys = await res.json();
+      const geminiInput = document.getElementById('api-key-gemini');
+      if (geminiInput && keys.gemini) {
+        geminiInput.placeholder = keys.gemini;
+      }
+    }
+  } catch (e) { console.error('Failed to load API keys:', e); }
+}
+
+function toggleKeyVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (input.type === 'password') { input.type = 'text'; btn.textContent = '🙈'; }
+  else { input.type = 'password'; btn.textContent = '👁️'; }
+}
+
+async function saveApiKeys() {
+  const geminiKey = document.getElementById('api-key-gemini').value.trim();
+  if (!geminiKey) { showToast('Insira uma chave para salvar', 'warning'); return; }
+  try {
+    const res = await fetch('/api/keys', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gemini: geminiKey })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Chave Gemini salva com sucesso', 'success');
+      document.getElementById('api-key-gemini').value = '';
+      loadApiKeys();
+    } else {
+      showToast(data.error || 'Erro ao salvar', 'error');
+    }
+  } catch (e) { showToast('Erro de conexão', 'error'); }
+}
+
+async function testGeminiKey() {
+  const statusDiv = document.getElementById('gemini-key-status');
+  const key = document.getElementById('api-key-gemini').value.trim();
+  statusDiv.innerHTML = '<span style="color: #666;">⏳ Testando...</span>';
+  try {
+    const res = await fetch('/api/keys/test-gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: key || undefined })
+    });
+    const data = await res.json();
+    if (data.success) {
+      statusDiv.innerHTML = '<span style="color: #22c55e;">✅ ' + data.message + '</span>';
+    } else {
+      statusDiv.innerHTML = '<span style="color: #ef4444;">❌ ' + data.error + '</span>';
+    }
+  } catch (e) {
+    statusDiv.innerHTML = '<span style="color: #ef4444;">❌ Erro de conexão</span>';
+  }
+}
+
 async function loadBrandConfig() {
   try {
     const res = await fetch('/api/brand');

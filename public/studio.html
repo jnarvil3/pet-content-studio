@@ -914,6 +914,27 @@
           </div>
         </div>
 
+        <!-- API Keys Section -->
+        <div class="card" style="margin-top: 1.5rem;">
+          <h2 class="card-title">🔑 Chaves de API</h2>
+          <p style="color: #666; font-size: 0.875rem; margin-bottom: 1.5rem;">Chaves personalizadas sobrescrevem as padrões do sistema. Necessárias para funcionalidades premium.</p>
+
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Google AI (Gemini) — Geração de Imagens</label>
+            <div style="display: flex; gap: 0.75rem; align-items: center;">
+              <input type="password" id="api-key-gemini" style="flex: 1; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; font-family: monospace;" placeholder="AIzaSy...">
+              <button class="btn btn-secondary" onclick="toggleKeyVisibility('api-key-gemini', this)" style="padding: 0.5rem 0.75rem; font-size: 0.85rem;">👁️</button>
+              <button class="btn btn-primary" onclick="testGeminiKey()" style="padding: 0.5rem 1rem; font-size: 0.85rem;">Testar</button>
+            </div>
+            <div id="gemini-key-status" style="margin-top: 0.5rem; font-size: 0.85rem;"></div>
+            <p style="color: #999; font-size: 0.8rem; margin-top: 0.5rem;">Obtenha em <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style="color: #4a5abb;">aistudio.google.com/apikey</a>. Necessário faturamento ativo para geração de imagens.</p>
+          </div>
+
+          <div style="display: flex; gap: 1rem;">
+            <button class="btn btn-primary" onclick="saveApiKeys()">Salvar Chaves</button>
+          </div>
+        </div>
+
       </div>
       <!-- Help Page -->
       <div class="page" id="help-page">
