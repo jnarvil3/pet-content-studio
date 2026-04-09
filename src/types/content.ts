@@ -80,6 +80,28 @@ export interface LinkedInPost {
   imagePrompt?: string;
 }
 
+export interface CarouselAnalysisSlide {
+  slideType: 'hook' | 'problem' | 'insight' | 'tip' | 'cta' | 'content' | 'stat' | 'testimonial';
+  contentSummary: string;
+  textStyle: string;
+  keyPhrases: string[];
+}
+
+export interface CarouselAnalysis {
+  slideCount: number;
+  slides: CarouselAnalysisSlide[];
+  contentFlow: string;
+  tone: string;
+  hookFormula: string;
+  hookText: string;
+  ctaPattern: string;
+  visualStyle: {
+    theme: 'dark' | 'light' | 'colorful' | 'minimal';
+    density: 'text-heavy' | 'balanced' | 'photo-heavy';
+    style: string;
+  };
+}
+
 export interface ContentFeedback {
   id?: number;
   content_id: number;

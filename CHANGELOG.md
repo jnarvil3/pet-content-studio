@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-04-09 — Carrossel por Referência (Reference Carousel)
+
+Hugo's next requested feature: upload 1-5 screenshots of a carousel seen online and generate a new carousel based on it.
+
+### New Feature: Reference Carousel Generation
+
+Users can now upload screenshots of competitor or inspiration carousels and generate new branded carousels in two modes:
+
+- **Clone** — Replicates the exact structure, slide count, content flow, and hook formula. Swaps in the user's brand topic and voice while keeping the structural DNA identical.
+- **Inspirado** — Uses the reference as creative direction. AI has freedom to adapt, add/remove slides, change the flow. User provides instructions for how to deviate.
+
+**How it works:**
+1. Create page → click "Carrossel por Referencia" (pink button)
+2. Upload 1-5 screenshots via drag-and-drop or file picker
+3. Select Clone or Inspirado mode
+4. Add instructions (required for Inspirado, optional for Clone)
+5. Generate — Gemini 2.5 Flash analyzes the screenshots, then the existing carousel pipeline generates and renders slides
+
+**Cost:** ~$0.01-0.03 per generation (Gemini vision analysis + GPT-4o-mini content generation)
+
+### Files Created
+
+- `src/services/style-analyzer.ts` — Gemini 2.5 Flash vision service. Sends uploaded images as multimodal input, extracts slide types, content flow, tone, hook formula, CTA pattern, and visual style as structured JSON (`CarouselAnalysis`)
+
+### Files Changed
+
+- `src/types/content.ts` — Added `CarouselAnalysis` and `CarouselAnalysisSlide` interfaces
+- `src/generators/content-writer.ts` — Added `generateFromReference()` method with separate prompt templates for Clone (replicate structure) and Inspirado (creative freedom) modes
+- `src/server.ts` — Added `POST /api/generate-from-reference` endpoint with multer multi-file upload (max 5 images, 5MB each), async pipeline with progress polling, auto-cleanup of uploaded files
+- `public/studio.html` — Added reference button in content type row, drag-and-drop upload area with thumbnail previews, Clone/Inspirado mode toggle, instructions textarea
+- `public/studio.js` — File upload handling, drag-and-drop, mode toggle state, `generateFromReference()` with FormData submission, `pollReferenceProgress()` for real-time status updates
+- `FEATURE-PLAN-reference-carousel.md` — Status updated to Implemented
+
+### Requirements
+
+- `GOOGLE_AI_API_KEY` in `.env` (already present) — required for Gemini vision analysis of reference screenshots
+
+---
+
 ## 2026-04-08 — Slide Text Editor, Multi-Region Filters, Engagement Sorting, Instagram Hooks, Gemini Images
 
 Client feedback session with Hugo (April 8th). Revert point: `55b61ac`. Follow-up fixes applied same day.

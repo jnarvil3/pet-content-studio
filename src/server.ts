@@ -1357,6 +1357,149 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
+// Reference carousel upload config
+const referenceUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      const dir = path.join(process.cwd(), 'data', 'uploads', 'references');
+      const fs = require('fs');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname) || '.jpg';
+      cb(null, `ref-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
+    }
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per file
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+    cb(null, allowed.includes(file.mimetype));
+  }
+});
+
+// Generate carousel from reference images
+app.post('/api/generate-from-reference', referenceUpload.array('images', 5), async (req, res) => {
+  try {
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: 'Envie pelo menos 1 imagem de referência' });
+    }
+
+    const mode = req.body.mode as 'clone' | 'inspired';
+    if (!mode || !['clone', 'inspired'].includes(mode)) {
+      return res.status(400).json({ error: 'mode must be "clone" or "inspired"' });
+    }
+
+    const instructions = req.body.instructions || '';
+    const title = req.body.title || '';
+
+    // Prevent duplicate generation
+    const genKey = `reference-${Date.now()}`;
+    if (activeGenerations.size > 3) {
+      return res.status(409).json({ error: 'Muitas gerações em andamento, aguarde' });
+    }
+    activeGenerations.add(genKey);
+
+    const progressKey = `ref-${Date.now()}`;
+    progressMap.set(progressKey, { step: 1, totalSteps: 5, message: 'Analisando referência com IA...' });
+
+    // Respond immediately
+    res.json({ success: true, message: 'Gerando carrossel por referência...', progressKey });
+
+    // Run pipeline in background
+    (async () => {
+      try {
+        const imagePaths = files.map(f => f.path);
+
+        // Step 1: Analyze reference with Gemini vision
+        const { StyleAnalyzer } = await import('./services/style-analyzer');
+        const analyzer = new StyleAnalyzer();
+
+        if (!analyzer.isEnabled()) {
+          throw new Error('GOOGLE_AI_API_KEY não configurada — necessária para análise de referência');
+        }
+
+        progressMap.set(progressKey, { step: 1, totalSteps: 5, message: `Analisando ${files.length} imagem(ns) com Gemini...` });
+        const analysis = await analyzer.analyze(imagePaths);
+
+        // Step 2: Generate content with ContentWriter
+        progressMap.set(progressKey, { step: 2, totalSteps: 5, message: `Gerando texto (${mode === 'clone' ? 'Clone' : 'Inspirado'})...` });
+        const { ContentWriter } = await import('./generators/content-writer');
+        const { getBrandConfig } = await import('./config/brand-config');
+        const brand = getBrandConfig();
+        const writer = new ContentWriter();
+        const carouselContent = await writer.generateFromReference(analysis, brand, mode, instructions, title);
+
+        // Step 3: Fetch background photos
+        progressMap.set(progressKey, { step: 3, totalSteps: 5, message: 'Buscando imagens de fundo...' });
+        const { PexelsService } = await import('./services/pexels-service');
+        const pexels = new PexelsService();
+        const backgroundUrls = await Promise.all(
+          carouselContent.slides.map(async (slide) => {
+            if (slide.pexelsSearchQuery && pexels.isEnabled()) {
+              const photos = await pexels.searchPhotos(slide.pexelsSearchQuery, 1);
+              return photos.length > 0 ? pexels.getBestPhotoUrl(photos[0]) : undefined;
+            }
+            return undefined;
+          })
+        );
+
+        // Step 4: Render slides
+        progressMap.set(progressKey, { step: 4, totalSteps: 5, message: 'Renderizando slides...' });
+        const { CarouselTemplate } = await import('./templates/carousel-template');
+        const { ImageRenderer } = await import('./renderers/image-renderer');
+
+        const template = new CarouselTemplate(brand);
+        const htmlSlides = carouselContent.slides.map((slide, index) =>
+          template.generateSlideHTML(slide, carouselContent.slides.length, backgroundUrls[index])
+        );
+
+        const renderer = new ImageRenderer();
+        await renderer.initialize();
+
+        try {
+          const carouselDir = path.join(process.cwd(), 'data', 'output', 'carousels', `reference-${Date.now()}`);
+          const carouselImages = await renderer.renderSlides(htmlSlides, carouselDir, 'ref-carousel');
+
+          // Step 5: Save to content storage
+          progressMap.set(progressKey, { step: 5, totalSteps: 5, message: 'Salvando...' });
+          const content = {
+            signal_id: 0,
+            content_type: 'carousel' as const,
+            status: 'pending' as const,
+            carousel_content: carouselContent,
+            carousel_images: carouselImages,
+            source_url: `reference:${mode}`,
+            generated_at: new Date().toISOString()
+          };
+          contentStorage.save(content);
+
+          progressMap.set(progressKey, { step: 5, totalSteps: 5, message: `Carrossel ${mode === 'clone' ? 'Clone' : 'Inspirado'} pronto!` });
+          console.log(`[Server] ✅ Reference carousel (${mode}) saved with ${carouselImages.length} slides`);
+        } finally {
+          await renderer.close();
+        }
+
+        // Clean up uploaded files
+        for (const file of files) {
+          try { require('fs').unlinkSync(file.path); } catch {}
+        }
+
+        setTimeout(() => progressMap.delete(progressKey), 10000);
+      } catch (error: any) {
+        console.error('[Server] Reference carousel generation failed:', error.message);
+        progressMap.set(progressKey, { step: 0, totalSteps: 1, message: `Erro: ${error.message}` });
+        setTimeout(() => progressMap.delete(progressKey), 15000);
+      } finally {
+        activeGenerations.delete(genKey);
+      }
+    })();
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Active generation tracker (prevents duplicate requests)
 const activeGenerations = new Set<string>();
 

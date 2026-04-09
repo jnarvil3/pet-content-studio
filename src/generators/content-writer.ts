@@ -8,7 +8,7 @@ dotenv.config();
 
 import OpenAI from 'openai';
 import { Signal } from '../types/signal';
-import { CarouselContent } from '../types/content';
+import { CarouselContent, CarouselAnalysis } from '../types/content';
 import { BrandConfig } from '../types/brand';
 import { buildBrandContext, validateAgainstBrand } from '../config/brand-context';
 import { ViralSignalsConnector, ViralHook } from '../storage/viral-signals-connector';
@@ -380,5 +380,140 @@ ${preciseMode && editFeedback ? `- 🎯 CAPTION: If the client provided exact ca
       }
     }
     return null;
+  }
+
+  /**
+   * Generate carousel content from a reference carousel analysis.
+   * Supports Clone (replicate structure) and Inspirado (use as inspiration) modes.
+   */
+  async generateFromReference(
+    analysis: CarouselAnalysis,
+    brand: BrandConfig,
+    mode: 'clone' | 'inspired',
+    instructions: string,
+    title?: string
+  ): Promise<CarouselContent> {
+    const prompt = this.buildReferencePrompt(analysis, brand, mode, instructions, title);
+
+    const model = 'gpt-4o-mini';
+    console.log(`[ContentWriter] Generating ${mode} carousel from reference (${analysis.slideCount} slides analyzed, model: ${model})`);
+
+    try {
+      const response = await this.client.chat.completions.create({
+        model,
+        max_tokens: 2000,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'user', content: prompt }]
+      });
+
+      const responseText = response.choices[0].message.content || '';
+      const result = JSON.parse(responseText);
+
+      console.log(`[ContentWriter] ✅ Generated ${result.slides?.length}-slide ${mode} carousel from reference`);
+      return result as CarouselContent;
+    } catch (error: any) {
+      console.error('[ContentWriter] Error generating from reference:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Build prompt for reference-based carousel generation
+   */
+  private buildReferencePrompt(
+    analysis: CarouselAnalysis,
+    brand: BrandConfig,
+    mode: 'clone' | 'inspired',
+    instructions: string,
+    title?: string
+  ): string {
+    const brandContext = buildBrandContext(brand, 'instagram');
+    const brandHandle = brand.handle;
+
+    // Serialize the reference analysis
+    const slidesDescription = analysis.slides.map((s, i) =>
+      `  Slide ${i + 1} (${s.slideType}): "${s.contentSummary}" [text style: ${s.textStyle}] [key phrases: ${s.keyPhrases.join(', ')}]`
+    ).join('\n');
+
+    const modeInstructions = mode === 'clone'
+      ? `MODE: CLONE (Replicação Fiel)
+You must replicate the EXACT structure, slide count, content flow, and approach of the reference carousel.
+- Same number of slides (${analysis.slideCount})
+- Same slide types in the same order: ${analysis.contentFlow}
+- Same hook formula: ${analysis.hookFormula}
+- Replicate the content approach for each slide (if slide 3 had a stat, your slide 3 must have a stat)
+- Swap in the brand's topic/voice but keep the structural DNA identical
+- The hook should follow the same formula as: "${analysis.hookText}"
+${instructions ? `\nADDITIONAL INSTRUCTIONS FROM USER:\n${instructions}` : ''}`
+      : `MODE: INSPIRADO (Inspiração Livre)
+Use the reference carousel as DIRECTION and VIBE, but you have creative freedom.
+- You may add, remove, or reorder slides
+- You may change the hook formula
+- You may adapt the content flow
+- Capture the tone and energy: "${analysis.tone}"
+- Visual vibe reference: ${analysis.visualStyle.style}
+- Use the reference as a starting point, not a constraint
+
+USER INSTRUCTIONS (follow these closely):
+${instructions || 'Criar algo similar mas adaptado para a marca'}`;
+
+    return `You are an Instagram carousel copywriter creating content BASED ON A REFERENCE CAROUSEL.
+
+${brandContext}
+
+---
+
+REFERENCE CAROUSEL ANALYSIS:
+Slides: ${analysis.slideCount}
+Content Flow: ${analysis.contentFlow}
+Tone: ${analysis.tone}
+Hook Formula: ${analysis.hookFormula}
+Hook Text: "${analysis.hookText}"
+CTA Pattern: ${analysis.ctaPattern}
+Visual Style: ${analysis.visualStyle.theme}, ${analysis.visualStyle.density}, ${analysis.visualStyle.style}
+
+SLIDE-BY-SLIDE BREAKDOWN:
+${slidesDescription}
+
+---
+
+${modeInstructions}
+
+---
+
+LANGUAGE: Write ALL content in Brazilian Portuguese (PT-BR). Use "você", contractions, and natural Brazilian Portuguese. pexelsSearchQuery must be in ENGLISH.
+
+${title ? `TOPIC/TITLE: ${title}` : ''}
+
+---
+
+OUTPUT FORMAT (return ONLY valid JSON):
+
+{
+  "slides": [
+    {
+      "slideNumber": 1,
+      "title": "Your hook text here",
+      "body": null,
+      "stat": null,
+      "pexelsSearchQuery": "descriptive english search terms",
+      "layoutHint": "hook"
+    }
+  ],
+  "caption": "Instagram caption in PT-BR. 50-120 words.",
+  "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5"],
+  "hookFormula": "curiosity_gap"
+}
+
+RULES:
+- slideNumber starts at 1
+- layoutHint must be one of: hook, problem, insight, tip, cta
+- stat format: { "number": "40%", "context": "brief context" } or null
+- hookFormula must be one of: curiosity_gap, contrarian, mistake_hook, personal_specific, question_hook, number_outcome
+- pexelsSearchQuery: 2-5 English words, include pet/dog term
+- Include exactly 5 hashtags in Portuguese
+- Brand handle for CTA slide: ${brandHandle}
+- Slide 1 (hook): title only, body must be null
+- Max 30 words of body text per slide`;
   }
 }

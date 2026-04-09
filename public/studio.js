@@ -972,33 +972,54 @@ async function loadCreateData() {
     const contentTypeBtns = [
       document.getElementById('create-carousel-btn'),
       document.getElementById('create-reel-btn'),
-      document.getElementById('create-linkedin-btn')
+      document.getElementById('create-linkedin-btn'),
+      document.getElementById('create-reference-btn')
     ];
+
+    const refBtn = document.getElementById('create-reference-btn');
+    const refOptions = document.getElementById('reference-options');
 
     contentTypeBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         // Remove active state from all buttons
         contentTypeBtns.forEach(b => {
           b.classList.remove('active');
-          b.style.background = '';
-          b.style.color = '';
-          b.style.borderColor = '';
+          if (b.id === 'create-reference-btn') {
+            b.style.background = 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
+            b.style.color = 'white';
+            b.style.borderColor = '#f093fb';
+          } else {
+            b.style.background = '';
+            b.style.color = '';
+            b.style.borderColor = '';
+          }
         });
         // Add active state to clicked button
         btn.classList.add('active');
-        btn.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
-        btn.style.color = 'white';
-        btn.style.borderColor = '#667eea';
+        if (btn.id === 'create-reference-btn') {
+          btn.style.background = 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
+          btn.style.color = 'white';
+          btn.style.borderColor = '#f093fb';
+        } else {
+          btn.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+          btn.style.color = 'white';
+          btn.style.borderColor = '#667eea';
+        }
 
         const typeMap = {
           'create-carousel-btn': 'carousel',
           'create-reel-btn': 'reel',
-          'create-linkedin-btn': 'linkedin'
+          'create-linkedin-btn': 'linkedin',
+          'create-reference-btn': 'reference'
         };
         // Show/hide audio toggle for reels
         const audioToggle = document.getElementById('reel-audio-toggle');
         if (audioToggle) {
           audioToggle.style.display = typeMap[btn.id] === 'reel' ? 'block' : 'none';
+        }
+        // Show/hide reference options
+        if (refOptions) {
+          refOptions.style.display = typeMap[btn.id] === 'reference' ? 'block' : 'none';
         }
 
         // Store selected type, show generate button
@@ -1007,6 +1028,9 @@ async function loadCreateData() {
         if (genBtn) genBtn.style.display = 'inline-block';
       });
     });
+
+    // --- Reference carousel: upload, mode toggle, drag-and-drop ---
+    setupReferenceUpload();
 
   } catch (error) {
     console.error('Error loading create data:', error);
@@ -1051,9 +1075,243 @@ async function loadViralContext() {
   }
 }
 
+// --- Reference carousel state and setup ---
+let referenceFiles = []; // File objects for upload
+let referenceMode = 'clone'; // 'clone' or 'inspired'
+
+function setupReferenceUpload() {
+  const uploadArea = document.getElementById('reference-upload-area');
+  const fileInput = document.getElementById('reference-file-input');
+  const thumbnails = document.getElementById('reference-thumbnails');
+  const modeCloneBtn = document.getElementById('ref-mode-clone');
+  const modeInspiredBtn = document.getElementById('ref-mode-inspired');
+  const modeDesc = document.getElementById('ref-mode-description');
+  const instructionsHint = document.getElementById('ref-instructions-hint');
+
+  if (!uploadArea) return;
+
+  // Click to upload
+  uploadArea.addEventListener('click', () => fileInput.click());
+
+  // File input change
+  fileInput.addEventListener('change', () => {
+    addReferenceFiles(fileInput.files);
+    fileInput.value = '';
+  });
+
+  // Drag and drop
+  uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.style.borderColor = '#667eea';
+    uploadArea.style.background = 'rgba(102,126,234,0.05)';
+  });
+  uploadArea.addEventListener('dragleave', () => {
+    uploadArea.style.borderColor = '#d0d0d0';
+    uploadArea.style.background = '#fafafa';
+  });
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.style.borderColor = '#d0d0d0';
+    uploadArea.style.background = '#fafafa';
+    addReferenceFiles(e.dataTransfer.files);
+  });
+
+  // Mode toggle
+  modeCloneBtn.addEventListener('click', () => {
+    referenceMode = 'clone';
+    modeCloneBtn.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+    modeCloneBtn.style.color = 'white';
+    modeCloneBtn.style.borderColor = '#667eea';
+    modeInspiredBtn.style.background = 'white';
+    modeInspiredBtn.style.color = '#666';
+    modeInspiredBtn.style.borderColor = '#e0e0e0';
+    modeDesc.textContent = 'Clone: mesma estrutura e fluxo, tópico/voz da sua marca';
+    instructionsHint.textContent = '(opcional para Clone)';
+  });
+  modeInspiredBtn.addEventListener('click', () => {
+    referenceMode = 'inspired';
+    modeInspiredBtn.style.background = 'linear-gradient(135deg, #f093fb, #f5576c)';
+    modeInspiredBtn.style.color = 'white';
+    modeInspiredBtn.style.borderColor = '#f093fb';
+    modeCloneBtn.style.background = 'white';
+    modeCloneBtn.style.color = '#666';
+    modeCloneBtn.style.borderColor = '#e0e0e0';
+    modeDesc.textContent = 'Inspirado: usa como direção, IA tem liberdade para adaptar';
+    instructionsHint.textContent = '(obrigatório para Inspirado)';
+  });
+}
+
+function addReferenceFiles(fileList) {
+  const thumbnails = document.getElementById('reference-thumbnails');
+  for (const file of fileList) {
+    if (referenceFiles.length >= 5) {
+      showToast('Máximo de 5 imagens', 'warning');
+      break;
+    }
+    if (!file.type.startsWith('image/')) continue;
+    if (file.size > 5 * 1024 * 1024) {
+      showToast(`${file.name} excede 5MB`, 'warning');
+      continue;
+    }
+    referenceFiles.push(file);
+  }
+  renderReferenceThumbnails();
+}
+
+function renderReferenceThumbnails() {
+  const thumbnails = document.getElementById('reference-thumbnails');
+  thumbnails.innerHTML = '';
+  referenceFiles.forEach((file, index) => {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:relative; width:80px; height:80px; border-radius:8px; overflow:hidden; border:2px solid #e0e0e0;';
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(file);
+    img.style.cssText = 'width:100%; height:100%; object-fit:cover;';
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = '×';
+    removeBtn.style.cssText = 'position:absolute; top:2px; right:2px; background:rgba(0,0,0,0.6); color:white; border:none; border-radius:50%; width:20px; height:20px; font-size:14px; cursor:pointer; line-height:18px; padding:0;';
+    removeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      referenceFiles.splice(index, 1);
+      renderReferenceThumbnails();
+    });
+    wrapper.appendChild(img);
+    wrapper.appendChild(removeBtn);
+    thumbnails.appendChild(wrapper);
+  });
+}
+
+async function generateFromReference() {
+  if (isGenerating) {
+    showToast('Geração já em andamento...', 'warning');
+    return;
+  }
+
+  if (referenceFiles.length === 0) {
+    showToast('Envie pelo menos 1 imagem de referência', 'warning');
+    return;
+  }
+
+  const instructions = document.getElementById('ref-instructions').value.trim();
+  if (referenceMode === 'inspired' && !instructions) {
+    showToast('Escreva instruções para o modo Inspirado', 'warning');
+    return;
+  }
+
+  const modeLabel = referenceMode === 'clone' ? '🔄 Clone' : '✨ Inspirado';
+  const confirmed = await showConfirm(`Gerar Carrossel por Referência?\n\nModo: ${modeLabel}\nImagens: ${referenceFiles.length}\nIsso vai consumir créditos da API.`, { okText: 'Gerar', cancelText: 'Cancelar' });
+  if (!confirmed) return;
+
+  isGenerating = true;
+
+  // Disable all buttons
+  const allBtns = ['create-carousel-btn', 'create-reel-btn', 'create-linkedin-btn', 'create-reference-btn'].map(id => document.getElementById(id));
+  allBtns.forEach(btn => { btn.disabled = true; btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; });
+
+  const statusDiv = document.getElementById('generation-status');
+  statusDiv.style.display = 'block';
+  statusDiv.innerHTML = `
+    <div style="text-align: center; padding: 1.5rem; background: rgba(240,147,251,0.1); border-radius: 12px; border: 2px solid #f093fb;">
+      <p style="color: #d946a8; font-weight: 600; margin-bottom: 0.5rem;">🎨 Gerando ${modeLabel}...</p>
+      <p id="ref-progress-msg" style="color: #666; font-size: 0.875rem;">Enviando imagens...</p>
+    </div>
+  `;
+
+  try {
+    const formData = new FormData();
+    referenceFiles.forEach(file => formData.append('images', file));
+    formData.append('mode', referenceMode);
+    formData.append('instructions', instructions);
+
+    const customTitle = document.getElementById('custom-topic-title').value.trim();
+    if (customTitle) formData.append('title', customTitle);
+
+    const response = await fetch('/api/generate-from-reference', {
+      method: 'POST',
+      body: formData
+    });
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Falha na geração');
+    }
+
+    // Poll progress
+    const progressKey = result.progressKey;
+    if (progressKey) {
+      await pollReferenceProgress(progressKey, statusDiv);
+    } else {
+      statusDiv.innerHTML = `
+        <div style="text-align: center; padding: 2rem; background: rgba(34,197,94,0.1); border-radius: 12px; color: #22c55e;">
+          <div style="font-size: 3rem; margin-bottom: 0.5rem;">✅</div>
+          <p style="font-weight: 600; margin-bottom: 1rem;">Carrossel por referência gerado!</p>
+          <button class="btn btn-primary" style="margin-top: 1rem;" onclick="loadDashboardStats(); navigateTo('review')">Ir para Revisão</button>
+        </div>
+      `;
+    }
+  } catch (error) {
+    statusDiv.innerHTML = `
+      <div style="text-align: center; padding: 2rem; background: rgba(239,68,68,0.1); border-radius: 12px; color: #ef4444;">
+        <div style="font-size: 3rem; margin-bottom: 0.5rem;">❌</div>
+        <p style="font-weight: 600;">Falha na geração</p>
+        <p style="color: #666; margin-top: 0.5rem;">${error.message}</p>
+        <button class="btn btn-secondary" style="margin-top: 1rem;" onclick="document.getElementById('generation-status').style.display='none'">Tentar Novamente</button>
+      </div>
+    `;
+  } finally {
+    isGenerating = false;
+    allBtns.forEach(btn => { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; });
+  }
+}
+
+async function pollReferenceProgress(progressKey, statusDiv) {
+  const maxPolls = 120; // 2 minutes max
+  for (let i = 0; i < maxPolls; i++) {
+    await new Promise(r => setTimeout(r, 1000));
+    try {
+      const resp = await fetch(`/api/progress/${progressKey}`);
+      const data = await resp.json();
+      if (!data.inProgress) {
+        // Check if it finished successfully (last message doesn't start with 'Erro')
+        statusDiv.innerHTML = `
+          <div style="text-align: center; padding: 2rem; background: rgba(34,197,94,0.1); border-radius: 12px; color: #22c55e;">
+            <div style="font-size: 3rem; margin-bottom: 0.5rem;">✅</div>
+            <p style="font-weight: 600; margin-bottom: 1rem;">Carrossel por referência gerado!</p>
+            <button class="btn btn-primary" style="margin-top: 1rem;" onclick="loadDashboardStats(); navigateTo('review')">Ir para Revisão</button>
+          </div>
+        `;
+        return;
+      }
+      const progressMsg = document.getElementById('ref-progress-msg');
+      if (progressMsg) progressMsg.textContent = data.message || `Passo ${data.step}/${data.totalSteps}...`;
+
+      if (data.message && data.message.startsWith('Erro:')) {
+        throw new Error(data.message);
+      }
+      if (data.step === data.totalSteps && data.message && !data.message.startsWith('Erro')) {
+        statusDiv.innerHTML = `
+          <div style="text-align: center; padding: 2rem; background: rgba(34,197,94,0.1); border-radius: 12px; color: #22c55e;">
+            <div style="font-size: 3rem; margin-bottom: 0.5rem;">✅</div>
+            <p style="font-weight: 600; margin-bottom: 1rem;">${data.message}</p>
+            <button class="btn btn-primary" style="margin-top: 1rem;" onclick="loadDashboardStats(); navigateTo('review')">Ir para Revisão</button>
+          </div>
+        `;
+        return;
+      }
+    } catch (e) {
+      if (e.message && e.message.startsWith('Erro:')) throw e;
+    }
+  }
+}
+
 let isGenerating = false;
 
 async function generateContent(type) {
+  // Dispatch to reference handler if type is reference
+  if (type === 'reference') {
+    return generateFromReference();
+  }
+
   if (isGenerating) {
     showToast('Geração já em andamento...', 'warning');
     return;

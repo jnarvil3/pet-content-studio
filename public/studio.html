@@ -753,10 +753,11 @@
 
           <div style="margin-bottom: 2rem;">
             <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="create.content_type">Tipo de Conteúdo</label>
-            <div style="display: flex; gap: 1rem;">
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
               <button class="btn btn-secondary" id="create-carousel-btn">📱 Carrossel (5 slides)</button>
               <button class="btn btn-secondary" id="create-reel-btn">🎥 Reel (30-45s video)</button>
               <button class="btn btn-secondary" id="create-linkedin-btn">💼 LinkedIn</button>
+              <button class="btn btn-secondary" id="create-reference-btn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border-color: #f093fb;">🎨 Carrossel por Referência</button>
             </div>
             <div id="reel-audio-toggle" style="display:none; margin-top:0.75rem;">
               <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; margin-bottom:0.5rem;">
@@ -773,6 +774,34 @@
                   <span style="font-size:0.75rem; color:#666; margin-left:0.5rem;">Texto sobreposto em cada cena</span>
                 </div>
               </label>
+            </div>
+
+            <!-- Reference carousel options -->
+            <div id="reference-options" style="display:none; margin-top:1rem;">
+              <!-- Upload area -->
+              <div id="reference-upload-area" style="border: 2px dashed #d0d0d0; border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafafa; margin-bottom: 1rem;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">📷</div>
+                <p style="font-weight: 600; color: #555; margin-bottom: 0.25rem;">Arraste imagens aqui ou clique para selecionar</p>
+                <p style="font-size: 0.8rem; color: #999;">1-5 screenshots do carrossel de referência (PNG, JPG, max 5MB cada)</p>
+                <input type="file" id="reference-file-input" multiple accept="image/png,image/jpeg,image/webp" style="display:none;">
+              </div>
+              <div id="reference-thumbnails" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem;"></div>
+
+              <!-- Mode toggle -->
+              <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Modo</label>
+                <div style="display: flex; gap: 0.5rem;">
+                  <button id="ref-mode-clone" class="btn" style="flex:1; padding: 0.625rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: 2px solid #667eea; font-size: 0.875rem; font-weight: 600;">🔄 Clone</button>
+                  <button id="ref-mode-inspired" class="btn" style="flex:1; padding: 0.625rem; background: white; color: #666; border: 2px solid #e0e0e0; font-size: 0.875rem;">✨ Inspirado</button>
+                </div>
+                <p id="ref-mode-description" style="margin-top:0.5rem; font-size:0.85rem; color:#666;">Clone: mesma estrutura e fluxo, tópico/voz da sua marca</p>
+              </div>
+
+              <!-- Instructions -->
+              <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Instruções <span id="ref-instructions-hint" style="font-weight:400; color:#999; font-size:0.85rem;">(opcional para Clone)</span></label>
+                <textarea id="ref-instructions" placeholder="Ex: Sobre nutrição canina para a Namuh" style="width:100%; padding:0.75rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.875rem; min-height:80px; resize:vertical; box-sizing:border-box;"></textarea>
+              </div>
             </div>
           </div>
 
