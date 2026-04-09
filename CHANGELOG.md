@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-04-09 — Reference Carousel: Pipeline Simplification, Claude Caption Toggle, Tests
+
+### Pipeline Simplification (5 steps → 3)
+
+The original reference carousel pipeline had 5 steps: (1) Gemini vision analyzes screenshots → JSON description, (2) GPT-4o-mini generates slide text from JSON, (3) Gemini generates background images from text descriptions, (4) Puppeteer renders text on top of backgrounds, (5) save.
+
+**Why this was wrong:** Each step introduced data leakage. Gemini saw the reference images, described them in text, and then a separate Gemini call tried to recreate visuals from that text — losing color palette, composition, mood, and typography weight in the description→JSON→back-to-Gemini round-trip. The text generation step was also unnecessary because Gemini's image generation can render text directly on slides.
+
+**What replaced it:** 3 steps: (1) Gemini image gen receives the actual reference screenshots + prompt, generates complete finished slides with text baked in, (2) one cheap text call for Instagram caption + hashtags, (3) save. This eliminates the StyleAnalyzer, ContentWriter.generateFromReference, CarouselTemplate, ImageRenderer/Puppeteer, and PexelsService from the reference pipeline entirely. Faster (~30s vs ~2min), cheaper (no Pexels calls), and visually more faithful to the reference.
+
+### Claude Sonnet 4 Option for Reference Captions
+
+**Why:** The reference carousel was the only content type that always used GPT-4o-mini for text generation. Every other type (carousels, reels, LinkedIn) already respected the fast/premium AI toggle on the Create page. Users who selected "Premium" were silently getting budget-tier captions on reference carousels.
+
+**What changed:** The endpoint now reads `aiModel` from the request body and branches: Claude Sonnet 4 uses `@anthropic-ai/sdk` with markdown-fence stripping (Claude doesn't support `response_format: json_object`); GPT-4o-mini uses the existing OpenAI path. The UI confirmation dialog now shows the selected AI quality and cost. Default remains GPT-4o-mini for backward compatibility.
+
+### Tests Added
+
+**Why now:** The feature was shipped without tests to meet the deadline. Now that it's stable and being enhanced, tests lock down the contract before further changes.
+
+15 tests in `src/tests/reference-carousel.test.ts` covering:
+- AI model selection (valid values, defaults, model ID mapping)
+- Mode validation (clone/inspired, rejection of invalid modes)
+- Caption JSON parsing (OpenAI clean JSON, Claude markdown-fenced JSON, empty fields)
+- Gemini service availability detection (env var toggle)
+- `generateFromReference` method existence on GeminiImageService
+- Anthropic SDK importability
+- Content storage shape (carousel structure, source_url format, clone vs inspired distinction)
+
+### Files Changed
+
+- `src/server.ts` — Read `aiModel` from FormData, conditional Claude/OpenAI caption generation
+- `public/studio.js` — Append `selectedAIModel` to reference FormData, show AI quality in confirmation dialog
+- `src/services/gemini-image.ts` — Added `generateFromReference()` method (multimodal image input)
+- `src/tests/reference-carousel.test.ts` — **New file.** 15 tests
+- `package.json` — Added `test:reference` script
+
+---
+
 ## 2026-04-09 — Carrossel por Referência (Reference Carousel)
 
 Hugo's next requested feature: upload 1-5 screenshots of a carousel seen online and generate a new carousel based on it.

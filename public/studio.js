@@ -1199,7 +1199,8 @@ async function generateFromReference() {
   }
 
   const modeLabel = referenceMode === 'clone' ? '🔄 Clone' : '✨ Inspirado';
-  const confirmed = await showConfirm(`Gerar Carrossel por Referência?\n\nModo: ${modeLabel}\nImagens: ${referenceFiles.length}\nIsso vai consumir créditos da API.`, { okText: 'Gerar', cancelText: 'Cancelar' });
+  const aiQuality = selectedAIModel === 'claude-sonnet-4' ? 'Premium (~$0.20)' : 'Rápido (~$0.01)';
+  const confirmed = await showConfirm(`Gerar Carrossel por Referência?\n\nModo: ${modeLabel}\nImagens: ${referenceFiles.length}\nLegenda IA: ${aiQuality}\nIsso vai consumir créditos da API.`, { okText: 'Gerar', cancelText: 'Cancelar' });
   if (!confirmed) return;
 
   isGenerating = true;
@@ -1222,6 +1223,7 @@ async function generateFromReference() {
     referenceFiles.forEach(file => formData.append('images', file));
     formData.append('mode', referenceMode);
     formData.append('instructions', instructions);
+    formData.append('aiModel', selectedAIModel);
 
     const customTitle = document.getElementById('custom-topic-title').value.trim();
     if (customTitle) formData.append('title', customTitle);

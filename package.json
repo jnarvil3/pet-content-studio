@@ -17,6 +17,7 @@
     "test:viral": "vitest run src/tests/viral-pattern-integration.test.ts",
     "test:video-looping": "vitest run src/tests/video-looping.test.ts",
     "test:tiktok": "vitest run src/tests/tiktok-integration.test.ts",
+    "test:reference": "vitest run src/tests/reference-carousel.test.ts",
     "test:all": "vitest run src/tests/"
   },
   "keywords": [

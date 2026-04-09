@@ -1393,6 +1393,7 @@ app.post('/api/generate-from-reference', referenceUpload.array('images', 5), asy
 
     const instructions = req.body.instructions || '';
     const title = req.body.title || '';
+    const aiModel = (req.body.aiModel as 'claude-sonnet-4' | 'gpt-4o-mini') || 'gpt-4o-mini';
 
     // Prevent duplicate generation
     const genKey = `reference-${Date.now()}`;
@@ -1402,7 +1403,7 @@ app.post('/api/generate-from-reference', referenceUpload.array('images', 5), asy
     activeGenerations.add(genKey);
 
     const progressKey = `ref-${Date.now()}`;
-    progressMap.set(progressKey, { step: 1, totalSteps: 5, message: 'Analisando referência com IA...' });
+    progressMap.set(progressKey, { step: 1, totalSteps: 3, message: 'Gerando slides com IA...' });
 
     // Respond immediately
     res.json({ success: true, message: 'Gerando carrossel por referência...', progressKey });
@@ -1410,76 +1411,136 @@ app.post('/api/generate-from-reference', referenceUpload.array('images', 5), asy
     // Run pipeline in background
     (async () => {
       try {
-        const imagePaths = files.map(f => f.path);
+        const uploadedImages = files.map(f => f.path);
 
-        // Step 1: Analyze reference with Gemini vision
-        const { StyleAnalyzer } = await import('./services/style-analyzer');
-        const analyzer = new StyleAnalyzer();
-
-        if (!analyzer.isEnabled()) {
-          throw new Error('GOOGLE_AI_API_KEY não configurada — necessária para análise de referência');
+        const { GeminiImageService } = await import('./services/gemini-image');
+        const geminiImg = new GeminiImageService();
+        if (!geminiImg.isEnabled()) {
+          throw new Error('GOOGLE_AI_API_KEY não configurada — necessária para referência');
         }
 
-        progressMap.set(progressKey, { step: 1, totalSteps: 5, message: `Analisando ${files.length} imagem(ns) com Gemini...` });
-        const analysis = await analyzer.analyze(imagePaths);
-
-        // Step 2: Generate content with ContentWriter
-        progressMap.set(progressKey, { step: 2, totalSteps: 5, message: `Gerando texto (${mode === 'clone' ? 'Clone' : 'Inspirado'})...` });
-        const { ContentWriter } = await import('./generators/content-writer');
         const { getBrandConfig } = await import('./config/brand-config');
         const brand = getBrandConfig();
-        const writer = new ContentWriter();
-        const carouselContent = await writer.generateFromReference(analysis, brand, mode, instructions, title);
 
-        // Step 3: Fetch background photos
-        progressMap.set(progressKey, { step: 3, totalSteps: 5, message: 'Buscando imagens de fundo...' });
-        const { PexelsService } = await import('./services/pexels-service');
-        const pexels = new PexelsService();
-        const backgroundUrls = await Promise.all(
-          carouselContent.slides.map(async (slide) => {
-            if (slide.pexelsSearchQuery && pexels.isEnabled()) {
-              const photos = await pexels.searchPhotos(slide.pexelsSearchQuery, 1);
-              return photos.length > 0 ? pexels.getBestPhotoUrl(photos[0]) : undefined;
-            }
-            return undefined;
-          })
-        );
+        // Determine slide count from reference images
+        const slideCount = Math.max(uploadedImages.length, 5);
+        const modeLabel = mode === 'clone' ? 'Clone' : 'Inspirado';
 
-        // Step 4: Render slides
-        progressMap.set(progressKey, { step: 4, totalSteps: 5, message: 'Renderizando slides...' });
-        const { CarouselTemplate } = await import('./templates/carousel-template');
-        const { ImageRenderer } = await import('./renderers/image-renderer');
+        const modeDirective = mode === 'clone'
+          ? `CLONE MODE: Generate a slide that closely replicates the structure, layout style, text placement, and visual approach of the reference. Same type of content, same visual weight. Swap in the new topic/brand but keep the design DNA identical.`
+          : `INSPIRADO MODE: Use the reference as creative direction and visual inspiration. You have freedom to adapt the style. User instructions: "${instructions || 'Create something similar but adapted'}"`;
 
-        const template = new CarouselTemplate(brand);
-        const htmlSlides = carouselContent.slides.map((slide, index) =>
-          template.generateSlideHTML(slide, carouselContent.slides.length, backgroundUrls[index])
-        );
+        const brandDirective = `Brand: "${brand.name}" (${brand.handle}). Colors: primary ${brand.colors.primary}, secondary ${brand.colors.secondary}. Apply the brand colors subtly.`;
 
-        const renderer = new ImageRenderer();
-        await renderer.initialize();
+        // Step 1: Generate complete slide images with Gemini
+        const carouselDir = path.join(process.cwd(), 'data', 'output', 'carousels', `reference-${Date.now()}`);
+        const carouselImages: string[] = [];
 
-        try {
-          const carouselDir = path.join(process.cwd(), 'data', 'output', 'carousels', `reference-${Date.now()}`);
-          const carouselImages = await renderer.renderSlides(htmlSlides, carouselDir, 'ref-carousel');
+        for (let i = 0; i < slideCount; i++) {
+          progressMap.set(progressKey, { step: 1, totalSteps: 3, message: `Gerando slide ${i + 1}/${slideCount} (${modeLabel})...` });
 
-          // Step 5: Save to content storage
-          progressMap.set(progressKey, { step: 5, totalSteps: 5, message: 'Salvando...' });
-          const content = {
-            signal_id: 0,
-            content_type: 'carousel' as const,
-            status: 'pending' as const,
-            carousel_content: carouselContent,
-            carousel_images: carouselImages,
-            source_url: `reference:${mode}`,
-            generated_at: new Date().toISOString()
-          };
-          contentStorage.save(content);
+          // Send the matching reference image (or all if fewer refs than slides)
+          const refImages = i < uploadedImages.length ? [uploadedImages[i]] : uploadedImages;
 
-          progressMap.set(progressKey, { step: 5, totalSteps: 5, message: `Carrossel ${mode === 'clone' ? 'Clone' : 'Inspirado'} pronto!` });
-          console.log(`[Server] ✅ Reference carousel (${mode}) saved with ${carouselImages.length} slides`);
-        } finally {
-          await renderer.close();
+          const slidePrompt = `Generate a complete Instagram carousel slide image (1080x1350 portrait).
+
+${modeDirective}
+
+${brandDirective}
+
+Slide ${i + 1} of ${slideCount}:
+${i === 0 ? `This is the HOOK slide — the scroll-stopper. ${title ? `Topic: "${title}".` : ''} ${instructions ? `Context: "${instructions}".` : ''} Bold, attention-grabbing text that makes someone stop scrolling.` : ''}
+${i === slideCount - 1 ? `This is the CTA slide. Include the brand handle "${brand.handle}" prominently. Add a call-to-action like "Salve este post" or "Siga para mais dicas".` : ''}
+${i > 0 && i < slideCount - 1 ? `This is a content slide (${i === 1 ? 'problem/setup' : i === 2 ? 'key insight with a data point' : 'actionable tip'}). ${title ? `Topic: "${title}".` : ''} ${instructions ? `Context: "${instructions}".` : ''}` : ''}
+
+IMPORTANT:
+- Write all text in Brazilian Portuguese (PT-BR)
+- Include readable text ON the slide — this is the final image, not a background
+- Match the visual style, typography weight, color mood, and composition of the reference image(s)
+- The slide should look like a professional Instagram carousel slide ready to publish`;
+
+          try {
+            const imgPath = await geminiImg.generateFromReference(slidePrompt, refImages, path.join(carouselDir, `ref-carousel-${i + 1}.png`));
+            carouselImages.push(imgPath);
+          } catch (err: any) {
+            console.log(`[Server] ⚠️ Gemini slide ${i + 1} failed: ${err.message}`);
+          }
         }
+
+        if (carouselImages.length === 0) {
+          throw new Error('Nenhum slide foi gerado — Gemini não retornou imagens');
+        }
+
+        // Step 2: Generate caption + hashtags
+        const captionModel = aiModel === 'claude-sonnet-4' ? 'Claude Sonnet 4' : 'GPT-4o-mini';
+        progressMap.set(progressKey, { step: 2, totalSteps: 3, message: `Gerando legenda com ${captionModel}...` });
+
+        const captionPrompt = `Generate an Instagram caption and hashtags for a ${slideCount}-slide carousel about: "${title || instructions || 'pet care'}". Brand: ${brand.name} (${brand.handle}). Write in Brazilian Portuguese. Return ONLY valid JSON (no markdown fences): { "caption": "...", "hashtags": ["tag1", "tag2", "tag3", "tag4", "tag5"] }. Caption: 50-120 words, start with question or bold statement. 5 hashtags in Portuguese.`;
+
+        let caption = '';
+        let hashtags: string[] = [];
+        try {
+          if (aiModel === 'claude-sonnet-4') {
+            const Anthropic = (await import('@anthropic-ai/sdk')).default;
+            const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+            const captionResp = await anthropic.messages.create({
+              model: 'claude-sonnet-4-20250514',
+              max_tokens: 500,
+              messages: [{ role: 'user', content: captionPrompt }]
+            });
+            const textContent = captionResp.content.find(block => block.type === 'text');
+            if (!textContent || textContent.type !== 'text') throw new Error('No text in Claude response');
+            const cleaned = textContent.text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+            const parsed = JSON.parse(cleaned);
+            caption = parsed.caption || '';
+            hashtags = parsed.hashtags || [];
+          } else {
+            const OpenAI = (await import('openai')).default;
+            const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+            const captionResp = await openai.chat.completions.create({
+              model: 'gpt-4o-mini',
+              max_tokens: 500,
+              response_format: { type: 'json_object' },
+              messages: [{ role: 'user', content: captionPrompt }]
+            });
+            const parsed = JSON.parse(captionResp.choices[0].message.content || '{}');
+            caption = parsed.caption || '';
+            hashtags = parsed.hashtags || [];
+          }
+          console.log(`[Server] ✅ Caption generated with ${captionModel}`);
+        } catch (err: any) {
+          console.log(`[Server] ⚠️ Caption generation failed (${captionModel}): ${err.message}`);
+          caption = `${title || instructions || ''} ${brand.handle}`;
+          hashtags = ['pet', 'dicaspet', 'cachorro', 'petlovers', 'petcare'];
+        }
+
+        // Step 3: Save to content storage
+        progressMap.set(progressKey, { step: 3, totalSteps: 3, message: 'Salvando...' });
+        const content = {
+          signal_id: 0,
+          content_type: 'carousel' as const,
+          status: 'pending' as const,
+          carousel_content: {
+            slides: carouselImages.map((_, i) => ({
+              slideNumber: i + 1,
+              title: i === 0 ? (title || 'Reference carousel') : `Slide ${i + 1}`,
+              body: null,
+              stat: null,
+              pexelsSearchQuery: '',
+              layoutHint: (i === 0 ? 'hook' : i === carouselImages.length - 1 ? 'cta' : 'content') as 'hook' | 'problem' | 'insight' | 'tip' | 'cta'
+            })),
+            caption,
+            hashtags,
+            hookFormula: 'curiosity_gap' as const
+          },
+          carousel_images: carouselImages,
+          source_url: `reference:${mode}`,
+          generated_at: new Date().toISOString()
+        };
+        contentStorage.save(content);
+
+        progressMap.set(progressKey, { step: 3, totalSteps: 3, message: `Carrossel ${modeLabel} pronto! (${carouselImages.length} slides)` });
+        console.log(`[Server] ✅ Reference carousel (${mode}) saved with ${carouselImages.length} slides`);
 
         // Clean up uploaded files
         for (const file of files) {
